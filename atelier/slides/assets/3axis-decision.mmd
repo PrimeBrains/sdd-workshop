@@ -1,0 +1,8 @@
+flowchart TB
+    Q{"どれか1軸でも閾値を超えるか？"}
+    Q -->|"作業期間 > 1週間"| Y["新規スペックを起こす"]
+    Q -->|"協働: 複数人 / 複数エージェント"| Y
+    Q -->|"本番運用・長期保守"| Y
+    Q -->|"すべて閾値以下"| N["新規スペック不要\n（既存スペックの更新は必須）"]
+    style Y fill:#e74c3c,color:#fff,stroke:none
+    style N fill:#27ae60,color:#fff,stroke:none

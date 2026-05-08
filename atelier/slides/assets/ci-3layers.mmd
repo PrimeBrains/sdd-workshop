@@ -1,0 +1,8 @@
+graph TD
+    L1["🔒 層1: スペックファイル存在チェック\nスクリプト — 完全決定論的 — 強制ゲート化可"]
+    L2["⚡ 層2: EARS → Property-based Testing\n準決定論的（構文解析は確定、property化に解釈が入る）"]
+    L3["💬 層3: LLM advisory（/kiro-validate-impl）\n非決定論的 — 承認ゲート組み込みで実効カバレッジを確保"]
+    L1 --> L2 --> L3
+    style L1 fill:#27ae60,color:#fff,stroke:none
+    style L2 fill:#f39c12,color:#fff,stroke:none
+    style L3 fill:#e74c3c,color:#fff,stroke:none
