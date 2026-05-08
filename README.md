@@ -49,20 +49,21 @@ claude --version
 
 ## モジュール構成（予定）
 
-| # | タイトル | 形式 | 時間 |
-|---|----------|------|------|
-| 0 | イントロダクション | 講義 | 15分 |
-| 1 | なぜ仕様駆動開発か | 講義 | 30分 |
-| 2 | cc-sdd ワークフロー全体像 | 講義 | 30分 |
-| 3 | ハンズオン: Forward flow（新規機能） | 実習 | 60分 |
-| 4 | ハンズオン: Backward flow（既存改修） | 実習 | 30分 |
-| 5 | ハンズオン: ステアリング強化 | 実習 | 30分 |
-| 6 | ハンズオン: 仕様変更と保守 | 実習 | 40分 |
-| 7 | ハンズオン: テスト・レビュー実践 | 実習 | 40分 |
-| 8 | チーム運用 | 講義+ディスカッション | 40分 |
-| 9 | まとめ・Q&A | — | 15分 |
+| # | タイトル | 形式 | 時間 | スキル |
+|---|----------|------|------|--------|
+| 0 | イントロダクション | 講義 | 15分 | — |
+| 1 | なぜ仕様駆動開発か | 講義 | 30分 | — |
+| 2 | cc-sdd ワークフロー全体像 | 講義 | 30分 | — |
+| 3 | ハンズオン: Forward flow（新規機能） | 実習 | 60分 | `kiro-discovery` → `kiro-spec-init` → `kiro-spec-requirements` → `kiro-spec-design` → `kiro-validate-design` → `kiro-spec-tasks` → `kiro-impl` |
+| 4 | ハンズオン: Backward flow（既存改修） | 実習 | 30分 | `kiro-validate-gap` → `kiro-spec-design` → `kiro-spec-tasks` → `kiro-impl` |
+| 5 | ハンズオン: ステアリング強化 | 実習 | 30分 | `kiro-steering` / `kiro-steering-custom` <!-- TODO: アーキテクチャ詳細設計（クラス図・レイヤー責務）をステアリングに組み込む手法を題材にする。参考: MG_API-feature-2298/.claude/commands/analysis/design-architecture.md --> |
+| 6 | ハンズオン: 仕様変更と保守 | 実習 | 40分 | `kiro-validate-gap` / `kiro-debug` |
+| 7 | ハンズオン: テスト・レビュー実践 | 実習 | 40分 | `kiro-review` / `kiro-validate-impl` / `kiro-verify-completion` |
+| 8 | ハンズオン: 大規模並列開発 | 実習 | 30分 | `kiro-spec-batch` <!-- TODO: 複数機能を並列スペック化→実装するフロー。チーム開発・大規模機能追加のユースケース --> |
+| 9 | チーム運用 | 講義+ディスカッション | 40分 | — |
+| 10 | まとめ・Q&A | — | 15分 | — |
 
-**合計: 約5時間40分**（前半/後半の分割開催も可）
+**合計: 約6時間10分**（前半/後半の分割開催も可）
 
 ---
 
