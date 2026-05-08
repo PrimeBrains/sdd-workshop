@@ -1,23 +1,11 @@
 ---
-marp: true
 theme: default
-paginate: true
-style: |
-  section {
-    font-family: 'Noto Sans JP', 'Hiragino Kaku Gothic ProN', sans-serif;
-    font-size: 28px;
-  }
-  blockquote {
-    border-left: 4px solid #4a90d9;
-    background: #f0f7ff;
-    padding: 0.5em 1em;
-    font-style: normal;
-  }
-  table {
-    font-size: 22px;
-  }
-  h1 { color: #2c3e50; }
-  h2 { color: #2980b9; border-bottom: 2px solid #2980b9; }
+highlighter: shiki
+lineNumbers: false
+drawings:
+  persist: false
+fonts:
+  sans: Noto Sans JP
 ---
 
 # なぜ仕様駆動開発か

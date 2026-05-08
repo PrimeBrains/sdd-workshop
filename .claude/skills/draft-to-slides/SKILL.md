@@ -1,8 +1,8 @@
 ---
 name: draft-to-slides
 description: >
-  atelier/drafts/{topic}.md を読み込み、Marp 形式の Markdown プレゼンテーション
-  （atelier/slides/{topic}.md）を生成する。
+  atelier/drafts/{topic}.md を読み込み、Slidev 形式の Markdown プレゼンテーション
+  （atelier/slides/{topic}.md）を生成する。Mermaid 図をネイティブに描画できる。
   「発表資料を作って」「スライドにして」「ドラフトをプレゼン化」「スライド化したい」
   「発表用の md を作りたい」「Module X のスライドを出して」などのフレーズで積極的に起動する。
   dialogue-session → atelier-draft の後に自然な続きとして呼び出すことも多い。
@@ -10,8 +10,11 @@ description: >
 
 # Draft to Slides
 
-`atelier/drafts/{topic}.md` を Marp 形式の Markdown プレゼンテーションに変換する。
+`atelier/drafts/{topic}.md` を **Slidev** 形式の Markdown プレゼンテーションに変換する。
 「1スライド = 1主張」を原則とし、視覚的な素材は Mermaid 図に変換する。
+
+> **ツール選択の理由**: Marp は Mermaid を標準でレンダリングしないため、
+> Mermaid をネイティブサポートする Slidev を使用する。
 
 ## 1. 入力の特定
 
@@ -143,41 +146,31 @@ flowchart LR
 - **演習スライドは「問い」を1文で**: 参加者が自分で判断できる問いにする
 - **まとめスライドはドラフトの「一文まとめ」を使う**: 新たに作らない
 
-## 7. Marp フロントマター（ファイル冒頭に付ける）
+## 7. Slidev フロントマター（ファイル冒頭に付ける）
 
 ```yaml
 ---
-marp: true
 theme: default
-paginate: true
-style: |
-  section {
-    font-family: 'Noto Sans JP', 'Hiragino Kaku Gothic ProN', sans-serif;
-    font-size: 28px;
-  }
-  blockquote {
-    border-left: 4px solid #4a90d9;
-    background: #f0f7ff;
-    padding: 0.5em 1em;
-    font-style: normal;
-  }
-  table {
-    font-size: 22px;
-  }
-  h1 { color: #2c3e50; }
-  h2 { color: #2980b9; border-bottom: 2px solid #2980b9; }
+highlighter: shiki
+lineNumbers: false
+drawings:
+  persist: false
+fonts:
+  sans: Noto Sans JP
 ---
 ```
 
 ## 8. スライドテンプレート（最初の3枚）
 
+Slidev では最初の `---` ブロックがグローバル設定、以降の `---` がスライド区切りになる。
+
 ```markdown
 ---
-marp: true
 theme: default
-paginate: true
-style: |
-  ...（上記フロントマターを使用）
+highlighter: shiki
+lineNumbers: false
+fonts:
+  sans: Noto Sans JP
 ---
 
 # {トピック名（日本語）}
@@ -201,6 +194,16 @@ style: |
 | `requirements.md` | **WHAT** | ユーザーストーリーと受け入れ基準（EARS形式） |
 | `design.md` | **HOW** | 技術アーキテクチャとトレードオフの記録 |
 | `tasks.md` | **ORDER** | 実行可能なタスクの詳細計画 |
+
+---
+
+## SDD とは
+
+```mermaid
+flowchart LR
+    R["📋 Requirements"] -->|人間承認| D["🔧 Design"]
+    ...
+```
 ```
 
 ## 9. 完了後の報告
@@ -209,7 +212,16 @@ style: |
 
 - ファイルパス: `atelier/slides/{topic}.md`
 - スライド枚数と構成概要（タイトル一覧）
-- プレビュー方法:
-  - VS Code: Marp for VS Code 拡張でリアルタイムプレビュー
-  - CLI: `npx @marp-team/marp-cli atelier/slides/{topic}.md --preview`
-  - PDF出力: `npx @marp-team/marp-cli atelier/slides/{topic}.md --pdf`
+- 起動・出力方法:
+  - 開発サーバー: `echo "y" | npx @slidev/cli@0.49 atelier/slides/{topic}.md`
+  - PDF出力: `echo "y" | npx @slidev/cli@0.49 export atelier/slides/{topic}.md --format pdf --output atelier/slides/{topic}.pdf`
+  - PNG出力: `echo "y" | npx @slidev/cli@0.49 export atelier/slides/{topic}.md --format png`
+
+## 10. 環境メモ（Node.js バージョン制約）
+
+- **Slidev v0.50+ は Node.js v22 以上が必要**。Node v21 以下の環境では `@slidev/cli@0.49` を使う
+- PDF エクスポートには `playwright-chromium` が必要。未インストールの場合は先に実行:
+  ```bash
+  npm i -D playwright-chromium
+  ```
+- `echo "y"` のパイプは Slidev がテーマインストールを対話的に確認するため必要
