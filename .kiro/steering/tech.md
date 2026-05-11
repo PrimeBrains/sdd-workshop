@@ -35,8 +35,15 @@
 - `services/` 層の関数は純粋関数（副作用なし）を原則とし、単体テストを容易にする
 
 ### Testing
-- EVM 計算エンジン（`services/evm-engine.ts`）は境界値・エラーケースを含む単体テスト必須
-- Vitest を使用
+
+| レイヤー | ツール | 対象 |
+|---------|------|------|
+| サーバー単体テスト | Vitest 4 | EVM 計算エンジン（`services/evm-engine.ts`）の境界値・エラーケース ← **必須** |
+| E2E テスト | Playwright | WBS インポート → 進捗入力 → ダッシュボード確認の主要フロー |
+| コンポーネントテスト | 不採用 | ROI が低いため実施しない |
+
+- E2E テストは `e2e/` ディレクトリに配置（`client/` の外）
+- `npm test` でサーバー単体テスト、`npm run test:e2e` で Playwright E2E を実行
 
 ### Security
 

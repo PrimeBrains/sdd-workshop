@@ -24,12 +24,28 @@ TCPI = (BAC - EV) / (BAC - AC)  # 残作業の必要効率
 ```
 
 ### PV の算出方法
-タスクの計画工数を担当者の稼働率と休日を考慮して日次に配賦し、累積する。
+fill-to-capacity ビンパッキングモデル（WBS-CMN-013）に基づく。
+各稼働日に `min(残余キャパシティ, 残り工数)` を消化する連続割り当て方式。
 
 ```
-日次 PV = タスク計画工数 × (担当者稼働率 / タスク期間営業日数)
-累積 PV = Σ(基準日までの日次 PV)
+タスク PV (基準日時点):
+  - 基準日 < planned_start  → PV = 0
+  - 基準日 >= planned_end   → PV = estimate_days
+  - planned_start ≤ 基準日 < planned_end:
+      N = planned_start から基準日までの稼働日数（休日除外）
+      PV = min(N × availability_rate, estimate_days)
+
+累積 PV = Σ(全タスクのタスク PV)  ← is_buffer=true のタスクは除外
 ```
+
+**按分方式との違い**:
+- 按分: `PV = estimate_days × (N / 全稼働日数)`
+- ビンパッキング: `PV = min(N × availability_rate, estimate_days)`
+- 例 (E=2.0, R=0.9, 全稼働日=3日): 2日目 → 按分 1.33 / ビンパッキング 1.80
+
+**日次 PV**（per working day d）:
+- `daily_PV(d) = min(availability_rate, remaining_workload_at_d)`
+- 最終日は余剰 = `estimate_days mod availability_rate`（端数の日）
 
 ### EV の算出方法
 ```
