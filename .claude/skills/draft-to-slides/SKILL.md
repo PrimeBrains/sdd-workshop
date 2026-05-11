@@ -124,7 +124,7 @@ graph TD
 
 ```mermaid
 flowchart LR
-    B["🏕️ ボーイスカウット<br/>触った箇所から仕様を書く"] --> S["🌱 ストラングラーフィグ<br/>新機能は SDD 必須にする"]
+    B["🏕️ ボーイスカウト<br/>触った箇所から仕様を書く"] --> S["🌱 ストラングラーフィグ<br/>新機能は SDD 必須にする"]
     S --> R["🤖 AI 逆生成<br/>既存コードから仕様を生成"]
     style B fill:#4a90d9,color:#fff,stroke:none
     style S fill:#9b59b6,color:#fff,stroke:none
