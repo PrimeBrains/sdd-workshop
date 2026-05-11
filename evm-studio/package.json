@@ -1,0 +1,15 @@
+{
+  "name": "evm-studio",
+  "private": true,
+  "scripts": {
+    "start": "concurrently -n server,client -c blue,green \"npm run dev:server\" \"npm run dev:client\"",
+    "dev:server": "npm --prefix server run dev",
+    "dev:client": "npm --prefix client run dev",
+    "test": "npm --prefix server run test",
+    "test:e2e": "playwright test"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1",
+    "@playwright/test": "^1.49.0"
+  }
+}
