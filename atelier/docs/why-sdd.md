@@ -11,11 +11,11 @@
 
 仕様とは、フィーチャーやバグ修正の開発プロセスを形式化するための**構造化された成果物**だ。すべての仕様は 3 つのファイルで構成される。
 
-| ファイル | 問い | 役割（公式定義） |
-|---------|------|----------------|
-| `requirements.md` | **WHAT** — 何を満たすか | "Captures user stories, acceptance criteria, or bug analysis in structured notation" |
-| `design.md` | **HOW** — どう作るか | "Documents technical architecture, sequence diagrams, and implementation considerations" |
-| `tasks.md` | **ORDER** — どの順で | "Provides a detailed implementation plan with discrete, trackable tasks" |
+| ファイル | 問い | 役割（公式定義） | 日本語訳 |
+|---------|------|----------------|---------|
+| `requirements.md` | **WHAT** — 何を満たすか | "Captures user stories, acceptance criteria, or bug analysis in structured notation" | ユーザーストーリー・受け入れ基準・バグ分析を構造化された記法で記述する |
+| `design.md` | **HOW** — どう作るか | "Documents technical architecture, sequence diagrams, and implementation considerations" | 技術アーキテクチャ・シーケンス図・実装上の考慮事項を文書化する |
+| `tasks.md` | **ORDER** — どの順で | "Provides a detailed implementation plan with discrete, trackable tasks" | 個別の追跡可能なタスクとして詳細な実装計画を提供する |
 
 **EARS（Easy Approach to Requirements Syntax）** とは `WHEN {条件} THE SYSTEM SHALL {振る舞い}` の構文で要件を記述する形式だ。公式ドキュメントは EARS を *"unambiguous and easy to understand"* かつ *"directly translatable into test cases"* と位置づけている。主体・条件・動作を明示することで AI の解釈ブレを防ぐが、EARS の真の価値は「誤解を消す構文」ではなく「誤解を可視化して検証しやすくする構文制約」にある。
 
