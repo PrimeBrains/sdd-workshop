@@ -130,18 +130,25 @@ SDD の品質を担保する観点は 4 つに分解できる。
 
 ```mermaid
 quadrantChart
-    title 品質担保の4象限
+    title Quality Assurance Quadrants
     x-axis Non-deterministic --> Deterministic
     y-axis Ad-hoc --> Mandatory
     quadrant-1 Enforced Gate
     quadrant-2 Mandatory Advisory
     quadrant-3 Reference
     quadrant-4 Automated
-    存在確認①: [0.88, 0.9]
-    動作確認④: [0.88, 0.78]
-    整合性③: [0.3, 0.82]
-    正しさ②: [0.18, 0.42]
+    Spec-exists: [0.88, 0.9]
+    Code-runs: [0.88, 0.78]
+    Consistency: [0.3, 0.82]
+    Correctness: [0.18, 0.42]
 ```
+
+| ラベル | 日本語 | 象限 |
+|--------|--------|------|
+| Spec-exists | ① 存在確認 | Enforced Gate（強制ゲート）|
+| Code-runs | ④ 動作確認 | Enforced Gate（強制ゲート）|
+| Consistency | ③ 整合性 | Mandatory Advisory（義務的 advisory）|
+| Correctness | ② 正しさ | Reference（参考情報）|
 
 重要な気づきは、「判定の決定論性」と「実行の義務化」は別軸だということだ。コードレビューも決定論的ではないが、「PR マージ前必須」というゲートで機能する。`/kiro-validate-impl` も同様に、承認ゲートに組み込むことで非決定論的な advisory でも実効的なカバレッジが得られる。
 
