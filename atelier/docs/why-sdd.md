@@ -9,7 +9,7 @@
 > "Specs or specifications are structured artifacts that formalize the development process for features and bug fixes in your application."
 > — [Kiro Docs: Specs](https://kiro.dev/docs/specs/)
 
-仕様は「高レベルのアイデアを詳細な実装計画へ変換し、明確なトレーサビリティと進捗管理を実現するための体系的なアプローチ」だ。すべての仕様は 3 つのファイルで構成される。
+仕様とは、フィーチャーやバグ修正の開発プロセスを形式化するための**構造化された成果物**だ。すべての仕様は 3 つのファイルで構成される。
 
 | ファイル | 問い | 役割（公式定義） |
 |---------|------|----------------|
