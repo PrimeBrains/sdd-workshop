@@ -38,6 +38,7 @@
 - `client/src/components/AssigneeTable.tsx` — 担当者別 EVM テーブル
 - `client/src/components/AlertBanner.tsx` — アラートバナー
 - `client/src/components/ProjectSummaryCards.tsx` — プロジェクトサマリーカード群
+- `client/src/components/GanttChart.tsx` — WBS ガントチャート（読み取り専用・将来書き込み拡張対応）
 - `client/src/hooks/useEvm.ts` — `evm.calculate` TanStack Query フック
 - `client/src/App.tsx` への `/dashboard` ルート追加（変更）
 
@@ -87,6 +88,7 @@ graph TB
         SpiTrendChart[SpiTrendChart]
         FeverChart[FeverChart]
         AssigneeTable[AssigneeTable]
+        GanttChart[GanttChart]
         useEvm[useEvm hook]
         TRPCClient[tRPC Client]
     end
@@ -112,6 +114,7 @@ graph TB
     DashboardPage --> SpiTrendChart
     DashboardPage --> FeverChart
     DashboardPage --> AssigneeTable
+    DashboardPage --> GanttChart
     DashboardPage --> useEvm
     useEvm --> TRPCClient
     TRPCClient -->|HTTP POST trpc| HonoApp
@@ -161,7 +164,8 @@ evm-studio/
         │   ├── ProjectSummaryCards.tsx  # 新規: サマリーカード群
         │   ├── SpiTrendChart.tsx        # 新規: SPI/CPI 折れ線チャート
         │   ├── FeverChart.tsx           # 新規: CCPM フィーバーチャート
-        │   └── AssigneeTable.tsx        # 新規: 担当者別 EVM テーブル
+        │   ├── AssigneeTable.tsx        # 新規: 担当者別 EVM テーブル
+        │   └── GanttChart.tsx           # 新規: WBS ガントチャート
         ├── hooks/
         │   └── useEvm.ts               # 新規: evm.calculate TanStack Query フック
         └── App.tsx                      # 変更: /dashboard ルート追加
@@ -220,6 +224,7 @@ sequenceDiagram
 | 7.1–7.3 | キャッシュ・パフォーマンス | useEvm | TanStack Query staleTime |
 | 8.1–8.5 | tRPC evm.calculate エンドポイント | EvmRouter | evm.calculate tRPC |
 | 9.1–9.3 | レスポンシブレイアウト | DashboardPage | TailwindCSS grid |
+| 10.1–10.8 | ガントチャートビュー | GanttChart | evm.calculate gantt[] |
 
 ---
 
@@ -237,6 +242,7 @@ sequenceDiagram
 | SpiTrendChart | UI | SPI/CPI 折れ線チャート | 4.1–4.5 | recharts, DashboardPage props | — |
 | FeverChart | UI | CCPM フィーバーチャート | 5.1–5.5 | recharts, DashboardPage props | — |
 | AssigneeTable | UI | 担当者別 EVM テーブル | 6.1–6.5 | DashboardPage props | — |
+| GanttChart | UI | WBS ガントチャート（タスクバー・進捗・稲妻線・SPI 色分け） | 10.1–10.8 | DashboardPage props | — |
 
 ---
 
@@ -327,6 +333,20 @@ export interface FeverChartOutput {
   zone:                    'GREEN' | 'YELLOW' | 'RED'
 }
 
+export interface GanttTaskOutput {
+  id:          number
+  name:        string
+  assigneeName: string | null
+  plannedStart: string            // ISO date
+  plannedEnd:   string            // ISO date
+  progressPct:  number            // 0–100
+  spi:          number | null
+  level:        number            // 階層深度（1=ルート）
+  sortOrder:    number
+  isBuffer:     boolean
+  isLeaf:       boolean
+}
+
 export interface EvmCalculateOutput {
   summary:    EvmSummaryOutput
   tasks:      TaskEvmMetrics[]        // evm-engine の TaskEvmMetrics
@@ -334,6 +354,7 @@ export interface EvmCalculateOutput {
   alerts:     AlertOutput[]
   feverChart: FeverChartOutput | null  // バッファタスクなし = null
   spiTrend:   SpiTrendPoint[]
+  gantt:      GanttTaskOutput[]       // ガントチャート表示用タスク一覧（sort_order 昇順）
 }
 
 // プロシージャ定義（概念）:
@@ -400,6 +421,7 @@ export function useEvmCalculate(
 3. プロジェクトサマリーカード群（summary）
 4. グリッド: SPI/CPI トレンドチャート + フィーバーチャート（lg: 2 カラム）
 5. 担当者別 EVM テーブル
+6. ガントチャート（gantt）
 
 **実装ノート**
 
@@ -514,6 +536,39 @@ interface AssigneeTableProps {
 
 ---
 
+#### GanttChart
+
+| フィールド | 詳細 |
+|-----------|------|
+| Intent | WBS タスクの計画期間・進捗・SPI 健全性をガントチャートで表示する（読み取り専用、将来書き込み拡張対応） |
+| Requirements | 10.1, 10.2, 10.3, 10.4, 10.5, 10.6, 10.7, 10.8 |
+
+```typescript
+// client/src/components/GanttChart.tsx
+
+interface GanttChartProps {
+  tasks:    GanttTaskOutput[]
+  baseDate: string                  // ISO date — 稲妻線の位置
+
+  // 将来の書き込み拡張用（未定義 = 読み取り専用モード）
+  onProgressUpdate?: (taskId: number, progressPct: number) => void
+  onTaskReschedule?: (taskId: number, start: string, end: string) => void
+}
+```
+
+**実装ノート**
+
+- 横軸タイムラインはプロジェクト内の最小 `plannedStart` ～最大 `plannedEnd` の範囲を自動計算する
+- タスクバーの塗りつぶし幅: `barWidth * (progressPct / 100)`（要件 10.2）
+- 稲妻線（thunder line）: `baseDate` がタイムライン範囲内の場合のみ表示する（要件 10.3）
+- SPI 色分け: `spi < 0.8` → `bg-red-500`、`0.8 ≤ spi < 0.9` → `bg-yellow-400`、それ以外 → `bg-blue-500`（要件 10.4）
+- バッファタスク（`isBuffer = true`）: `bg-gray-300 bg-stripes` またはハッチングパターンで描画し、通常タスクと視覚的に区別する（要件 10.7）
+- 階層インデント: `level * 12px` を左パディングとして適用する（要件 10.5）
+- `onProgressUpdate` / `onTaskReschedule` が `undefined` の場合、ドラッグ・クリック等の編集インタラクションを無効化する（要件 10.8）
+- recharts は使用しない（DOM + TailwindCSS で独自実装、または react-gantt 系ライブラリを検討）
+
+---
+
 ## データモデル
 
 本スペックは新規データモデルを定義しない。core-data-model が定義する以下のテーブルを読み取り専用で使用する。
@@ -523,7 +578,7 @@ interface AssigneeTableProps {
 | テーブル | 参照カラム | 用途 |
 |---------|-----------|------|
 | `projects` | `id`, `name`, `startDate`, `endDate` | プロジェクト一覧取得・バリデーション |
-| `tasks` | `id`, `name`, `estimateDays`, `plannedStart`, `plannedEnd`, `assigneeId`, `isBuffer`, `isLeaf` | EVM 計算入力 |
+| `tasks` | `id`, `name`, `estimateDays`, `plannedStart`, `plannedEnd`, `assigneeId`, `isBuffer`, `isLeaf`, `level`, `sortOrder` | EVM 計算入力・ガントチャート表示 |
 | `members` | `id`, `name`, `availabilityRate` | PV 計算・担当者名解決 |
 | `holidays` | `date` | 稼働日数計算 |
 | `progressSnapshots` | `taskId`, `snapshotDate`, `progressPct`, `acDays` | EV/AC 計算・SPI トレンド |
@@ -531,7 +586,7 @@ interface AssigneeTableProps {
 
 ### 出力型（本スペックが定義）
 
-`EvmSummaryOutput`, `AssigneeEvmOutput`, `AlertOutput`, `SpiTrendPoint`, `FeverChartOutput`, `EvmCalculateOutput` を `server/src/api/evm.ts` でエクスポートし、クライアントは tRPC の型推論で参照する。
+`EvmSummaryOutput`, `AssigneeEvmOutput`, `AlertOutput`, `SpiTrendPoint`, `FeverChartOutput`, `GanttTaskOutput`, `EvmCalculateOutput` を `server/src/api/evm.ts` でエクスポートし、クライアントは tRPC の型推論で参照する。
 
 ---
 
