@@ -1,7 +1,7 @@
 # 実装計画: evm-engine
 
 - [ ] 1. 基盤: エラーコード追加とテスト環境確認
-- [ ] 1.1 EVM エラーコードを codes.ts に追加する
+- [x] 1.1 EVM エラーコードを codes.ts に追加する
   - `server/src/errors/codes.ts` の `ErrorCode` オブジェクトに `EVM_INVALID_BASE_DATE`, `EVM_INVALID_AVAILABILITY_RATE`, `EVM_CIRCULAR_DEPENDENCY` を追加する
   - 文字列リテラルの直書きはせず、既存の `ErrorCode` パターンに従う
   - TypeScript コンパイルが通ることで追加コードが正しいことを確認できる
