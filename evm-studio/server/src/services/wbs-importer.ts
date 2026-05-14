@@ -25,9 +25,9 @@ import * as schema from '../db/schema.js'
 export interface ParsedTask {
   id: string
   title: string
-  estimate_days: number
-  planned_start: string
-  planned_end: string
+  estimate_days: number       // null は 0 として扱う
+  planned_start: string | null
+  planned_end: string | null
   parent_id?: string | null
   depends_on?: string[]
   assignee?: string | null
@@ -56,11 +56,18 @@ export interface ParsedStaffingYaml {
   }
 }
 
+export interface ParsedScheduleAssignment {
+  task_id: string
+  planned_start: string
+  planned_end: string
+}
+
 export interface ParsedScheduleYaml {
   meta: {
     schedule_start: string
     schedule_end: string
   }
+  assignments?: ParsedScheduleAssignment[]
 }
 
 // ─── Helper: safe YAML load ───────────────────────────────────────────────────
@@ -131,16 +138,15 @@ export function parseTasksYaml(yamlString: string): ParsedTasksYaml {
     const ctx = `tasks[${index}]`
     requireField(item, 'id', ctx)
     requireField(item, 'title', ctx)
-    requireField(item, 'estimate_days', ctx)
-    requireField(item, 'planned_start', ctx)
-    requireField(item, 'planned_end', ctx)
+    // estimate_days / planned_start / planned_end は null 許容
+    // （summary タスクや schedule 分離型 YAML では未設定が多い）
 
     return {
       id: String(item['id']),
       title: String(item['title']),
-      estimate_days: Number(item['estimate_days']),
-      planned_start: String(item['planned_start']),
-      planned_end: String(item['planned_end']),
+      estimate_days: item['estimate_days'] != null ? Number(item['estimate_days']) : 0,
+      planned_start: item['planned_start'] != null ? String(item['planned_start']) : null,
+      planned_end: item['planned_end'] != null ? String(item['planned_end']) : null,
       ...(item['parent_id'] !== undefined ? { parent_id: item['parent_id'] as string | null } : {}),
       ...(item['depends_on'] !== undefined ? { depends_on: item['depends_on'] as string[] } : {}),
       ...(item['assignee'] !== undefined ? { assignee: item['assignee'] as string | null } : {}),
@@ -245,11 +251,32 @@ export function parseScheduleYaml(yamlString: string): ParsedScheduleYaml {
   requireField(metaRaw, 'schedule_start', 'schedule.yaml meta')
   requireField(metaRaw, 'schedule_end', 'schedule.yaml meta')
 
+  let assignments: ParsedScheduleAssignment[] | undefined
+  if (Array.isArray(raw['assignments'])) {
+    assignments = (raw['assignments'] as unknown[]).map((item, index) => {
+      if (!isRecord(item)) {
+        throw new AppError(
+          ErrorCode.IMPORT_MISSING_FIELD,
+          `schedule.yaml assignments[${index}] はオブジェクトである必要があります。`
+        )
+      }
+      requireField(item, 'task_id', `schedule.yaml assignments[${index}]`)
+      requireField(item, 'planned_start', `schedule.yaml assignments[${index}]`)
+      requireField(item, 'planned_end', `schedule.yaml assignments[${index}]`)
+      return {
+        task_id: String(item['task_id']),
+        planned_start: String(item['planned_start']),
+        planned_end: String(item['planned_end']),
+      }
+    })
+  }
+
   return {
     meta: {
       schedule_start: String(metaRaw['schedule_start']),
       schedule_end: String(metaRaw['schedule_end']),
     },
+    ...(assignments !== undefined ? { assignments } : {}),
   }
 }
 
@@ -283,11 +310,12 @@ export interface ImportSummary {
  */
 function calcPvDays(
   importDate: string,
-  plannedStart: string,
-  plannedEnd: string,
+  plannedStart: string | null,
+  plannedEnd: string | null,
   estimateDays: number,
   availabilityRate: number,
 ): number {
+  if (!plannedStart || !plannedEnd) return 0
   if (importDate <= plannedStart) return 0
   if (importDate >= plannedEnd) return estimateDays
 
@@ -332,7 +360,7 @@ export function importWbsYaml(input: WbsImportInput): ImportSummary {
   // YAML パース（エラーはトランザクション外で throw — パースエラーは部分書き込みなし）
   const parsedTasks = parseTasksYaml(tasksYaml)
   const parsedStaffing = parseStaffingYaml(staffingYaml)
-  parseScheduleYaml(scheduleYaml) // 構造バリデーションのみ
+  const parsedSchedule = parseScheduleYaml(scheduleYaml)
 
   // インポート日時（snapshot_date に使用）
   const importDate = new Date().toISOString().slice(0, 10) // YYYY-MM-DD
@@ -397,6 +425,8 @@ export function importWbsYaml(input: WbsImportInput): ImportSummary {
 
     // ── 2. tasks upsert（第1パス: 基本フィールドのみ、parent_id は後で解決）─
     const taskIdMap = new Map<string, number>() // externalId → DB id
+    // planned 日付を追跡（assignments で上書きされる可能性がある）
+    const resolvedPlannedDates = new Map<string, { start: string | null; end: string | null }>()
 
     for (let i = 0; i < parsedTasks.tasks.length; i++) {
       const t = parsedTasks.tasks[i]!
@@ -426,6 +456,7 @@ export function importWbsYaml(input: WbsImportInput): ImportSummary {
           .where(eq(tasks.id, existing.id))
           .run()
         taskIdMap.set(t.id, existing.id)
+        resolvedPlannedDates.set(t.id, { start: t.planned_start, end: t.planned_end })
       } else {
         const inserted = dbInstance
           .insert(tasks)
@@ -447,6 +478,7 @@ export function importWbsYaml(input: WbsImportInput): ImportSummary {
           .get()
         if (inserted) {
           taskIdMap.set(t.id, inserted.id)
+          resolvedPlannedDates.set(t.id, { start: t.planned_start, end: t.planned_end })
           summary.tasks++
         }
       }
@@ -464,6 +496,30 @@ export function importWbsYaml(input: WbsImportInput): ImportSummary {
             .where(eq(tasks.id, dbId))
             .run()
         }
+      }
+    }
+
+    // ── 3.5. schedule assignments → tasks planned_start/end 上書き（第3パス）─
+    // schedule.yaml の assignments[] を使ってタスクの planned 日付を更新する (Req 6.12)
+    if (parsedSchedule.assignments) {
+      for (const assignment of parsedSchedule.assignments) {
+        const taskDbId = taskIdMap.get(assignment.task_id)
+        if (!taskDbId) continue // 対応タスクが存在しない場合は無視 (Req 6.12)
+
+        dbInstance
+          .update(tasks)
+          .set({
+            plannedStart: assignment.planned_start,
+            plannedEnd: assignment.planned_end,
+            updatedAt: new Date(),
+          })
+          .where(eq(tasks.id, taskDbId))
+          .run()
+
+        resolvedPlannedDates.set(assignment.task_id, {
+          start: assignment.planned_start,
+          end: assignment.planned_end,
+        })
       }
     }
 
@@ -534,13 +590,13 @@ export function importWbsYaml(input: WbsImportInput): ImportSummary {
         }
       }
 
-      const pvDays = calcPvDays(
-        importDate,
-        t.planned_start,
-        t.planned_end,
-        t.estimate_days,
-        availabilityRate,
-      )
+      // assignments で上書きされた可能性があるため resolvedPlannedDates を使用 (Req 6.12, 6.13)
+      const resolved = resolvedPlannedDates.get(t.id)
+      const plannedStart = resolved?.start ?? null
+      const plannedEnd = resolved?.end ?? null
+      const pvDays = (plannedStart && plannedEnd)
+        ? calcPvDays(importDate, plannedStart, plannedEnd, t.estimate_days, availabilityRate)
+        : 0
 
       // 同一 task_id + snapshot_date の既存スナップショットを確認（unique index）
       const existingSnap = dbInstance

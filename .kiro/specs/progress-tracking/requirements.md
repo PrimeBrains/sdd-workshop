@@ -13,11 +13,11 @@ EVM Studio のユーザー（プロジェクト管理者・担当者）が、タ
   - 指定日付のスナップショット一括取得
   - タスクごとの最新スナップショット取得（evm-engine 連携用）
   - 単一タスクのスナップショット履歴取得
-  - 日次入力フォーム UI（プロジェクト選択・日付選択・タスク一覧への入力）
+  - 進捗入力パネル UI（GanttFullscreen 内インラインパネル。単一タスクを対象にスナップショット日・進捗率・AC・メモを入力して保存）
 - **Out of scope**:
   - EVM メトリクス（PV/EV/SPI/CPI/EAC）の計算（evm-engine が担う）
   - 進捗グラフ・チャートの描画（dashboard が担う）
-  - レポート生成（reporting が担う）
+  - レポート生成
   - WBS YAML インポート時の初回スナップショット作成（core-data-model が担う）
 - **Adjacent expectations**:
   - `core-data-model` が `tasks` テーブルと `projects` テーブルを提供済みであること
@@ -91,28 +91,36 @@ EVM Studio のユーザー（プロジェクト管理者・担当者）が、タ
 3. The Progress Tracking Service shall include `id`, `task_id`, `snapshot_date`, `progress_pct`, `pv_days`, `ev_days`, `ac_days`, and `createdAt` in each snapshot item.
    *各スナップショットに `id`・`task_id`・`snapshot_date`・`progress_pct`・`pv_days`・`ev_days`・`ac_days`・`createdAt` を含める。*
 
-### Requirement 5: 日次進捗入力フォーム UI
+### Requirement 5: 進捗入力パネル UI（GanttFullscreen 内インラインパネル）
 
-**Objective:** プロジェクト担当者として、ブラウザ上でタスクの進捗と実績工数をワンアクションで入力・保存したい。そうすることで、毎日の進捗記録を素早く完了できる。
+**Objective:** プロジェクト担当者として、ガント全画面からタスクをクリックして進捗と実績工数を即座に入力・保存したい。そうすることで、毎日の進捗記録を WBS を見ながら素早く完了できる。
 
 #### Acceptance Criteria
 
-1. When the user opens the progress input page, the Progress Input UI shall display a project selection dropdown and a date selection field.
-   *ユーザーが進捗入力ページを開いたとき、プロジェクト選択ドロップダウンと日付選択フィールドを表示する。*
-2. When a project and date are selected, the Progress Input UI shall display the list of leaf tasks for the selected project, with an input field for `progress_pct` (integer 0–100) and `ac_days` (non-negative number) for each task.
-   *プロジェクトと日付が選択されたとき、選択されたプロジェクトのリーフタスク一覧を表示し、各タスクに `progress_pct`（0〜100 整数）と `ac_days`（0 以上の数値）の入力フィールドを表示する。*
-3. When the user clicks the "Save" button, the Progress Input UI shall submit snapshots for all entered tasks in bulk via `progress.record`.
-   *ユーザーが「保存」ボタンを押したとき、入力された全タスクのスナップショットを `progress.record` 経由で一括送信する。*
-4. When the save operation succeeds, the Progress Input UI shall display a success notification.
-   *保存が成功したとき、成功通知を表示する。*
-5. If an error occurs during saving, the Progress Input UI shall display an error message to the user.
-   *保存中にエラーが発生したとき、エラーメッセージをユーザーに表示する。*
-6. The Progress Input UI shall display a client-side validation error before submission if `progress_pct` is less than 0 or greater than 100.
-   *`progress_pct` が 0 未満または 100 超の場合、送信前にクライアントサイドでバリデーションエラーを表示する。*
-7. The Progress Input UI shall display a client-side validation error before submission if `ac_days` is a negative value.
-   *`ac_days` が負の値の場合、送信前にクライアントサイドでバリデーションエラーを表示する。*
-8. When the selected project has previously recorded snapshots, the Progress Input UI shall pre-populate the input fields with the existing values.
-   *選択されたプロジェクトに記録済みスナップショットが存在する場合、既存の値を入力フィールドの初期値として表示する。*
+1. When the user clicks a leaf task (non-buffer) in GanttFullscreen, the Progress Input UI shall open as an inline right-side panel within the GanttFullscreen overlay, without navigating away.
+   *GanttFullscreen でリーフタスク（バッファ以外）をクリックすると、ページ遷移なしに GanttFullscreen オーバーレイ内の右インラインパネルとして進捗入力 UI を開く。*
+2. The Progress Input UI shall display a snapshot date picker at the top of the panel, defaulting to today; when a past date is selected, the panel shall display a visual warning indicator.
+   *パネル上部にスナップショット日付ピッカーを表示し、デフォルトを今日とする。過去日付が選択された場合は視覚的な警告インジケーターを表示する。*
+3. The Progress Input UI shall display the task's ancestor breadcrumb (parent chain), task code, assignee name, planned start/end dates, and current status pill.
+   *進捗入力 UI はタスクの祖先パンくず（親チェーン）・タスクコード・担当者名・計画開始/終了日・現在のステータス Pill を表示する。*
+4. The Progress Input UI shall display a `progress_pct` input as both a range slider (step 5) and a numeric input (step 1, 0–100), kept in sync.
+   *`progress_pct` 入力をレンジスライダー（ステップ 5）と数値入力（ステップ 1、0〜100）の両方で表示し、連動させる。*
+5. The Progress Input UI shall display a progress bar that shows both the current `progress_pct` fill and a vertical "今日の計画 N%" marker indicating the planned position for the snapshot date; it shall also show the advance/delay diff (e.g., "+5% 先行" or "−3% 遅延").
+   *進捗バーに現在の `progress_pct` 塗りと、スナップショット日時点の計画進捗を示す縦マーカー「計画 N%」を重ねて表示し、先行/遅延差分（例: "+5% 先行"・"−3% 遅延"）も表示する。*
+6. The Progress Input UI shall display an `ac_days` input with a MD / h unit toggle (1 MD = 8 h), showing the previous cumulative AC, today's addition, and the new cumulative total.
+   *`ac_days` 入力に MD / h 単位トグル（1 MD = 8 h）を設け、前回累積 AC・本日追加分・新累積合計を表示する。*
+7. While the user is editing, the Progress Input UI shall display a live preview of the resulting EV, AC, and CPI values based on the current inputs.
+   *ユーザーが編集中、入力値に基づく EV・AC・CPI の計算結果をリアルタイムプレビューとして表示する。*
+8. The Progress Input UI shall include an optional free-text memo field.
+   *任意のフリーテキストメモ欄を設ける。*
+9. The Save button shall be disabled when no values have been changed from their initial state (dirty = false); when clicked in the dirty state, it shall call `progress.record` and close the panel on success.
+   *保存ボタンは初期状態から変更がない場合（dirty = false）は無効化する。dirty 状態でクリックすると `progress.record` を呼び出し、成功時にパネルを閉じる。*
+10. If an error occurs during saving, the Progress Input UI shall display an error message within the panel.
+    *保存中にエラーが発生した場合、パネル内にエラーメッセージを表示する。*
+11. The Progress Input UI shall display a client-side validation error if `progress_pct` is outside 0–100 or `ac_days` is negative.
+    *`progress_pct` が 0〜100 範囲外または `ac_days` が負の場合、クライアントサイドのバリデーションエラーを表示する。*
+12. When the panel opens, the Progress Input UI shall pre-populate inputs with the most recent recorded snapshot values for that task (if any).
+    *パネルが開いた際、そのタスクの最新スナップショット値（存在する場合）を初期値として入力欄に表示する。*
 
 ### Requirement 6: エラーハンドリングと型安全
 

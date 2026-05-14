@@ -121,21 +121,19 @@ tasks:
     )
   })
 
-  it('タスクに estimate_days が欠落している場合は AppError(IMPORT_MISSING_FIELD) を throw する', () => {
+  it('estimate_days が欠落/null の場合は 0 として取り込む（親タスク等の summary 行に対応）', () => {
     const yaml = `
 tasks:
   - id: "T001"
-    title: "タスク"
+    title: "親タスク"
     planned_start: "2026-01-05"
     planned_end: "2026-01-09"
 `
-    expect(() => parseTasksYaml(yaml)).toThrow(AppError)
-    expect(() => parseTasksYaml(yaml)).toThrow(
-      expect.objectContaining({ code: ErrorCode.IMPORT_MISSING_FIELD })
-    )
+    const result = parseTasksYaml(yaml)
+    expect(result.tasks[0]!.estimate_days).toBe(0)
   })
 
-  it('タスクに planned_start が欠落している場合は AppError(IMPORT_MISSING_FIELD) を throw する', () => {
+  it('planned_start が欠落/null の場合は null として取り込む（schedule 分離型 YAML に対応）', () => {
     const yaml = `
 tasks:
   - id: "T001"
@@ -143,13 +141,11 @@ tasks:
     estimate_days: 5
     planned_end: "2026-01-09"
 `
-    expect(() => parseTasksYaml(yaml)).toThrow(AppError)
-    expect(() => parseTasksYaml(yaml)).toThrow(
-      expect.objectContaining({ code: ErrorCode.IMPORT_MISSING_FIELD })
-    )
+    const result = parseTasksYaml(yaml)
+    expect(result.tasks[0]!.planned_start).toBeNull()
   })
 
-  it('タスクに planned_end が欠落している場合は AppError(IMPORT_MISSING_FIELD) を throw する', () => {
+  it('planned_end が欠落/null の場合は null として取り込む（schedule 分離型 YAML に対応）', () => {
     const yaml = `
 tasks:
   - id: "T001"
@@ -157,10 +153,8 @@ tasks:
     estimate_days: 5
     planned_start: "2026-01-05"
 `
-    expect(() => parseTasksYaml(yaml)).toThrow(AppError)
-    expect(() => parseTasksYaml(yaml)).toThrow(
-      expect.objectContaining({ code: ErrorCode.IMPORT_MISSING_FIELD })
-    )
+    const result = parseTasksYaml(yaml)
+    expect(result.tasks[0]!.planned_end).toBeNull()
   })
 
   it('YAML 構文エラーの場合は AppError(IMPORT_PARSE_ERROR) を throw する', () => {
@@ -290,6 +284,20 @@ meta:
   schedule_end: "2026-03-31"
 `
 
+  const scheduleYamlWithAssignments = `
+meta:
+  schedule_start: "2026-01-05"
+  schedule_end: "2026-03-31"
+assignments:
+  - task_id: "T001"
+    planned_start: "2026-01-05"
+    planned_end: "2026-01-09"
+  - task_id: "T002"
+    assignee_id: "M001"
+    planned_start: "2026-01-12"
+    planned_end: "2026-01-16"
+`
+
   it('正常な YAML が渡されたとき、meta.schedule_start と meta.schedule_end を持つオブジェクトを返す', () => {
     const result = parseScheduleYaml(validScheduleYaml)
     expect(result.meta.schedule_start).toBe('2026-01-05')
@@ -337,6 +345,28 @@ meta:
     expect(() => parseScheduleYaml(invalidYaml)).toThrow(
       expect.objectContaining({ code: ErrorCode.IMPORT_PARSE_ERROR })
     )
+  })
+
+  // ── Req 6.12: assignments[] のパース ─────────────────────────────────────
+  it('assignments[] を含む YAML をパースし assignments 配列を返す (Req 6.12)', () => {
+    const result = parseScheduleYaml(scheduleYamlWithAssignments)
+    expect(result.assignments).toBeDefined()
+    expect(result.assignments).toHaveLength(2)
+
+    const first = result.assignments![0]!
+    expect(first.task_id).toBe('T001')
+    expect(first.planned_start).toBe('2026-01-05')
+    expect(first.planned_end).toBe('2026-01-09')
+
+    const second = result.assignments![1]!
+    expect(second.task_id).toBe('T002')
+    expect(second.planned_start).toBe('2026-01-12')
+    expect(second.planned_end).toBe('2026-01-16')
+  })
+
+  it('assignments[] がない YAML でも正常にパースされ assignments は undefined (Req 6.12 後方互換)', () => {
+    const result = parseScheduleYaml(validScheduleYaml)
+    expect(result.assignments).toBeUndefined()
   })
 })
 
@@ -586,6 +616,187 @@ tasks:
       .from(schema.tasks)
       .where(eq(schema.tasks.projectId, projectId))
     expect(taskRows).toHaveLength(0)
+  })
+
+  // ── Req 6.11: estimate_days null → DB に 0 で保存 ─────────────────────────
+  it('estimate_days が null のタスクは estimateDays=0 で DB に保存される (Req 6.11)', async () => {
+    const tasksWithNullEstimate = `
+tasks:
+  - id: "T001"
+    title: "サマリータスク"
+`
+    importWbsYaml({
+      db,
+      projectId,
+      tasksYaml: tasksWithNullEstimate,
+      staffingYaml: STAFFING_YAML_BASIC,
+      scheduleYaml: SCHEDULE_YAML_BASIC,
+    })
+
+    const [task] = await db
+      .select()
+      .from(schema.tasks)
+      .where(eq(schema.tasks.externalId, 'T001'))
+    expect(task).toBeDefined()
+    expect(task!.estimateDays).toBe(0)
+  })
+
+  // ── Req 6.11: planned_start/end null → DB に null で保存 ──────────────────
+  it('planned_start/planned_end が null のタスクは DB に null で保存される (Req 6.11)', async () => {
+    const tasksWithNullDates = `
+tasks:
+  - id: "T001"
+    title: "スケジュール未設定タスク"
+    estimate_days: 5
+`
+    importWbsYaml({
+      db,
+      projectId,
+      tasksYaml: tasksWithNullDates,
+      staffingYaml: STAFFING_YAML_BASIC,
+      scheduleYaml: SCHEDULE_YAML_BASIC,
+    })
+
+    const [task] = await db
+      .select()
+      .from(schema.tasks)
+      .where(eq(schema.tasks.externalId, 'T001'))
+    expect(task).toBeDefined()
+    expect(task!.plannedStart).toBeNull()
+    expect(task!.plannedEnd).toBeNull()
+  })
+
+  // ── Req 6.12: schedule assignments → タスクの planned_start/end が更新される ─
+  it('schedule.assignments が設定されたタスクの planned_start/end が DB に反映される (Req 6.12)', async () => {
+    const tasksWithNullDates = `
+tasks:
+  - id: "T001"
+    title: "スケジュール未設定タスク"
+    estimate_days: 5
+`
+    const scheduleWithAssignments = `
+meta:
+  schedule_start: "2026-01-05"
+  schedule_end: "2026-03-31"
+assignments:
+  - task_id: "T001"
+    planned_start: "2026-01-05"
+    planned_end: "2026-01-09"
+`
+    importWbsYaml({
+      db,
+      projectId,
+      tasksYaml: tasksWithNullDates,
+      staffingYaml: STAFFING_YAML_BASIC,
+      scheduleYaml: scheduleWithAssignments,
+    })
+
+    const [task] = await db
+      .select()
+      .from(schema.tasks)
+      .where(eq(schema.tasks.externalId, 'T001'))
+    expect(task).toBeDefined()
+    expect(task!.plannedStart).toBe('2026-01-05')
+    expect(task!.plannedEnd).toBe('2026-01-09')
+  })
+
+  // ── Req 6.12: assignments に存在しない task_id は無視される ─────────────────
+  it('assignments の task_id がインポートされたタスクに存在しない場合は無視される (Req 6.12)', async () => {
+    const scheduleWithUnknownTask = `
+meta:
+  schedule_start: "2026-01-05"
+  schedule_end: "2026-03-31"
+assignments:
+  - task_id: "T999"
+    planned_start: "2026-01-05"
+    planned_end: "2026-01-09"
+`
+    expect(() =>
+      importWbsYaml({
+        db,
+        projectId,
+        tasksYaml: TASKS_YAML_BASIC,
+        staffingYaml: STAFFING_YAML_BASIC,
+        scheduleYaml: scheduleWithUnknownTask,
+      })
+    ).not.toThrow()
+  })
+
+  // ── Req 6.13: planned 日付 null のタスクのスナップショットは pvDays=0 ─────────
+  it('planned_start/end が null のタスクの ProgressSnapshot は pvDays=0 になる (Req 6.13)', async () => {
+    const tasksWithProgress = `
+tasks:
+  - id: "T001"
+    title: "進捗ありスケジュール未設定タスク"
+    estimate_days: 10
+    progress_pct: 50
+`
+    importWbsYaml({
+      db,
+      projectId,
+      tasksYaml: tasksWithProgress,
+      staffingYaml: STAFFING_YAML_BASIC,
+      scheduleYaml: SCHEDULE_YAML_BASIC,
+    })
+
+    const [task] = await db
+      .select()
+      .from(schema.tasks)
+      .where(eq(schema.tasks.externalId, 'T001'))
+    expect(task).toBeDefined()
+
+    const snaps = await db
+      .select()
+      .from(schema.progressSnapshots)
+      .where(eq(schema.progressSnapshots.taskId, task!.id))
+    expect(snaps).toHaveLength(1)
+    expect(snaps[0]!.pvDays).toBe(0)
+    // ev_days = 10 * 0.5 = 5
+    expect(snaps[0]!.evDays).toBeCloseTo(5, 5)
+  })
+
+  // ── Req 6.12 + 6.13: assignments で planned 日付設定後のスナップショット pvDays ─
+  it('assignments で planned 日付が設定されたタスクのスナップショットで pvDays が計算される', async () => {
+    const tasksWithProgress = `
+tasks:
+  - id: "T001"
+    title: "進捗ありタスク"
+    estimate_days: 10
+    progress_pct: 50
+`
+    const scheduleInFuture = `
+meta:
+  schedule_start: "2030-01-05"
+  schedule_end: "2030-03-31"
+assignments:
+  - task_id: "T001"
+    planned_start: "2030-01-05"
+    planned_end: "2030-01-16"
+`
+    importWbsYaml({
+      db,
+      projectId,
+      tasksYaml: tasksWithProgress,
+      staffingYaml: STAFFING_YAML_BASIC,
+      scheduleYaml: scheduleInFuture,
+    })
+
+    const [task] = await db
+      .select()
+      .from(schema.tasks)
+      .where(eq(schema.tasks.externalId, 'T001'))
+    expect(task).toBeDefined()
+    // planned 日付が assignments で設定されていること
+    expect(task!.plannedStart).toBe('2030-01-05')
+    expect(task!.plannedEnd).toBe('2030-01-16')
+
+    const snaps = await db
+      .select()
+      .from(schema.progressSnapshots)
+      .where(eq(schema.progressSnapshots.taskId, task!.id))
+    expect(snaps).toHaveLength(1)
+    // インポート日が planned_start (2030-01-05) より前なので pvDays = 0
+    expect(snaps[0]!.pvDays).toBe(0)
   })
 
   // ── Req 6.8: 再インポート → upsert で重複なし ─────────────────────────────

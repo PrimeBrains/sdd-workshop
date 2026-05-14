@@ -1,0 +1,660 @@
+meta:
+  project_id: D_MG_DEV-5891
+  project_name: 【U-MS】EC2 AMIイメージ自動化
+  created_at: 2026-05-14T12:42:48.253Z
+  updated_at: 2026-05-14T12:42:48.253Z
+  version: "1.0"
+  schedule_start: 2026-05-14
+  schedule_end: 2026-07-30
+  total_working_days: 55
+  total_md: 54.5
+  critical_path:
+    - T082
+  original_buffer_md: 11.1
+  buffer_consumed_md: 0
+  buffer_remaining_md: 11.1
+  buffer_burn_rate: 0
+  buffer_zone: green
+reschedule_meta:
+  reschedule_date: 2026-05-14
+  baseline_schedule_end: 2026-07-08
+  schedule_delay_days: 16
+  frozen_task_ids:
+    - T002a
+    - T002b
+    - T002c
+    - T004
+    - T005a
+    - T005b
+    - T006
+    - T007
+    - T008
+    - T083
+    - T084
+    - T085
+    - T086
+    - T087
+    - T088
+    - T010a
+    - T010b
+    - T089
+    - T011
+    - T013
+    - T014
+    - T015
+    - T016
+  buffer_coefficient: 0.8
+  deadline_buffer_md: null
+buffer_excess_details: []
+phases:
+  - phase: 要件整理
+    planned_start: 2026-04-06
+    planned_end: 2026-04-10
+    total_md: 4.5
+  - phase: 要件定義
+    planned_start: 2026-04-13
+    planned_end: 2026-05-13
+    total_md: 8.1
+  - phase: 影響範囲調査
+    planned_start: 2026-04-27
+    planned_end: 2026-05-12
+    total_md: 1.7
+  - phase: 工数見積
+    planned_start: 2026-04-28
+    planned_end: 2026-05-07
+    total_md: 1.6
+  - phase: SRE申請
+    planned_start: 2026-05-14
+    planned_end: 2026-05-14
+    total_md: 0.2
+  - phase: 設計
+    planned_start: 2026-05-14
+    planned_end: 2026-05-15
+    total_md: 1.1
+  - phase: 実装
+    planned_start: 2026-05-15
+    planned_end: 2026-05-27
+    total_md: 7.12
+  - phase: 結合テスト
+    planned_start: 2026-05-27
+    planned_end: 2026-06-05
+    total_md: 6.4
+  - phase: テスト
+    planned_start: 2026-06-05
+    planned_end: 2026-06-05
+    total_md: 0.4
+  - phase: STG環境リリース
+    planned_start: 2026-06-05
+    planned_end: 2026-06-10
+    total_md: 2
+  - phase: 回帰テスト
+    planned_start: 2026-06-10
+    planned_end: 2026-06-12
+    total_md: 2.2
+  - phase: 受入テスト
+    planned_start: 2026-06-12
+    planned_end: 2026-06-16
+    total_md: 1.7
+  - phase: リリース承認
+    planned_start: 2026-06-16
+    planned_end: 2026-06-25
+    total_md: 6.3
+  - phase: 本番環境リリース
+    planned_start: 2026-06-25
+    planned_end: 2026-06-29
+    total_md: 2
+  - phase: 運用
+    planned_start: 2026-06-29
+    planned_end: 2026-07-02
+    total_md: 2.2
+  - phase: バッファ
+    planned_start: 2026-07-02
+    planned_end: 2026-07-30
+    total_md: 17.2
+assignments:
+  - task_id: T002a
+    assignee_id: M001
+    assignee_name: 日野浦
+    planned_start: 2026-04-06
+    planned_end: 2026-04-09
+    duration_days: null
+    estimate_days: 2
+    remaining_days: null
+  - task_id: T002b
+    assignee_id: M001
+    assignee_name: 日野浦
+    planned_start: 2026-04-06
+    planned_end: 2026-04-10
+    duration_days: null
+    estimate_days: 2
+    remaining_days: null
+  - task_id: T002c
+    assignee_id: M001
+    assignee_name: 日野浦
+    planned_start: 2026-04-10
+    planned_end: 2026-04-10
+    duration_days: null
+    estimate_days: 0.5
+    remaining_days: null
+  - task_id: T004
+    assignee_id: M001
+    assignee_name: 日野浦
+    planned_start: 2026-04-13
+    planned_end: 2026-04-14
+    duration_days: null
+    estimate_days: 0.5
+    remaining_days: null
+  - task_id: T005a
+    assignee_id: M001
+    assignee_name: 日野浦
+    planned_start: 2026-04-20
+    planned_end: 2026-04-23
+    duration_days: null
+    estimate_days: 1
+    remaining_days: null
+  - task_id: T005b
+    assignee_id: M001
+    assignee_name: 日野浦
+    planned_start: 2026-04-20
+    planned_end: 2026-04-23
+    duration_days: null
+    estimate_days: 1.5
+    remaining_days: null
+  - task_id: T006
+    assignee_id: M001
+    assignee_name: 日野浦
+    planned_start: 2026-04-27
+    planned_end: 2026-05-13
+    duration_days: 1
+    estimate_days: 0.2
+    remaining_days: null
+  - task_id: T007
+    assignee_id: M001
+    assignee_name: 日野浦
+    planned_start: 2026-04-27
+    planned_end: 2026-05-13
+    duration_days: 1
+    estimate_days: 0.2
+    remaining_days: null
+  - task_id: T008
+    assignee_id: M001
+    assignee_name: 日野浦
+    planned_start: 2026-05-12
+    planned_end: 2026-05-13
+    duration_days: 1
+    estimate_days: 0.2
+    remaining_days: null
+  - task_id: T083
+    assignee_id: M001
+    assignee_name: 日野浦
+    planned_start: 2026-04-14
+    planned_end: 2026-04-22
+    duration_days: null
+    estimate_days: 1
+    remaining_days: null
+  - task_id: T084
+    assignee_id: M001
+    assignee_name: 日野浦
+    planned_start: 2026-04-14
+    planned_end: 2026-04-14
+    duration_days: null
+    estimate_days: 0.1
+    remaining_days: null
+  - task_id: T085
+    assignee_id: M001
+    assignee_name: 日野浦
+    planned_start: 2026-04-14
+    planned_end: 2026-04-21
+    duration_days: null
+    estimate_days: 1
+    remaining_days: null
+  - task_id: T086
+    assignee_id: M001
+    assignee_name: 日野浦
+    planned_start: 2026-04-14
+    planned_end: 2026-04-22
+    duration_days: null
+    estimate_days: 0.3
+    remaining_days: null
+  - task_id: T087
+    assignee_id: M001
+    assignee_name: 日野浦
+    planned_start: 2026-04-14
+    planned_end: 2026-04-21
+    duration_days: null
+    estimate_days: 1.5
+    remaining_days: null
+  - task_id: T088
+    assignee_id: M001
+    assignee_name: 日野浦
+    planned_start: 2026-04-15
+    planned_end: 2026-04-21
+    duration_days: null
+    estimate_days: 0.1
+    remaining_days: null
+  - task_id: T010a
+    assignee_id: M001
+    assignee_name: 日野浦
+    planned_start: 2026-04-27
+    planned_end: 2026-04-30
+    duration_days: null
+    estimate_days: 1
+    remaining_days: null
+  - task_id: T010b
+    assignee_id: M001
+    assignee_name: 日野浦
+    planned_start: 2026-04-28
+    planned_end: 2026-05-12
+    duration_days: 1
+    estimate_days: 0.5
+    remaining_days: null
+  - task_id: T089
+    assignee_id: M001
+    assignee_name: 日野浦
+    planned_start: 2026-04-28
+    planned_end: 2026-05-12
+    duration_days: 1
+    estimate_days: 0.5
+    remaining_days: null
+  - task_id: T011
+    assignee_id: M001
+    assignee_name: 日野浦
+    planned_start: 2026-05-01
+    planned_end: 2026-05-01
+    duration_days: 1
+    estimate_days: 0.2
+    remaining_days: null
+  - task_id: T013
+    assignee_id: M001
+    assignee_name: 日野浦
+    planned_start: 2026-04-28
+    planned_end: 2026-05-01
+    duration_days: 1
+    estimate_days: 1
+    remaining_days: null
+  - task_id: T014
+    assignee_id: M001
+    assignee_name: 日野浦
+    planned_start: 2026-05-01
+    planned_end: 2026-05-01
+    duration_days: 1
+    estimate_days: 0.2
+    remaining_days: null
+  - task_id: T015
+    assignee_id: M001
+    assignee_name: 日野浦
+    planned_start: 2026-05-01
+    planned_end: 2026-05-01
+    duration_days: 1
+    estimate_days: 0.2
+    remaining_days: null
+  - task_id: T016
+    assignee_id: M001
+    assignee_name: 日野浦
+    planned_start: 2026-05-01
+    planned_end: 2026-05-07
+    duration_days: 2
+    estimate_days: 0.2
+    remaining_days: null
+  - task_id: T019
+    assignee_id: M001
+    assignee_name: 日野浦
+    planned_start: 2026-05-14
+    planned_end: 2026-05-14
+    duration_days: 1
+    estimate_days: 0.09999999999999998
+    remaining_days: 0.09999999999999998
+  - task_id: T020
+    assignee_id: M001
+    assignee_name: 日野浦
+    planned_start: 2026-05-14
+    planned_end: 2026-05-14
+    duration_days: 1
+    estimate_days: 0.09999999999999998
+    remaining_days: 0.09999999999999998
+  - task_id: T022
+    assignee_id: M001
+    assignee_name: 日野浦
+    planned_start: 2026-05-14
+    planned_end: 2026-05-14
+    duration_days: 1
+    estimate_days: 0.29999999999999993
+    remaining_days: 0.29999999999999993
+  - task_id: T023
+    assignee_id: M001
+    assignee_name: 日野浦
+    planned_start: 2026-05-14
+    planned_end: 2026-05-14
+    duration_days: 1
+    estimate_days: 0.2
+    remaining_days: null
+  - task_id: T024
+    assignee_id: M001
+    assignee_name: 日野浦
+    planned_start: 2026-05-14
+    planned_end: 2026-05-14
+    duration_days: 1
+    estimate_days: 0.2
+    remaining_days: null
+  - task_id: T025
+    assignee_id: M001
+    assignee_name: 日野浦
+    planned_start: 2026-05-15
+    planned_end: 2026-05-15
+    duration_days: 1
+    estimate_days: 0.2
+    remaining_days: null
+  - task_id: T026
+    assignee_id: M001
+    assignee_name: 日野浦
+    planned_start: 2026-05-15
+    planned_end: 2026-05-15
+    duration_days: 1
+    estimate_days: 0.2
+    remaining_days: null
+  - task_id: T028
+    assignee_id: M001
+    assignee_name: 日野浦
+    planned_start: 2026-05-15
+    planned_end: 2026-05-18
+    duration_days: 2
+    estimate_days: 1
+    remaining_days: null
+  - task_id: T029
+    assignee_id: M001
+    assignee_name: 日野浦
+    planned_start: 2026-05-18
+    planned_end: 2026-05-21
+    duration_days: 4
+    estimate_days: 3
+    remaining_days: null
+  - task_id: T030
+    assignee_id: M001
+    assignee_name: 日野浦
+    planned_start: 2026-05-21
+    planned_end: 2026-05-22
+    duration_days: 2
+    estimate_days: 0.5
+    remaining_days: null
+  - task_id: T031
+    assignee_id: M001
+    assignee_name: 日野浦
+    planned_start: 2026-05-22
+    planned_end: 2026-05-25
+    duration_days: 2
+    estimate_days: 1
+    remaining_days: null
+  - task_id: T032
+    assignee_id: M001
+    assignee_name: 日野浦
+    planned_start: 2026-05-25
+    planned_end: 2026-05-26
+    duration_days: 2
+    estimate_days: 0.5
+    remaining_days: null
+  - task_id: T033
+    assignee_id: M001
+    assignee_name: 日野浦
+    planned_start: 2026-05-26
+    planned_end: 2026-05-26
+    duration_days: 1
+    estimate_days: 0.3
+    remaining_days: 0.3
+  - task_id: T034
+    assignee_id: M001
+    assignee_name: 日野浦
+    planned_start: 2026-05-26
+    planned_end: 2026-05-26
+    duration_days: 1
+    estimate_days: 0.12
+    remaining_days: 0.12
+  - task_id: T035
+    assignee_id: M001
+    assignee_name: 日野浦
+    planned_start: 2026-05-26
+    planned_end: 2026-05-26
+    duration_days: 1
+    estimate_days: 0.2
+    remaining_days: null
+  - task_id: T036
+    assignee_id: M001
+    assignee_name: 日野浦
+    planned_start: 2026-05-26
+    planned_end: 2026-05-27
+    duration_days: 2
+    estimate_days: 0.5
+    remaining_days: null
+  - task_id: T046
+    assignee_id: M001
+    assignee_name: 日野浦
+    planned_start: 2026-05-27
+    planned_end: 2026-06-01
+    duration_days: 4
+    estimate_days: 3
+    remaining_days: null
+  - task_id: T047
+    assignee_id: M001
+    assignee_name: 日野浦
+    planned_start: 2026-06-01
+    planned_end: 2026-06-01
+    duration_days: 1
+    estimate_days: 0.2
+    remaining_days: null
+  - task_id: T048
+    assignee_id: M001
+    assignee_name: 日野浦
+    planned_start: 2026-06-01
+    planned_end: 2026-06-02
+    duration_days: 2
+    estimate_days: 0.2
+    remaining_days: null
+  - task_id: T049
+    assignee_id: M001
+    assignee_name: 日野浦
+    planned_start: 2026-06-02
+    planned_end: 2026-06-05
+    duration_days: 4
+    estimate_days: 3
+    remaining_days: null
+  - task_id: T051
+    assignee_id: M001
+    assignee_name: 日野浦
+    planned_start: 2026-06-05
+    planned_end: 2026-06-05
+    duration_days: 1
+    estimate_days: 0.2
+    remaining_days: null
+  - task_id: T052
+    assignee_id: M001
+    assignee_name: 日野浦
+    planned_start: 2026-06-05
+    planned_end: 2026-06-05
+    duration_days: 1
+    estimate_days: 0.2
+    remaining_days: null
+  - task_id: T054
+    assignee_id: M001
+    assignee_name: 日野浦
+    planned_start: 2026-06-05
+    planned_end: 2026-06-08
+    duration_days: 2
+    estimate_days: 0.5
+    remaining_days: null
+  - task_id: T055
+    assignee_id: M001
+    assignee_name: 日野浦
+    planned_start: 2026-06-08
+    planned_end: 2026-06-10
+    duration_days: 3
+    estimate_days: 1.5
+    remaining_days: null
+  - task_id: T057
+    assignee_id: M001
+    assignee_name: 日野浦
+    planned_start: 2026-06-10
+    planned_end: 2026-06-12
+    duration_days: 3
+    estimate_days: 2
+    remaining_days: null
+  - task_id: T058
+    assignee_id: M001
+    assignee_name: 日野浦
+    planned_start: 2026-06-12
+    planned_end: 2026-06-12
+    duration_days: 1
+    estimate_days: 0.2
+    remaining_days: null
+  - task_id: T060
+    assignee_id: M001
+    assignee_name: 日野浦
+    planned_start: 2026-06-12
+    planned_end: 2026-06-16
+    duration_days: 3
+    estimate_days: 1.5
+    remaining_days: null
+  - task_id: T061
+    assignee_id: M001
+    assignee_name: 日野浦
+    planned_start: 2026-06-16
+    planned_end: 2026-06-16
+    duration_days: 1
+    estimate_days: 0.2
+    remaining_days: null
+  - task_id: T063
+    assignee_id: M001
+    assignee_name: 日野浦
+    planned_start: 2026-06-16
+    planned_end: 2026-06-18
+    duration_days: 3
+    estimate_days: 1.5
+    remaining_days: null
+  - task_id: T064
+    assignee_id: M001
+    assignee_name: 日野浦
+    planned_start: 2026-06-18
+    planned_end: 2026-06-19
+    duration_days: 2
+    estimate_days: 1.5
+    remaining_days: null
+  - task_id: T065
+    assignee_id: M001
+    assignee_name: 日野浦
+    planned_start: 2026-06-19
+    planned_end: 2026-06-24
+    duration_days: 4
+    estimate_days: 2
+    remaining_days: null
+  - task_id: T066
+    assignee_id: M001
+    assignee_name: 日野浦
+    planned_start: 2026-06-24
+    planned_end: 2026-06-24
+    duration_days: 1
+    estimate_days: 0.2
+    remaining_days: null
+  - task_id: T067
+    assignee_id: M001
+    assignee_name: 日野浦
+    planned_start: 2026-06-24
+    planned_end: 2026-06-24
+    duration_days: 1
+    estimate_days: 0.2
+    remaining_days: null
+  - task_id: T068
+    assignee_id: M001
+    assignee_name: 日野浦
+    planned_start: 2026-06-24
+    planned_end: 2026-06-25
+    duration_days: 2
+    estimate_days: 0.5
+    remaining_days: null
+  - task_id: T069
+    assignee_id: M001
+    assignee_name: 日野浦
+    planned_start: 2026-06-25
+    planned_end: 2026-06-25
+    duration_days: 1
+    estimate_days: 0.2
+    remaining_days: null
+  - task_id: T070
+    assignee_id: M001
+    assignee_name: 日野浦
+    planned_start: 2026-06-25
+    planned_end: 2026-06-25
+    duration_days: 1
+    estimate_days: 0.2
+    remaining_days: null
+  - task_id: T072
+    assignee_id: M001
+    assignee_name: 日野浦
+    planned_start: 2026-06-25
+    planned_end: 2026-06-26
+    duration_days: 2
+    estimate_days: 0.5
+    remaining_days: null
+  - task_id: T073
+    assignee_id: M001
+    assignee_name: 日野浦
+    planned_start: 2026-06-26
+    planned_end: 2026-06-29
+    duration_days: 2
+    estimate_days: 1.5
+    remaining_days: null
+  - task_id: T075
+    assignee_id: M001
+    assignee_name: 日野浦
+    planned_start: 2026-06-29
+    planned_end: 2026-06-29
+    duration_days: 1
+    estimate_days: 0.2
+    remaining_days: null
+  - task_id: T076
+    assignee_id: M001
+    assignee_name: 日野浦
+    planned_start: 2026-06-29
+    planned_end: 2026-07-01
+    duration_days: 3
+    estimate_days: 1
+    remaining_days: null
+  - task_id: T077
+    assignee_id: M001
+    assignee_name: 日野浦
+    planned_start: 2026-07-01
+    planned_end: 2026-07-01
+    duration_days: 1
+    estimate_days: 0.2
+    remaining_days: null
+  - task_id: T078
+    assignee_id: M001
+    assignee_name: 日野浦
+    planned_start: 2026-07-01
+    planned_end: 2026-07-01
+    duration_days: 1
+    estimate_days: 0.2
+    remaining_days: null
+  - task_id: T079
+    assignee_id: M001
+    assignee_name: 日野浦
+    planned_start: 2026-07-01
+    planned_end: 2026-07-01
+    duration_days: 1
+    estimate_days: 0.3
+    remaining_days: null
+  - task_id: T080
+    assignee_id: M001
+    assignee_name: 日野浦
+    planned_start: 2026-07-01
+    planned_end: 2026-07-02
+    duration_days: 2
+    estimate_days: 0.3
+    remaining_days: null
+  - task_id: T082
+    assignee_id: M001
+    assignee_name: 日野浦
+    planned_start: 2026-07-02
+    planned_end: 2026-07-30
+    duration_days: 20
+    estimate_days: 17.2
+    remaining_days: null
+change_log: []
+warnings: []

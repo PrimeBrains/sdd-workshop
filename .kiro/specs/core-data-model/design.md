@@ -202,10 +202,12 @@ sequenceDiagram
     WbsImporter->>WbsImporter: 構造バリデーション
     WbsImporter->>DB: BEGIN TRANSACTION
     WbsImporter->>DB: upsert members (external_id キー)
-    WbsImporter->>DB: upsert tasks (external_id キー, parent_id 解決)
+    WbsImporter->>DB: upsert tasks 第1パス (external_id キー, planned 日付は null 許容)
+    WbsImporter->>DB: tasks 第2パス: parent_id 解決
+    WbsImporter->>DB: tasks 第3パス: schedule assignments → planned_start/end 上書き
     WbsImporter->>DB: upsert task_dependencies
     WbsImporter->>DB: upsert holidays
-    WbsImporter->>DB: insert progress_snapshots (初回のみ)
+    WbsImporter->>DB: insert progress_snapshots (初回のみ, planned null → pv_days=0)
     WbsImporter->>DB: COMMIT
     WbsImporter-->>ImportRouter: ImportSummary
     ImportRouter-->>Client: ImportSummary
@@ -222,7 +224,7 @@ sequenceDiagram
 | 3.1–3.9 | Task CRUD | TasksRouter | tasks tRPC | — |
 | 4.1–4.6 | Member CRUD | MembersRouter | members tRPC | — |
 | 5.1–5.4 | Holiday CRUD | HolidaysRouter | holidays tRPC | — |
-| 6.1–6.10 | WBS YAML インポート | ImportRouter, WbsImporter | import tRPC | インポートフロー |
+| 6.1–6.13 | WBS YAML インポート | ImportRouter, WbsImporter | import tRPC | インポートフロー |
 | 7.1–7.5 | エラーハンドリング・型安全 | AppError, ErrorCodes, 全ルーター | AppError, ErrorCode | — |
 
 ---
@@ -609,7 +611,7 @@ const createMemberSchema = z.object({
 | フィールド | 詳細 |
 |-----------|------|
 | Intent | WBS YAML 3 ファイルの一括インポートエンドポイントを提供する |
-| Requirements | 6.1, 6.2, 6.3, 6.4, 6.5, 6.6, 6.7, 6.8, 6.9, 6.10 |
+| Requirements | 6.1, 6.2, 6.3, 6.4, 6.5, 6.6, 6.7, 6.8, 6.9, 6.10, 6.11, 6.12, 6.13 |
 
 **コントラクト**: API [x]
 
@@ -646,7 +648,7 @@ interface ImportSummary {
 | フィールド | 詳細 |
 |-----------|------|
 | Intent | WBS YAML を解析し DB にアトミックにインポートするビジネスロジック |
-| Requirements | 6.1, 6.2, 6.3, 6.4, 6.5, 6.6, 6.7, 6.8, 6.9, 6.10 |
+| Requirements | 6.1, 6.2, 6.3, 6.4, 6.5, 6.6, 6.7, 6.8, 6.9, 6.10, 6.11, 6.12, 6.13 |
 
 **責任と制約**
 
@@ -689,13 +691,25 @@ export function importWbsYaml(input: WbsImportInput): ImportSummary
 
 **実装ノート**
 
-- `tasks.yaml` の YAML 構造: `tasks: [{ id, title, estimate_days, planned_start, planned_end, parent_id?, depends_on[]?, assignee?, actual_start?, actual_end?, progress_pct?, is_buffer? }]`
+- `tasks.yaml` の YAML 構造: `tasks: [{ id, title, estimate_days?, planned_start?, planned_end?, parent_id?, depends_on[]?, assignee?, actual_start?, actual_end?, progress_pct?, is_buffer? }]`
+  - `estimate_days` が null/欠落の場合は 0 として扱う（要件 6.11）
+  - `planned_start` / `planned_end` が null/欠落の場合は null として保存する（要件 6.11）。これは wbs-* スキルがスケジュール情報を schedule.yaml 側の assignments に分離して出力するため（スケジュール分離型 YAML パターン）
 - `staffing.yaml` の YAML 構造: `members: [{ id, name, availability_rate, assignment_start?, assignment_end? }]`, `meta.public_holidays: [string]`
-- `schedule.yaml` の YAML 構造: `meta.schedule_start`, `meta.schedule_end`（Project のstart_date / end_date に対応）
+- `schedule.yaml` の YAML 構造: `meta.schedule_start`, `meta.schedule_end` および オプション `assignments: [{ task_id, assignee_id?, planned_start, planned_end, ... }]`
+  - `assignments[]` が存在する場合、各エントリの `task_id`（external_id 形式）に対応するタスクの `planned_start` / `planned_end` を更新する（要件 6.12）
+  - 対応タスクが見つからない assignment は無視する（要件 6.12）
 - better-sqlite3 の同期 API を使用してトランザクションを管理する: `db.transaction(() => { ... })()`
+- トランザクション内の実行順序:
+  1. members upsert (external_id キー)
+  2. tasks upsert 第1パス（planned_start/planned_end は tasks.yaml の値 or null）
+  3. parent_id 解決（第2パス）
+  4. schedule assignments 適用（第3パス）— `planned_start` / `planned_end` を schedule.yaml の値で上書き（要件 6.12）
+  5. task_dependencies 挿入
+  6. holidays upsert
+  7. ProgressSnapshot 作成（progress_pct 指定タスクのみ）
 - 初回 ProgressSnapshot 作成時の `pv_days` / `ev_days` 計算:
   - `ev_days = estimate_days × (progress_pct / 100)`（tasks.yaml の progress_pct を使用）
-  - `pv_days`: インポート日が `planned_start` 以前なら 0、`planned_end` 以降なら `estimate_days`、期間内なら `min(稼働日数 × availability_rate, estimate_days)` で計算（assignee 未指定時は availability_rate = 1.0）
+  - `pv_days`: `planned_start` または `planned_end` が null の場合は 0（要件 6.13）。両方存在する場合は、インポート日が `planned_start` 以前なら 0、`planned_end` 以降なら `estimate_days`、期間内なら `min(稼働日数比率 × estimate_days × availability_rate, estimate_days)` で計算（assignee 未指定時は availability_rate = 1.0）
 
 ---
 
@@ -808,6 +822,9 @@ erDiagram
 | `wbs-importer.ts` | depends_on の task_dependencies 挿入 | 6.3 |
 | `wbs-importer.ts` | 不正 YAML でのアトミックロールバック | 6.7 |
 | `wbs-importer.ts` | 再インポート（upsert）での重複なし | 6.8 |
+| `wbs-importer.ts` | tasks.yaml の estimate_days/planned 日付が null → デフォルト値（0/null） | 6.11 |
+| `wbs-importer.ts` | schedule.yaml の assignments[] → タスクの planned_start/end に反映 | 6.12 |
+| `wbs-importer.ts` | planned 日付 null のタスクでスナップショット作成 → pv_days = 0 | 6.13 |
 | `projects.ts` (router) | NOT_FOUND エラーの正確な AppError コード | 2.4 |
 | `members.ts` (router) | availability_rate 範囲外バリデーション | 4.5 |
 
@@ -815,7 +832,9 @@ erDiagram
 
 | テストフロー | 内容 | 要件 |
 |------------|------|------|
-| WBS インポート → プロジェクト確認 | 3 YAML ファイルをインポートしてタスク一覧が返ること | 6.1, 6.9 |
+| WBS インポート → タスク一覧確認 | 3 YAML ファイルをインポートしてタスク一覧が返ること | 6.1, 6.9 |
+| 実プロジェクト YAML インポート | tasks.yaml（84件）+ staffing.yaml + reschedule.yaml（assignments 付き）で正常インポートされ、タスク件数・planned 日付が正しいこと | 6.11, 6.12 |
+| 再インポート重複なし | 同一 project_id に再インポートしてもタスク件数が増えないこと | 6.8 |
 
 ---
 

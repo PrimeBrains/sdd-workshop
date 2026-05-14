@@ -142,3 +142,63 @@
   - _Requirements: 6.1, 6.9_
   - _Boundary: ImportRouter, TasksRouter_
   - _Depends: 5.2_
+
+---
+
+- [ ] 7. WBS YAML スケジュール分離型対応
+- [x] 7.1 tasks.yaml の null フィールド許容パーサーを実装する
+  - `server/src/services/wbs-importer.ts` の `parseTasksYaml` で `estimate_days`・`planned_start`・`planned_end` が null または欠落の場合にエラーを throw せず、それぞれ `0`・`null`・`null` として取り込む
+  - `ParsedTask` 型の `planned_start`・`planned_end` を `string | null` に更新する
+  - `calcPvDays` 関数が null の planned 日付を受け付け、null の場合は 0 を返すようにする
+  - `estimate_days` が null の YAML タスクと `planned_start`/`planned_end` がすべて null の YAML タスクで `parseTasksYaml` を呼び出してもエラーが発生しないこと
+  - `npm test` がパスすること（既存テスト含む）
+  - _Requirements: 6.11_
+  - _Boundary: WbsImporter_
+
+- [x] 7.2 schedule.yaml の assignments[] パーサーを実装する
+  - `server/src/services/wbs-importer.ts` の `parseScheduleYaml` を拡張し、`assignments[]` フィールドが存在する場合に `{ task_id: string; planned_start: string; planned_end: string }` の配列として返す
+  - `ParsedScheduleYaml` 型に `assignments?: Array<{ task_id: string; planned_start: string; planned_end: string }>` を追加する
+  - `assignments[]` を持たない schedule YAML でも正常にパースできること（後方互換）
+  - `npm test` がパスすること
+  - _Requirements: 6.12_
+  - _Boundary: WbsImporter_
+  - _Depends: 7.1_
+
+- [x] 7.3 importWbsYaml に schedule assignments → task planned 日付マッピングを追加する
+  - `server/src/services/wbs-importer.ts` の `importWbsYaml` トランザクション内に第3パスを追加し、`schedule.assignments[]` の `task_id`（external_id 形式）に対応するタスクの `planned_start`/`planned_end` を DB に更新する（parent_id 解決の後、task_dependencies 挿入の前）
+  - 対応タスクが見つからない assignment は無視する
+  - `planned_start` または `planned_end` が null のままタスクの ProgressSnapshot を作成する場合は `pv_days = 0` とする
+  - reschedule 形式の schedule YAML（T-prefix task_id + planned_start/end）をインポートした後、対応タスクの `planned_start` が null でないこと
+  - `npm test` がパスすること
+  - _Requirements: 6.12, 6.13_
+  - _Boundary: WbsImporter_
+  - _Depends: 7.2_
+
+- [x] 7.4 (P) null フィールドと assignments マッピングの単体テストを追加する
+  - `server/src/services/wbs-importer.test.ts` に以下のテストケースを追加する：
+    - `estimate_days` が null のタスクが `estimateDays=0` でインポートされること
+    - `planned_start`/`planned_end` が null のタスクが DB に null で保存されること
+    - `assignments[]` を含む schedule YAML をインポートした後、対応タスクの `planned_start`/`planned_end` が設定されること
+    - `planned_start`/`planned_end` が null のタスクの ProgressSnapshot で `pvDays = 0` となること
+  - `npm test` を実行してすべてのテストがパスすること
+  - _Requirements: 6.11, 6.12, 6.13_
+  - _Boundary: WbsImporter_
+  - _Depends: 7.3_
+
+- [x] 7.5 (P) 実プロジェクト YAML を使用した E2E テストを追加する
+  - `e2e/import.spec.ts` に以下の E2E テストを追加する：
+    - tasks.yaml（84 タスク）+ staffing.yaml + reschedule-2026-05-14.yaml を `fs.readFileSync` で読み込み `import.wbsYaml` でインポートする
+    - インポート後のタスク件数が 84 件であること
+    - assignments で planned 日付が設定されたタスク（T002a 等）の `plannedStart` が null でないこと
+    - 再インポートしてもタスク件数が 84 件のまま（重複なし）であること
+  - `npm run test:e2e` を実行してテストがパスすること
+  - _Requirements: 6.11, 6.12, 6.8_
+  - _Boundary: ImportRouter, TasksRouter_
+  - _Depends: 7.3_
+
+## Implementation Notes
+
+- js-yaml 4 では `yaml.DEFAULT_SAFE_SCHEMA` は存在しない（v3 のみ）。`yaml.DEFAULT_SCHEMA` を使用すること
+- better-sqlite3 の raw インスタンスは `(db as unknown as { $client: Database }).$client` でアクセスする
+- Vitest は v2.1.9 を使用（Node v21.7.3 は vitest v4 の engine 要件 `^20.0.0 || ^22.0.0 || >=24.0.0` を満たさないため）
+- E2E テストの tRPC 呼び出しは POST `/trpc/{procedure}` に plain JSON body を送信し、レスポンスの `result.data` を参照する
