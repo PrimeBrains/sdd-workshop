@@ -13,7 +13,7 @@
   - _Requirements: 8.1_
 
 - [ ] 2. コア: evm-engine.ts の純粋関数実装
-- [ ] 2.1 稼働日数カウントユーティリティを実装する
+- [x] 2.1 稼働日数カウントユーティリティを実装する
   - `countWorkingDays(plannedStart, baseDate, holidays)` を実装する
   - 土曜（getDay()===6）と日曜（getDay()===0）を除外する
   - `holidays[]` の `date` フィールドと一致する日を除外する

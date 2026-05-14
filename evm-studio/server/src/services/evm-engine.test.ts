@@ -1,4 +1,6 @@
-import { describe, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
+import { countWorkingDays } from './evm-engine.js'
+import type { Holiday } from '../db/schema.js'
 
 // ─── countWorkingDays ────────────────────────────────────────────────────────
 
@@ -7,6 +9,59 @@ describe('countWorkingDays', () => {
   it.todo('祝日あり: 祝日を除外した稼働日数を返す')
   it.todo('土日を除外する')
   it.todo('開始日 = 終了日の場合に1または0を返す')
+
+  // --- 具体的なテストケース ---
+
+  it('平日のみ: 2026-05-11(月) から 2026-05-15(金) まで5稼働日を返す', () => {
+    const result = countWorkingDays('2026-05-11', '2026-05-15', [])
+    expect(result).toBe(5)
+  })
+
+  it('土日を除外: 2026-05-11(月) から 2026-05-18(月) まで6稼働日を返す', () => {
+    // 月〜金(5) + 月(1) = 6。土日は除外
+    const result = countWorkingDays('2026-05-11', '2026-05-18', [])
+    expect(result).toBe(6)
+  })
+
+  it('祝日を除外: 2026-05-11(月) が祝日のとき 2026-05-11〜2026-05-15 は4稼働日', () => {
+    const holidays: Holiday[] = [
+      { id: 1, projectId: 1, date: '2026-05-11' },
+    ]
+    const result = countWorkingDays('2026-05-11', '2026-05-15', holidays)
+    expect(result).toBe(4)
+  })
+
+  it('開始日 = 終了日（平日）のとき1を返す', () => {
+    const result = countWorkingDays('2026-05-11', '2026-05-11', [])
+    expect(result).toBe(1)
+  })
+
+  it('開始日 = 終了日（土曜）のとき0を返す', () => {
+    // 2026-05-16 は土曜
+    const result = countWorkingDays('2026-05-16', '2026-05-16', [])
+    expect(result).toBe(0)
+  })
+
+  it('plannedStart > baseDate のとき 0 を返す', () => {
+    const result = countWorkingDays('2026-05-20', '2026-05-15', [])
+    expect(result).toBe(0)
+  })
+
+  it('土曜・日曜のみの範囲のとき 0 を返す', () => {
+    // 2026-05-16(土) 〜 2026-05-17(日)
+    const result = countWorkingDays('2026-05-16', '2026-05-17', [])
+    expect(result).toBe(0)
+  })
+
+  it('複数祝日を除外できる', () => {
+    // 2026-05-11(月) 〜 2026-05-15(金) の5日間で月・水を祝日にすると3稼働日
+    const holidays: Holiday[] = [
+      { id: 1, projectId: 1, date: '2026-05-11' },
+      { id: 2, projectId: 1, date: '2026-05-13' },
+    ]
+    const result = countWorkingDays('2026-05-11', '2026-05-15', holidays)
+    expect(result).toBe(3)
+  })
 })
 
 // ─── calculateTaskPv / calculateProjectPv ───────────────────────────────────
