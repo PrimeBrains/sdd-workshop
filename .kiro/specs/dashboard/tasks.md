@@ -27,28 +27,28 @@
 ---
 
 - [ ] 2. Core: evm.calculate ルーターの本体実装
-- [ ] 2.1 DB クエリ集約と EVM メトリクス計算の実装
+- [x] 2.1 DB クエリ集約と EVM メトリクス計算の実装
   - `evm.calculate` 内で `tasks`, `members`, `holidays`, `progressSnapshots`（最新スナップショット）を Drizzle で取得する
   - `calculateEvmMetrics(input)` を呼び出してプロジェクト全体の `ProjectEvmMetrics` を取得する
   - `summary` フィールド（BAC/PV/EV/AC/SPI/CPI/EAC/VAC/ETC/TCPI）を `EvmSummaryOutput` に変換して格納する
   - `evm.calculate` の正常系でレスポンスの `summary` フィールドが正しく返ることをテストする
   - _Requirements: 8.2, 8.5, 3.1_
 
-- [ ] 2.2 担当者別 EVM 集計の実装
+- [x] 2.2 担当者別 EVM 集計の実装
   - `tasks` を `assigneeId` でグループ化し、各担当者のタスクのみを対象に `calculateEvmMetrics` を呼び出す
   - `members` テーブルから担当者名を解決して `AssigneeEvmOutput[]` を構築する
   - SPI 閾値に基づいて `status`（`critical` / `warning` / `normal` / `na`）を設定する（SPI < 0.8: critical、0.8 ≤ SPI < 0.9: warning、≥ 0.9: normal、PV=0: na）
   - `assignees` フィールドが担当者ごとに正しい SPI・status を返すことをテストする
   - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5_
 
-- [ ] 2.3 アラート生成の実装
+- [x] 2.3 アラート生成の実装
   - `taskMetrics` の各タスクに対して `evaluateAlertLevel` を呼び出し、`CRITICAL_DELAY` / `WARNING_DELAY` のタスクを抽出する
   - タスク名・担当者名（`members` テーブルから解決）・SPI 値・レベルを `AlertOutput[]` に変換する
   - SPI < 0.8 → level: `critical`、0.8 ≤ SPI < 0.9 → level: `warning` として正しくアラートが生成されることをテストする
   - PV=0（SPI=null）のタスクはアラート対象外となることをテストする
   - _Requirements: 2.1, 2.2, 2.3, 2.5_
 
-- [ ] 2.4 CCPM フィーバーチャートデータの生成
+- [x] 2.4 CCPM フィーバーチャートデータの生成
   - `findCriticalPath` でクリティカルパスのタスク ID を特定する
   - `is_buffer=true` のタスクを抽出してバッファ総日数を算出する
   - バッファタスクが存在しない場合は `feverChart: null` を返す
@@ -56,7 +56,7 @@
   - バッファなしプロジェクトで `feverChart = null` が返ることをテストする
   - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5_
 
-- [ ] 2.5 SPI トレンドデータの生成
+- [x] 2.5 SPI トレンドデータの生成
   - `progressSnapshots` の `snapshot_date` の一意リストを取得し、各日付ごとに `calculateEvmMetrics` を呼び出して SPI/CPI 時系列データ `SpiTrendPoint[]` を構築する
   - SPI または CPI が null の時点（PV=0）もそのまま `null` として含める（フロントエンドが除外処理を行う）
   - `spiTrend` フィールドが日付昇順で返ることをテストする
