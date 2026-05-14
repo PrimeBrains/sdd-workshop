@@ -114,7 +114,7 @@
   - _Boundary: ProgressInputPage_
 
 - [ ] 5. Validation: テスト実装
-- [ ] 5.1 progress ルーターの Vitest 単体テストを実装する
+- [x] 5.1 progress ルーターの Vitest 単体テストを実装する
   - `server/src/api/progress.test.ts` を作成し、Vitest でテストを記述する
   - `progress.record` 正常系: 新規スナップショット作成後にレコードが返ること（要件 1.1, 1.6）
   - `progress.record` upsert 検証: 同一 (task_id, snapshotDate) で再度記録すると値が更新され、レコード数が増えないこと（要件 1.1, 1.7）
