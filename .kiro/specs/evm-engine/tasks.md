@@ -22,7 +22,7 @@
   - _Requirements: 1.3, 1.4, 7.1, 7.3_
   - _Boundary: EvmEngine_
 
-- [ ] 2.2 (P) タスク単体 PV 計算関数を実装する（fill-to-capacity モデル）
+- [x] 2.2 (P) タスク単体 PV 計算関数を実装する（fill-to-capacity モデル）
   - `calculateTaskPv(task, baseDate, availabilityRate, holidays)` を実装する
   - `task.isBuffer === true` の場合は `0` を返す（バッファ除外）
   - `baseDate < task.plannedStart` の場合は `0` を返す

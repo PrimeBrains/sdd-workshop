@@ -122,7 +122,42 @@ export function calculateTaskPv(
   availabilityRate: number,
   holidays: Holiday[],
 ): number {
-  throw new AppError(ErrorCode.EVM_INVALID_BASE_DATE, 'Not implemented')
+  // baseDate フォーマット検証 (YYYY-MM-DD)
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(baseDate)) {
+    throw new AppError(ErrorCode.EVM_INVALID_BASE_DATE, `Invalid baseDate format: ${baseDate}`)
+  }
+
+  // availabilityRate 範囲チェック [0, 1]
+  if (availabilityRate < 0 || availabilityRate > 1) {
+    throw new AppError(
+      ErrorCode.EVM_INVALID_AVAILABILITY_RATE,
+      `availabilityRate must be in [0, 1], got: ${availabilityRate}`,
+    )
+  }
+
+  // バッファタスクは PV = 0
+  if (task.isBuffer) {
+    return 0
+  }
+
+  // plannedStart が未設定の場合は 0
+  if (task.plannedStart === null) {
+    return 0
+  }
+
+  // baseDate < plannedStart → 0
+  if (baseDate < task.plannedStart) {
+    return 0
+  }
+
+  // baseDate >= plannedEnd → estimate_days
+  if (task.plannedEnd !== null && baseDate >= task.plannedEnd) {
+    return task.estimateDays
+  }
+
+  // 中間日: min(N * availabilityRate, estimateDays)
+  const workingDays = countWorkingDays(task.plannedStart, baseDate, holidays)
+  return Math.min(workingDays * availabilityRate, task.estimateDays)
 }
 
 /**
