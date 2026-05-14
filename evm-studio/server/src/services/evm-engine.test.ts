@@ -885,9 +885,45 @@ describe('calculateFeverChart', () => {
 
 // ─── findCriticalPath (critical-path.ts) ────────────────────────────────────
 
+import { findCriticalPath } from './critical-path.js'
+import type { TaskDependency } from '../db/schema.js'
+
 describe('findCriticalPath', () => {
-  it.todo('正常系: 3タスク直列でクリティカルパスを返す')
   it.todo('is_buffer=true タスクをパス探索から除外する')
-  it.todo('循環依存を検出して EVM_CIRCULAR_DEPENDENCY をスローする')
-  it.todo('終端タスク ID を返す')
+
+  it('正常系: 3タスク直列でクリティカルパスを返す（要件 5.1, 5.2, 5.3）', () => {
+    // T1 → T2 → T3 の直列依存
+    const t1: Task = { ...baseTask, id: 1, plannedStart: '2026-05-01', plannedEnd: '2026-05-05', isBuffer: false }
+    const t2: Task = { ...baseTask, id: 2, plannedStart: '2026-05-06', plannedEnd: '2026-05-12', isBuffer: false }
+    const t3: Task = { ...baseTask, id: 3, plannedStart: '2026-05-13', plannedEnd: '2026-05-20', isBuffer: false }
+    const deps: TaskDependency[] = [
+      { id: 1, taskId: 2, dependsOnTaskId: 1 }, // T2 は T1 に依存
+      { id: 2, taskId: 3, dependsOnTaskId: 2 }, // T3 は T2 に依存
+    ]
+    const result = findCriticalPath({ tasks: [t1, t2, t3], dependencies: deps })
+    expect(result.criticalPath).toEqual([1, 2, 3])
+    expect(result.terminalTaskId).toBe(3)
+  })
+
+  it('循環依存を検出して EVM_CIRCULAR_DEPENDENCY をスローする（要件 5.4, 7.4）', () => {
+    // T1 → T2 → T1 の循環
+    const t1: Task = { ...baseTask, id: 1, plannedStart: '2026-05-01', plannedEnd: '2026-05-05', isBuffer: false }
+    const t2: Task = { ...baseTask, id: 2, plannedStart: '2026-05-06', plannedEnd: '2026-05-12', isBuffer: false }
+    const deps: TaskDependency[] = [
+      { id: 1, taskId: 2, dependsOnTaskId: 1 }, // T2 は T1 に依存
+      { id: 2, taskId: 1, dependsOnTaskId: 2 }, // T1 は T2 に依存（循環）
+    ]
+    expect(() => findCriticalPath({ tasks: [t1, t2], dependencies: deps })).toThrow(AppError)
+    expect(() => findCriticalPath({ tasks: [t1, t2], dependencies: deps })).toThrow(
+      expect.objectContaining({ code: ErrorCode.EVM_CIRCULAR_DEPENDENCY }),
+    )
+  })
+
+  it('終端タスク ID を terminalTaskId として返す（要件 5.2）', () => {
+    // 独立した2タスク（依存なし）、plannedEnd が遅い方が終端
+    const t1: Task = { ...baseTask, id: 1, plannedStart: '2026-05-01', plannedEnd: '2026-05-05', isBuffer: false }
+    const t2: Task = { ...baseTask, id: 2, plannedStart: '2026-05-01', plannedEnd: '2026-05-20', isBuffer: false }
+    const result = findCriticalPath({ tasks: [t1, t2], dependencies: [] })
+    expect(result.terminalTaskId).toBe(2)
+  })
 })

@@ -81,7 +81,7 @@
   - _Boundary: EvmEngine_
 
 - [ ] 3. コア: critical-path.ts の純粋関数実装
-- [ ] 3.1 クリティカルパス算出関数を実装する
+- [x] 3.1 クリティカルパス算出関数を実装する
   - `findCriticalPath(input: CriticalPathInput): CriticalPathResult` を実装する
   - `tasks.filter(t => !t.isBuffer)` で is_buffer タスクを除外する
   - 除外後のタスクから `plannedEnd` 最遅のタスクを終端として特定する（同着の場合は最初に見つかったものを選択）
