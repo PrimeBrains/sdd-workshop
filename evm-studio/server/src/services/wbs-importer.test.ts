@@ -1,7 +1,24 @@
-import { describe, it, expect } from 'vitest'
-import { parseTasksYaml, parseStaffingYaml, parseScheduleYaml } from './wbs-importer.js'
+import { describe, it, expect, beforeEach } from 'vitest'
+import Database from 'better-sqlite3'
+import { drizzle } from 'drizzle-orm/better-sqlite3'
+import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
+import { eq } from 'drizzle-orm'
+import { parseTasksYaml, parseStaffingYaml, parseScheduleYaml, importWbsYaml } from './wbs-importer.js'
 import { AppError } from '../errors/AppError.js'
 import { ErrorCode } from '../errors/codes.js'
+import * as schema from '../db/schema.js'
+
+// ─── Test DB setup ─────────────────────────────────────────────────────────────
+
+type TestDb = ReturnType<typeof drizzle<typeof schema>>
+
+function createTestDb(): TestDb {
+  const sqlite = new Database(':memory:')
+  sqlite.pragma('foreign_keys = ON')
+  const db = drizzle(sqlite, { schema })
+  migrate(db, { migrationsFolder: './src/db/migrations' })
+  return db
+}
 
 // ─── parseTasksYaml ──────────────────────────────────────────────────────────
 
@@ -320,5 +337,293 @@ meta:
     expect(() => parseScheduleYaml(invalidYaml)).toThrow(
       expect.objectContaining({ code: ErrorCode.IMPORT_PARSE_ERROR })
     )
+  })
+})
+
+// ─── importWbsYaml ────────────────────────────────────────────────────────────
+
+// ── テスト用 YAML フィクスチャ ─────────────────────────────────────────────────
+
+const TASKS_YAML_BASIC = `
+tasks:
+  - id: "T001"
+    title: "親タスク"
+    estimate_days: 10
+    planned_start: "2026-01-05"
+    planned_end: "2026-01-16"
+    is_buffer: false
+  - id: "T002"
+    title: "子タスク"
+    estimate_days: 5
+    planned_start: "2026-01-05"
+    planned_end: "2026-01-09"
+    parent_id: "T001"
+    assignee: "M001"
+    depends_on:
+      - "T001"
+    progress_pct: 50
+`
+
+const STAFFING_YAML_BASIC = `
+members:
+  - id: "M001"
+    name: "田中太郎"
+    availability_rate: 0.8
+    assignment_start: "2026-01-01"
+    assignment_end: "2026-03-31"
+meta:
+  public_holidays:
+    - "2026-01-01"
+    - "2026-01-02"
+`
+
+const SCHEDULE_YAML_BASIC = `
+meta:
+  schedule_start: "2026-01-05"
+  schedule_end: "2026-03-31"
+`
+
+describe('importWbsYaml (Req 6.1–6.9)', () => {
+  let db: TestDb
+  let projectId: number
+
+  beforeEach(async () => {
+    db = createTestDb()
+    // プロジェクトを事前に作成
+    const [project] = await db
+      .insert(schema.projects)
+      .values({ name: 'テストプロジェクト', startDate: '2026-01-05', endDate: '2026-03-31' })
+      .returning()
+    if (!project) throw new Error('project creation failed')
+    projectId = project.id
+  })
+
+  // ── Req 6.1: 正常インポート → ImportSummary のカウントが正しい ─────────────
+  it('正常インポートが完了し ImportSummary のカウントを返す (Req 6.1, 6.9)', () => {
+    const summary = importWbsYaml({
+      db,
+      projectId,
+      tasksYaml: TASKS_YAML_BASIC,
+      staffingYaml: STAFFING_YAML_BASIC,
+      scheduleYaml: SCHEDULE_YAML_BASIC,
+    })
+
+    expect(summary.projects).toBe(0)
+    expect(summary.tasks).toBe(2)
+    expect(summary.members).toBe(1)
+    expect(summary.holidays).toBe(2)
+    expect(summary.dependencies).toBe(1)
+    expect(summary.snapshots).toBe(1) // T002 のみ progress_pct あり
+  })
+
+  // ── Req 6.2: parent_id の external_id → DB id 解決 ────────────────────────
+  it('tasks.parent_id の external_id が DB の internal id に解決される (Req 6.2)', async () => {
+    importWbsYaml({
+      db,
+      projectId,
+      tasksYaml: TASKS_YAML_BASIC,
+      staffingYaml: STAFFING_YAML_BASIC,
+      scheduleYaml: SCHEDULE_YAML_BASIC,
+    })
+
+    const [parent] = await db
+      .select()
+      .from(schema.tasks)
+      .where(eq(schema.tasks.externalId, 'T001'))
+    const [child] = await db
+      .select()
+      .from(schema.tasks)
+      .where(eq(schema.tasks.externalId, 'T002'))
+
+    expect(parent).toBeDefined()
+    expect(child).toBeDefined()
+    if (!parent || !child) throw new Error('tasks not found')
+
+    expect(child.parentId).toBe(parent.id)
+  })
+
+  // ── Req 6.3: depends_on → task_dependencies に挿入 ────────────────────────
+  it('tasks.depends_on が task_dependencies テーブルに挿入される (Req 6.3)', async () => {
+    importWbsYaml({
+      db,
+      projectId,
+      tasksYaml: TASKS_YAML_BASIC,
+      staffingYaml: STAFFING_YAML_BASIC,
+      scheduleYaml: SCHEDULE_YAML_BASIC,
+    })
+
+    const [t001] = await db
+      .select()
+      .from(schema.tasks)
+      .where(eq(schema.tasks.externalId, 'T001'))
+    const [t002] = await db
+      .select()
+      .from(schema.tasks)
+      .where(eq(schema.tasks.externalId, 'T002'))
+
+    expect(t001).toBeDefined()
+    expect(t002).toBeDefined()
+    if (!t001 || !t002) throw new Error('tasks not found')
+
+    const deps = await db
+      .select()
+      .from(schema.taskDependencies)
+      .where(eq(schema.taskDependencies.taskId, t002.id))
+
+    expect(deps).toHaveLength(1)
+    expect(deps[0]?.dependsOnTaskId).toBe(t001.id)
+  })
+
+  // ── Req 6.4: assignee の external_id → DB id 解決 ────────────────────────
+  it('tasks.assignee の external_id が Task.assignee_id に解決される (Req 6.4)', async () => {
+    importWbsYaml({
+      db,
+      projectId,
+      tasksYaml: TASKS_YAML_BASIC,
+      staffingYaml: STAFFING_YAML_BASIC,
+      scheduleYaml: SCHEDULE_YAML_BASIC,
+    })
+
+    const [member] = await db
+      .select()
+      .from(schema.members)
+      .where(eq(schema.members.externalId, 'M001'))
+    const [task] = await db
+      .select()
+      .from(schema.tasks)
+      .where(eq(schema.tasks.externalId, 'T002'))
+
+    expect(member).toBeDefined()
+    expect(task).toBeDefined()
+    if (!member || !task) throw new Error('member or task not found')
+
+    expect(task.assigneeId).toBe(member.id)
+  })
+
+  // ── Req 6.5: progress_pct → ProgressSnapshot 作成 ─────────────────────────
+  it('tasks.progress_pct が指定されたタスクに ProgressSnapshot が作成される (Req 6.5)', async () => {
+    importWbsYaml({
+      db,
+      projectId,
+      tasksYaml: TASKS_YAML_BASIC,
+      staffingYaml: STAFFING_YAML_BASIC,
+      scheduleYaml: SCHEDULE_YAML_BASIC,
+    })
+
+    const [task] = await db
+      .select()
+      .from(schema.tasks)
+      .where(eq(schema.tasks.externalId, 'T002'))
+
+    expect(task).toBeDefined()
+    if (!task) throw new Error('task not found')
+
+    const snapshots = await db
+      .select()
+      .from(schema.progressSnapshots)
+      .where(eq(schema.progressSnapshots.taskId, task.id))
+
+    expect(snapshots).toHaveLength(1)
+    const snap = snapshots[0]
+    expect(snap).toBeDefined()
+    if (!snap) throw new Error('snapshot not found')
+
+    expect(snap.progressPct).toBe(50)
+    // ev_days = estimate_days × (progress_pct / 100) = 5 × 0.5 = 2.5
+    expect(snap.evDays).toBeCloseTo(2.5, 5)
+    // pv_days は 0 以上 estimate_days 以下
+    expect(snap.pvDays).toBeGreaterThanOrEqual(0)
+    expect(snap.pvDays).toBeLessThanOrEqual(5)
+  })
+
+  // ── Req 6.6: staffing.meta.public_holidays → holidays upsert ─────────────
+  it('staffing.meta.public_holidays が holidays テーブルに upsert される (Req 6.6)', async () => {
+    importWbsYaml({
+      db,
+      projectId,
+      tasksYaml: TASKS_YAML_BASIC,
+      staffingYaml: STAFFING_YAML_BASIC,
+      scheduleYaml: SCHEDULE_YAML_BASIC,
+    })
+
+    const holidayRows = await db
+      .select()
+      .from(schema.holidays)
+      .where(eq(schema.holidays.projectId, projectId))
+
+    expect(holidayRows).toHaveLength(2)
+    const dates = holidayRows.map((h) => h.date).sort()
+    expect(dates).toEqual(['2026-01-01', '2026-01-02'])
+  })
+
+  // ── Req 6.7: 不正 YAML → アトミックロールバック ────────────────────────────
+  it('不正 YAML の場合は AppError を throw し、部分書き込みが発生しない (Req 6.7)', async () => {
+    const invalidTasksYaml = `
+tasks:
+  - id: "T001"
+    title: "タスク1"
+    estimate_days: 5
+    planned_start: "2026-01-05"
+    planned_end: "2026-01-09"
+  - title: "IDなしタスク"
+    estimate_days: 3
+    planned_start: "2026-01-10"
+    planned_end: "2026-01-12"
+`
+    expect(() =>
+      importWbsYaml({
+        db,
+        projectId,
+        tasksYaml: invalidTasksYaml,
+        staffingYaml: STAFFING_YAML_BASIC,
+        scheduleYaml: SCHEDULE_YAML_BASIC,
+      })
+    ).toThrow(AppError)
+
+    // アトミック性の確認: タスクが 1 件も存在しないこと
+    const taskRows = await db
+      .select()
+      .from(schema.tasks)
+      .where(eq(schema.tasks.projectId, projectId))
+    expect(taskRows).toHaveLength(0)
+  })
+
+  // ── Req 6.8: 再インポート → upsert で重複なし ─────────────────────────────
+  it('同一 project_id に再インポートしても重複が生じない (Req 6.8)', async () => {
+    // 1回目のインポート
+    importWbsYaml({
+      db,
+      projectId,
+      tasksYaml: TASKS_YAML_BASIC,
+      staffingYaml: STAFFING_YAML_BASIC,
+      scheduleYaml: SCHEDULE_YAML_BASIC,
+    })
+
+    // 2回目のインポート（同じデータ）
+    importWbsYaml({
+      db,
+      projectId,
+      tasksYaml: TASKS_YAML_BASIC,
+      staffingYaml: STAFFING_YAML_BASIC,
+      scheduleYaml: SCHEDULE_YAML_BASIC,
+    })
+
+    const taskRows = await db
+      .select()
+      .from(schema.tasks)
+      .where(eq(schema.tasks.projectId, projectId))
+    expect(taskRows).toHaveLength(2) // 重複なし
+
+    const memberRows = await db
+      .select()
+      .from(schema.members)
+      .where(eq(schema.members.projectId, projectId))
+    expect(memberRows).toHaveLength(1) // 重複なし
+
+    const holidayRows = await db
+      .select()
+      .from(schema.holidays)
+      .where(eq(schema.holidays.projectId, projectId))
+    expect(holidayRows).toHaveLength(2) // 重複なし
   })
 })

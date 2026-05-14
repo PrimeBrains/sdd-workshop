@@ -82,7 +82,7 @@
   - _Requirements: 6.7, 6.10_
   - _Boundary: WbsImporter_
 
-- [ ] 4.2 アトミックインポートトランザクション（upsert・ID 解決・スナップショット）を実装する
+- [x] 4.2 アトミックインポートトランザクション（upsert・ID 解決・スナップショット）を実装する
   - `better-sqlite3` の `db.transaction()` を使用して全 upsert をひとつのトランザクションで実行する
   - `external_id` をキーとして members・tasks・holidays を upsert し、再インポート時に重複が生じないようにする
   - `tasks.yaml` の `parent_id`（external_id 形式）を DB の内部 `id` に解決して `Task.parent_id` を設定する
