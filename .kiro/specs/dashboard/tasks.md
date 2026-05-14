@@ -10,14 +10,14 @@
 ---
 
 - [ ] 1. Foundation: tRPC evm ルーター基盤のセットアップ
-- [ ] 1.1 `evm.calculate` tRPC ルーターのスケルトン作成と router.ts へのマウント
+- [x] 1.1 `evm.calculate` tRPC ルーターのスケルトン作成と router.ts へのマウント
   - `server/src/api/evm.ts` を新規作成し、`z.object({ projectId, baseDate })` を入力とする `evm.calculate` クエリプロシージャのスケルトンを定義する
   - `server/src/router.ts` に `evm: evmRouter` を追加してマウントする
   - Zod 入力スキーマ（`calculateInputSchema`）を定義し、projectId は正整数・baseDate は `YYYY-MM-DD` 形式の正規表現バリデーションを設定する
   - tRPC クライアントで `trpc.evm.calculate` が型安全に呼び出せる状態になっていることを確認する
   - _Requirements: 8.1, 8.4_
 
-- [ ] 1.2 プロジェクト未存在エラー処理と出力型の定義
+- [x] 1.2 プロジェクト未存在エラー処理と出力型の定義
   - `server/src/errors/codes.ts` の既存 `PROJ_NOT_FOUND` を使用する（変更不要）
   - `EvmSummaryOutput`, `AssigneeEvmOutput`, `AlertOutput`, `SpiTrendPoint`, `FeverChartOutput`, `EvmCalculateOutput` 型を `server/src/api/evm.ts` に定義してエクスポートする
   - `evm.calculate` でプロジェクト未存在時に `TRPCError({ code: 'NOT_FOUND', ... })` を throw するロジックを実装する

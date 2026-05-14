@@ -13,6 +13,7 @@ import { createMembersRouter } from './api/members.js'
 import { createHolidaysRouter } from './api/holidays.js'
 import { createImportRouter } from './api/import.js'
 import { createProgressRouter } from './api/progress.js'
+import { createEvmRouter } from './api/evm.js'
 
 // ── Feature Flag ──────────────────────────────────────────────────────────────
 export const ENABLE_APP_ROUTER = true
@@ -33,6 +34,7 @@ export const appRouter = t.router({
   holidays: createHolidaysRouter(db),
   import:   createImportRouter(db),
   progress: createProgressRouter(db),
+  evm:      createEvmRouter(db),
 })
 
 export type AppRouter = typeof appRouter
