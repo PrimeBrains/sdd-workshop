@@ -194,7 +194,7 @@ function ReportDocument({ project, sections }) {
 }
 
 function reportLede(p) {
-  if (p.summary.spi >= 1.0) return `プロジェクトは予定を上回るペースで進行中。SPI ${p.summary.spi.toFixed(2)} / CPI ${p.summary.cpi.toFixed(2)}、VAC ${fmtSignedYen(p.summary.vac)} と計画予算より好転。今週は実装フェーズの中盤を順調に通過。`;
+  if (p.summary.spi >= 1.0) return `プロジェクトは予定を上回るペースで進行中。SPI ${p.summary.spi.toFixed(2)} / CPI ${p.summary.cpi.toFixed(2)}、VAC ${fmtSignedMD(p.summary.vac)} と計画予算より好転。今週は実装フェーズの中盤を順調に通過。`;
   if (p.summary.spi >= 0.9) return `プロジェクトは概ね計画通りに進行中。SPI ${p.summary.spi.toFixed(2)} / CPI ${p.summary.cpi.toFixed(2)}。1件の警告タスクあり、対応中。`;
   if (p.summary.spi >= 0.8) return `スケジュールに遅れの兆候。SPI ${p.summary.spi.toFixed(2)} (先週比 ${p.summary.spiDelta > 0 ? '+' : ''}${p.summary.spiDelta.toFixed(2)})。${p.alerts.length}件の遅延タスクの早期リカバリが必要。`;
   return `プロジェクトは重大な遅延状態。SPI ${p.summary.spi.toFixed(2)} まで低下、計画見直しを推奨。`;
@@ -233,7 +233,7 @@ function SummaryBlock({ project }) {
       {[
         { l: 'SPI', v: s.spi.toFixed(2), tone: 'brand', sub: `vs先週 ${s.spiDelta > 0 ? '+' : ''}${s.spiDelta.toFixed(2)}` },
         { l: 'CPI', v: s.cpi.toFixed(2), tone: 'brand', sub: `vs先週 ${s.cpiDelta > 0 ? '+' : ''}${s.cpiDelta.toFixed(2)}` },
-        { l: 'VAC', v: fmtSignedYen(s.vac), tone: s.vac >= 0 ? 'normal' : 'critical', sub: `EAC ${fmtYen(s.eac)}` },
+        { l: 'VAC', v: fmtSignedMD(s.vac), tone: s.vac >= 0 ? 'normal' : 'critical', sub: `EAC ${fmtMD(s.eac)}` },
         { l: 'TCPI', v: s.tcpi.toFixed(2), sub: '残作業効率指数' },
       ].map((c, i) => (
         <div key={c.l} style={{
@@ -296,7 +296,7 @@ function AssigneesBlock({ project }) {
             <div style={{ flex: 1 }}>
               <div style={{ fontFamily: EVM.fontSerif, fontSize: 15, color: EVM.ink }}>{a.name}</div>
               <div style={{ fontSize: 11, color: EVM.ink3, marginTop: 2 }}>
-                EV {fmtYen(a.ev)} / BAC {fmtYen(a.bac)} · 進捗 {((a.ev / a.bac) * 100).toFixed(0)}%
+                EV {fmtMD(a.ev)} / BAC {fmtMD(a.bac)} · 進捗 {((a.ev / a.bac) * 100).toFixed(0)}%
               </div>
             </div>
             <div style={{ display: 'flex', gap: 18 }}>

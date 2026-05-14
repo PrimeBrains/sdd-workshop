@@ -145,10 +145,10 @@ const TASKS = [
 ];
 
 // ── Number formatters ───────────────────────────────────────────────────
-const fmtYen = (n) => '¥' + (n / 1_000_000).toFixed(2) + 'M';
+const fmtMD = (n) => (n / 1_000_000).toFixed(1) + ' MD';
 const fmtPct = (n) => (n * 100).toFixed(1) + '%';
 const fmtNum = (n, d = 2) => n == null ? 'N/A' : n.toFixed(d);
-const fmtSignedYen = (n) => (n >= 0 ? '+' : '−') + '¥' + (Math.abs(n) / 1_000_000).toFixed(2) + 'M';
+const fmtSignedMD = (n) => (n >= 0 ? '+' : '−') + (Math.abs(n) / 1_000_000).toFixed(1) + ' MD';
 
 const statusColor = (s) => s === 'critical' ? EVM.crit : s === 'warning' ? EVM.warn : s === 'normal' ? EVM.ok : EVM.na;
 const spiTone = (spi) => spi == null ? 'na' : spi < 0.8 ? 'critical' : spi < 0.9 ? 'warning' : 'normal';
@@ -814,7 +814,7 @@ function ProjectHeader({ projectId = 1, variant = 'default' }) {
 // Expose globally for other Babel scripts
 Object.assign(window, {
   EVM, PROJECTS, BASE_DATE, SUMMARY, MEMBERS, ASSIGNEES, ALERTS, SPI_TREND, FEVER, GANTT_RANGE, TASKS,
-  fmtYen, fmtPct, fmtNum, fmtSignedYen, statusColor, spiTone,
+  fmtMD, fmtPct, fmtNum, fmtSignedMD, statusColor, spiTone,
   Card, Eyebrow, Pill, Dot, Avatar, BrandMark,
   SpiTrendChart, FeverChart, Sparkline, Gantt, SummaryStat, ProjectHeader,
 });

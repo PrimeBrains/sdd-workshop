@@ -329,12 +329,12 @@ function VariationA({ onTabChange }) {
             <SummaryStat label="CPI" value={project.summary.cpi.toFixed(2)} tone="brand"
               sub={project.summary.cpiDelta ? `vs先週 ${project.summary.cpiDelta > 0 ? '+' : ''}${project.summary.cpiDelta.toFixed(2)}` : '横ばい'}/>
             <div style={{ width: 1, height: 56, background: EVM.rule }}/>
-            <SummaryStat label="BAC" value={fmtYen(project.summary.bac)} sub="計画総予算"/>
-            <SummaryStat label="EV"  value={fmtYen(project.summary.ev)}  sub={`PV ${fmtYen(project.summary.pv)}`}/>
-            <SummaryStat label="AC"  value={fmtYen(project.summary.ac)}  sub={`残ETC ${fmtYen(project.summary.etc)}`}/>
-            <SummaryStat label="VAC" value={fmtSignedYen(project.summary.vac)}
+            <SummaryStat label="BAC" value={fmtMD(project.summary.bac)} sub="計画総予算"/>
+            <SummaryStat label="EV"  value={fmtMD(project.summary.ev)}  sub={`PV ${fmtMD(project.summary.pv)}`}/>
+            <SummaryStat label="AC"  value={fmtMD(project.summary.ac)}  sub={`残ETC ${fmtMD(project.summary.etc)}`}/>
+            <SummaryStat label="VAC" value={fmtSignedMD(project.summary.vac)}
               tone={project.summary.vac >= 0 ? 'normal' : 'critical'}
-              sub={`EAC ${fmtYen(project.summary.eac)}`}/>
+              sub={`EAC ${fmtMD(project.summary.eac)}`}/>
           </div>
 
           {/* Alert strip */}
@@ -615,10 +615,10 @@ function Inspector({ task, taskMetrics, taskTone, project, mode, memberId, onSwi
           <div style={{ padding: '14px 20px', borderBottom: `1px solid ${EVM.rule}`, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
             <SummaryStat label="SPI" value={task.spi == null ? 'N/A' : task.spi.toFixed(2)} tone={taskTone}/>
             <SummaryStat label="CPI" value={taskMetrics.cpi == null ? 'N/A' : taskMetrics.cpi.toFixed(2)} tone={taskMetrics.cpi == null ? 'na' : 'normal'}/>
-            <SummaryStat label="EV"  value={fmtYen(taskMetrics.ev)}/>
-            <SummaryStat label="PV"  value={fmtYen(taskMetrics.pv)}/>
-            <SummaryStat label="AC"  value={fmtYen(taskMetrics.ac)}/>
-            <SummaryStat label="BAC" value={fmtYen(taskMetrics.bac)}/>
+            <SummaryStat label="EV"  value={fmtMD(taskMetrics.ev)}/>
+            <SummaryStat label="PV"  value={fmtMD(taskMetrics.pv)}/>
+            <SummaryStat label="AC"  value={fmtMD(taskMetrics.ac)}/>
+            <SummaryStat label="BAC" value={fmtMD(taskMetrics.bac)}/>
           </div>
 
           {/* Task SPI trend */}
@@ -651,7 +651,7 @@ function Inspector({ task, taskMetrics, taskTone, project, mode, memberId, onSwi
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 13, color: EVM.ink, fontWeight: 600 }}>{assignee.name}</div>
                   <div style={{ fontSize: 10.5, color: EVM.ink3, marginTop: 2 }}>
-                    EV {fmtYen(assignee.ev)} · BAC {fmtYen(assignee.bac)}
+                    EV {fmtMD(assignee.ev)} · BAC {fmtMD(assignee.bac)}
                   </div>
                 </div>
                 <div style={{ textAlign: 'right', flexShrink: 0 }}>
@@ -690,8 +690,8 @@ function Inspector({ task, taskMetrics, taskTone, project, mode, memberId, onSwi
           <div style={{ padding: '14px 20px', borderBottom: `1px solid ${EVM.rule}`, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
             <SummaryStat label="SPI" value={memberData.spi.toFixed(2)} tone={spiTone(memberData.spi)}/>
             <SummaryStat label="CPI" value={memberData.cpi.toFixed(2)} tone={memberData.cpi >= 1 ? 'normal' : memberData.cpi >= 0.9 ? 'warning' : 'critical'}/>
-            <SummaryStat label="EV"  value={fmtYen(memberData.ev)}  sub={`PV ${fmtYen(memberData.pv)}`}/>
-            <SummaryStat label="BAC" value={fmtYen(memberData.bac)} sub={`AC ${fmtYen(memberData.ac)}`}/>
+            <SummaryStat label="EV"  value={fmtMD(memberData.ev)}  sub={`PV ${fmtMD(memberData.pv)}`}/>
+            <SummaryStat label="BAC" value={fmtMD(memberData.bac)} sub={`AC ${fmtMD(memberData.ac)}`}/>
           </div>
 
           {/* Member SPI sparkline */}
