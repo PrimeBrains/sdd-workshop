@@ -29,7 +29,10 @@ function VariationA({ onTabChange }) {
   const [selectedTaskId, setSelectedTaskId] = useState(32);
   const [baseDate, setBaseDate] = useState(BASE_DATE);
   const [ganttFull, setGanttFull] = useState(false);
+  const [chartFull, setChartFull] = useState(null); // null | 'trend' | 'fever'
   const [filter, setFilter] = useState('all');
+  const [inspectorMode, setInspectorMode] = useState('task'); // 'task' | 'member'
+  const [inspectorMemberId, setInspectorMemberId] = useState(null);
   const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [projectMenuOpen, setProjectMenuOpen] = useState(false);
 
@@ -277,15 +280,29 @@ function VariationA({ onTabChange }) {
             <Eyebrow>Members · {project.members.length}</Eyebrow>
           </div>
           <div style={{ padding: '4px 12px 16px', display: 'flex', flexDirection: 'column', gap: 2 }}>
-            {project.members.map(m => (
-              <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 4px' }}>
-                <Avatar initials={m.initials} size={22}/>
-                <div style={{ minWidth: 0, flex: 1 }}>
-                  <div style={{ fontSize: 11.5, color: EVM.ink, fontWeight: 500 }}>{m.name}</div>
-                  <div style={{ fontSize: 9.5, color: EVM.ink3 }}>{m.role}</div>
-                </div>
-              </div>
-            ))}
+            {project.members.map(m => {
+              const a = project.assignees.find(a => a.name === m.name);
+              const active = inspectorMode === 'member' && inspectorMemberId === (a && a.id);
+              return (
+                <button key={m.id}
+                  onClick={() => { if (a) { setInspectorMemberId(a.id); setInspectorMode('member'); } }}
+                  className="evm-assignee-row"
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 10, padding: '4px 6px',
+                    border: 0, borderRadius: 4, textAlign: 'left', fontFamily: 'inherit',
+                    background: active ? EVM.brandWash : 'transparent',
+                    borderLeft: `3px solid ${active ? EVM.brandDeep : 'transparent'}`,
+                    cursor: a ? 'pointer' : 'default', color: 'inherit',
+                  }}>
+                  <Avatar initials={m.initials} size={22}/>
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div style={{ fontSize: 11.5, color: EVM.ink, fontWeight: 500 }}>{m.name}</div>
+                    <div style={{ fontSize: 9.5, color: EVM.ink3 }}>{m.role}</div>
+                  </div>
+                  {a && <span style={{ fontSize: 10, fontFamily: EVM.fontMono, color: statusColor(spiTone(a.spi)), fontWeight: 600 }}>{a.spi.toFixed(2)}</span>}
+                </button>
+              );
+            })}
           </div>
         </aside>
 
@@ -390,7 +407,7 @@ function VariationA({ onTabChange }) {
                 range={{ totalDays: project.totalDays, baseDay: project.baseDay, months: project.months }}
                 width={1100} labelW={290}
                 selectedTaskId={selectedTaskId}
-                onTaskClick={(t) => setSelectedTaskId(t.id)}
+                onTaskClick={(t) => { setSelectedTaskId(t.id); setInspectorMode('task'); }}
               />
             </div>
           </div>
@@ -398,18 +415,23 @@ function VariationA({ onTabChange }) {
           {/* Charts row */}
           <div style={{ display: 'flex', gap: 12, padding: '0 24px 24px', flex: '0 0 auto' }}>
             <Card pad={0} style={{ flex: 1.2, display: 'flex', flexDirection: 'column' }}>
-              <div style={{ padding: '14px 20px', borderBottom: `1px solid ${EVM.rule}`, display: 'flex', alignItems: 'baseline', gap: 12 }}>
+              <div style={{ padding: '14px 20px', borderBottom: `1px solid ${EVM.rule}`, display: 'flex', alignItems: 'center', gap: 12 }}>
                 <Eyebrow>Trend · Snapshots × Time</Eyebrow>
                 <span style={{ fontSize: 13, color: EVM.ink, fontWeight: 500 }}>SPI / CPI 推移</span>
                 <div style={{ flex: 1 }}/>
                 <span style={{ fontSize: 11, color: EVM.ink3 }}>過去 {project.spiTrend.length} スナップショット</span>
+                <div style={{ width: 1, height: 18, background: EVM.rule, marginLeft: 4 }}/>
+                <button onClick={() => setChartFull('trend')} title="全画面で表示" className="evm-btn"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 10px', borderRadius: 4, background: EVM.paperWarm, border: `1px solid ${EVM.rule}`, cursor: 'pointer', fontFamily: 'inherit', fontSize: 11.5, color: EVM.ink2, fontWeight: 500 }}>
+                  <ExpandIcon size={12}/><span>全画面で見る</span>
+                </button>
               </div>
               <div style={{ padding: '14px 16px 8px', flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <SpiTrendChart data={project.spiTrend} w={620} h={210}/>
               </div>
             </Card>
             <Card pad={0} style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-              <div style={{ padding: '14px 20px', borderBottom: `1px solid ${EVM.rule}`, display: 'flex', alignItems: 'baseline', gap: 12 }}>
+              <div style={{ padding: '14px 20px', borderBottom: `1px solid ${EVM.rule}`, display: 'flex', alignItems: 'center', gap: 12 }}>
                 <Eyebrow>CCPM Fever</Eyebrow>
                 <span style={{ fontSize: 13, color: EVM.ink, fontWeight: 500 }}>バッファ消費 vs 完了率</span>
                 <div style={{ flex: 1 }}/>
@@ -418,6 +440,11 @@ function VariationA({ onTabChange }) {
                     {project.fever.zone}
                   </Pill>
                 ) : <Pill tone="na">N/A</Pill>}
+                <div style={{ width: 1, height: 18, background: EVM.rule, marginLeft: 4 }}/>
+                <button onClick={() => setChartFull('fever')} title="全画面で表示" className="evm-btn"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 10px', borderRadius: 4, background: EVM.paperWarm, border: `1px solid ${EVM.rule}`, cursor: 'pointer', fontFamily: 'inherit', fontSize: 11.5, color: EVM.ink2, fontWeight: 500 }}>
+                  <ExpandIcon size={12}/><span>全画面で見る</span>
+                </button>
               </div>
               <div style={{ padding: '8px 12px', flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 {project.fever
@@ -438,11 +465,10 @@ function VariationA({ onTabChange }) {
           taskMetrics={taskMetrics}
           taskTone={taskTone}
           project={project}
-          onPickAssignee={(a) => {
-            // Jump to first task by that assignee
-            const t = project.tasks.find(x => x.assignee === a.name);
-            if (t) setSelectedTaskId(t.id);
-          }}
+          mode={inspectorMode}
+          memberId={inspectorMemberId}
+          onSwitchTask={() => setInspectorMode('task')}
+          onSwitchMember={(a) => { if (a) setInspectorMemberId(a.id); setInspectorMode('member'); }}
         />
       </div>
 
@@ -454,6 +480,13 @@ function VariationA({ onTabChange }) {
           filter={filter}
           onFilterChange={setFilter}
           onClose={() => setGanttFull(false)}
+        />
+      )}
+      {chartFull && (
+        <ChartFullscreen
+          type={chartFull}
+          project={project}
+          onClose={() => setChartFull(null)}
         />
       )}
     </div>
@@ -503,12 +536,33 @@ function AlertStrip({ alerts, onJump }) {
 }
 
 // ── Inspector ───────────────────────────────────────────────────────────
-function Inspector({ task, taskMetrics, taskTone, project, onPickAssignee }) {
+function Inspector({ task, taskMetrics, taskTone, project, mode, memberId, onSwitchTask, onSwitchMember }) {
   const dateFromOffset = (offset) => {
-    const start = new Date(project.startISO);
-    const d = new Date(start.getTime() + offset * 86400000);
+    const s = new Date(project.startISO);
+    const d = new Date(s.getTime() + offset * 86400000);
     return `${d.getMonth() + 1}/${d.getDate()}`;
   };
+
+  const assignee   = task.assignee ? project.assignees.find(a => a.name === task.assignee) : null;
+  const memberData = memberId ? project.assignees.find(a => a.id === memberId) : null;
+  const memberInfo = memberData ? project.members.find(m => m.name === memberData.name) : null;
+  const memberTasks = memberData ? project.tasks.filter(t => t.assignee === memberData.name) : [];
+
+  const TabBar = () => (
+    <div style={{ display: 'flex', borderBottom: `1px solid ${EVM.rule}`, flex: '0 0 auto' }}>
+      {[['task', 'Task'], ['member', 'Member']].map(([key, label]) => (
+        <button key={key}
+          onClick={() => key === 'task' ? onSwitchTask() : onSwitchMember(memberData)}
+          style={{
+            flex: 1, padding: '10px 0', border: 0,
+            borderBottom: `2px solid ${mode === key ? EVM.brandDeep : 'transparent'}`,
+            background: 'transparent', color: mode === key ? EVM.brandDeep : EVM.ink3,
+            fontFamily: 'inherit', fontSize: 11, fontWeight: mode === key ? 700 : 500,
+            cursor: 'pointer', letterSpacing: '0.12em', textTransform: 'uppercase',
+          }}>{label}</button>
+      ))}
+    </div>
+  );
 
   return (
     <aside style={{
@@ -516,116 +570,196 @@ function Inspector({ task, taskMetrics, taskTone, project, onPickAssignee }) {
       borderLeft: `1px solid ${EVM.rule}`,
       display: 'flex', flexDirection: 'column', overflow: 'hidden',
     }}>
-      <div style={{ padding: '14px 20px 10px', borderBottom: `1px solid ${EVM.rule}` }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'space-between' }}>
-          <Eyebrow>Inspector · Task</Eyebrow>
-          <span style={{ fontSize: 10, color: EVM.ink4 }}>{project.tasks.findIndex(t => t.id === task.id) + 1} / {project.tasks.length}</span>
-        </div>
-        <div style={{ marginTop: 8, display: 'flex', alignItems: 'baseline', gap: 10 }}>
-          <span style={{ fontFamily: EVM.fontMono, fontSize: 11, color: EVM.ink3 }}>{task.code}</span>
-          <span style={{ fontFamily: EVM.fontSerif, fontSize: 19, color: EVM.ink, lineHeight: 1.2 }}>{task.name}</span>
-        </div>
-        <div style={{ marginTop: 8, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-          <Pill tone={taskTone}>
-            {task.spi == null ? 'N/A' :
-             taskTone === 'normal' ? 'On Track' :
-             taskTone === 'warning' ? 'Watch' : 'Delayed'}
-          </Pill>
-          {task.buffer && <Pill>CCPM バッファ</Pill>}
-          {!task.leaf && !task.buffer && <Pill>サマリ</Pill>}
-          {task.leaf && !task.buffer && <Pill>Leaf</Pill>}
-          {task.assignee && <Pill>担当 {task.assignee}</Pill>}
-        </div>
-      </div>
+      <TabBar/>
 
-      {/* Progress */}
-      <div style={{ padding: '16px 20px', borderBottom: `1px solid ${EVM.rule}` }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 8 }}>
-          <Eyebrow>Progress</Eyebrow>
-          <span style={{ fontFamily: EVM.fontSerif, fontSize: 26, color: EVM.ink, fontVariantNumeric: 'tabular-nums' }}>
-            {task.progress}<span style={{ fontSize: 14, color: EVM.ink3 }}>%</span>
-          </span>
-        </div>
-        <div style={{
-          height: 8, background: EVM.paperWarm, borderRadius: 4,
-          overflow: 'hidden', border: `1px solid ${EVM.rule}`,
-        }}>
-          <div style={{ width: `${task.progress}%`, height: '100%', background: EVM.brandDeep }}/>
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, fontSize: 11, color: EVM.ink3 }}>
-          <span>{dateFromOffset(task.start)} 開始</span>
-          <span>{dateFromOffset(task.end)} 計画終了</span>
-        </div>
-      </div>
+      {/* ── TASK MODE ── */}
+      {mode === 'task' && (
+        <>
+          <div style={{ padding: '14px 20px 10px', borderBottom: `1px solid ${EVM.rule}` }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <Eyebrow>Inspector · Task</Eyebrow>
+              <span style={{ fontSize: 10, color: EVM.ink4 }}>{project.tasks.findIndex(t => t.id === task.id) + 1} / {project.tasks.length}</span>
+            </div>
+            <div style={{ marginTop: 8, display: 'flex', alignItems: 'baseline', gap: 10 }}>
+              <span style={{ fontFamily: EVM.fontMono, fontSize: 11, color: EVM.ink3 }}>{task.code}</span>
+              <span style={{ fontFamily: EVM.fontSerif, fontSize: 19, color: EVM.ink, lineHeight: 1.2 }}>{task.name}</span>
+            </div>
+            <div style={{ marginTop: 8, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              <Pill tone={taskTone}>
+                {task.spi == null ? 'N/A' : taskTone === 'normal' ? 'On Track' : taskTone === 'warning' ? 'Watch' : 'Delayed'}
+              </Pill>
+              {task.buffer && <Pill>CCPM バッファ</Pill>}
+              {!task.leaf && !task.buffer && <Pill>サマリ</Pill>}
+              {task.leaf && !task.buffer && <Pill>Leaf</Pill>}
+            </div>
+          </div>
 
-      {/* Metrics */}
-      <div style={{
-        padding: '16px 20px', borderBottom: `1px solid ${EVM.rule}`,
-        display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14,
-      }}>
-        <SummaryStat label="SPI"  value={task.spi == null ? 'N/A' : task.spi.toFixed(2)} tone={taskTone}/>
-        <SummaryStat label="CPI"  value={taskMetrics.cpi == null ? 'N/A' : taskMetrics.cpi.toFixed(2)} tone={taskMetrics.cpi == null ? 'na' : 'normal'}/>
-        <SummaryStat label="EV"   value={fmtYen(taskMetrics.ev)}/>
-        <SummaryStat label="PV"   value={fmtYen(taskMetrics.pv)}/>
-        <SummaryStat label="AC"   value={fmtYen(taskMetrics.ac)}/>
-        <SummaryStat label="BAC"  value={fmtYen(taskMetrics.bac)}/>
-      </div>
+          {/* Progress */}
+          <div style={{ padding: '14px 20px', borderBottom: `1px solid ${EVM.rule}` }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 8 }}>
+              <Eyebrow>Progress</Eyebrow>
+              <span style={{ fontFamily: EVM.fontSerif, fontSize: 26, color: EVM.ink, fontVariantNumeric: 'tabular-nums' }}>
+                {task.progress}<span style={{ fontSize: 14, color: EVM.ink3 }}>%</span>
+              </span>
+            </div>
+            <div style={{ height: 8, background: EVM.paperWarm, borderRadius: 4, overflow: 'hidden', border: `1px solid ${EVM.rule}` }}>
+              <div style={{ width: `${task.progress}%`, height: '100%', background: EVM.brandDeep }}/>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, fontSize: 11, color: EVM.ink3 }}>
+              <span>{dateFromOffset(task.start)} 開始</span>
+              <span>{dateFromOffset(task.end)} 計画終了</span>
+            </div>
+          </div>
 
-      {/* Task SPI trend */}
-      <div style={{ padding: '14px 20px', borderBottom: `1px solid ${EVM.rule}` }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 6 }}>
-          <Eyebrow>Task SPI Trend</Eyebrow>
-          <span style={{ fontSize: 10, color: EVM.ink3 }}>
-            {task.spi == null ? '— → —' : `${(task.spi - 0.08).toFixed(2)} → ${task.spi.toFixed(2)}`}
-          </span>
-        </div>
-        <Sparkline
-          data={task.spi == null ? [1, 1, 1, 1, 1, 1] :
-            [task.spi - 0.08, task.spi - 0.06, task.spi - 0.04, task.spi - 0.02, task.spi - 0.01, task.spi]}
-          w={340} h={50}
-          color={task.spi == null ? EVM.ink4 : statusColor(taskTone)}
-        />
-      </div>
+          {/* Metrics */}
+          <div style={{ padding: '14px 20px', borderBottom: `1px solid ${EVM.rule}`, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+            <SummaryStat label="SPI" value={task.spi == null ? 'N/A' : task.spi.toFixed(2)} tone={taskTone}/>
+            <SummaryStat label="CPI" value={taskMetrics.cpi == null ? 'N/A' : taskMetrics.cpi.toFixed(2)} tone={taskMetrics.cpi == null ? 'na' : 'normal'}/>
+            <SummaryStat label="EV"  value={fmtYen(taskMetrics.ev)}/>
+            <SummaryStat label="PV"  value={fmtYen(taskMetrics.pv)}/>
+            <SummaryStat label="AC"  value={fmtYen(taskMetrics.ac)}/>
+            <SummaryStat label="BAC" value={fmtYen(taskMetrics.bac)}/>
+          </div>
 
-      {/* Assignees */}
-      <div style={{ padding: '14px 20px', borderBottom: `1px solid ${EVM.rule}`, flex: '1 1 auto', minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-        <Eyebrow style={{ marginBottom: 10 }}>Assignees · {project.assignees.length}</Eyebrow>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, overflow: 'auto' }}>
-          {project.assignees.map(a => {
-            const tone = spiTone(a.spi);
-            const active = task.assignee === a.name;
-            return (
-              <button key={a.id} onClick={() => onPickAssignee(a)}
+          {/* Task SPI trend */}
+          <div style={{ padding: '14px 20px', borderBottom: `1px solid ${EVM.rule}` }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 6 }}>
+              <Eyebrow>Task SPI Trend</Eyebrow>
+              <span style={{ fontSize: 10, color: EVM.ink3 }}>
+                {task.spi == null ? '— → —' : `${(task.spi - 0.08).toFixed(2)} → ${task.spi.toFixed(2)}`}
+              </span>
+            </div>
+            <Sparkline
+              data={task.spi == null ? [1,1,1,1,1,1] :
+                [task.spi-0.08, task.spi-0.06, task.spi-0.04, task.spi-0.02, task.spi-0.01, task.spi]}
+              w={340} h={50} color={task.spi == null ? EVM.ink4 : statusColor(taskTone)}/>
+          </div>
+
+          {/* Assignee card — 1 person */}
+          <div style={{ padding: '14px 20px', flex: '1 1 auto' }}>
+            <Eyebrow style={{ marginBottom: 10 }}>Assignee</Eyebrow>
+            {assignee ? (
+              <button onClick={() => onSwitchMember(assignee)}
                 className="evm-assignee-row"
                 style={{
-                  display: 'flex', alignItems: 'center', gap: 10,
-                  padding: '6px 8px', borderRadius: 4, border: 0,
-                  background: active ? EVM.brandWash :
-                    tone === 'critical' ? EVM.critSoft :
-                    tone === 'warning' ? EVM.warnSoft : 'transparent',
-                  cursor: 'pointer', fontFamily: 'inherit', color: 'inherit',
-                  textAlign: 'left',
-                  borderLeft: `3px solid ${active ? EVM.brandDeep : 'transparent'}`,
+                  display: 'flex', alignItems: 'center', gap: 12, width: '100%',
+                  padding: '10px 12px', borderRadius: 6, border: `1px solid ${EVM.rule}`,
+                  background: EVM.paperWarm, cursor: 'pointer', fontFamily: 'inherit',
+                  color: 'inherit', textAlign: 'left',
                 }}>
-                <Avatar initials={initialsOf(a.name)} size={22}/>
-                <div style={{ minWidth: 0, flex: 1 }}>
-                  <div style={{ fontSize: 12, color: EVM.ink, fontWeight: 500 }}>{a.name}</div>
-                  <div style={{ fontSize: 10, color: EVM.ink3 }}>
-                    EV {fmtYen(a.ev)} / BAC {fmtYen(a.bac)}
+                <Avatar initials={initialsOf(assignee.name)} size={28}/>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, color: EVM.ink, fontWeight: 600 }}>{assignee.name}</div>
+                  <div style={{ fontSize: 10.5, color: EVM.ink3, marginTop: 2 }}>
+                    EV {fmtYen(assignee.ev)} · BAC {fmtYen(assignee.bac)}
                   </div>
                 </div>
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{
-                    fontFamily: EVM.fontMono, fontSize: 12, fontWeight: 600,
-                    color: statusColor(tone), fontVariantNumeric: 'tabular-nums',
-                  }}>{a.spi.toFixed(2)}</div>
-                  <div style={{ fontSize: 9.5, color: EVM.ink3, letterSpacing: '0.04em' }}>SPI</div>
+                <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                  <div style={{ fontFamily: EVM.fontMono, fontSize: 14, fontWeight: 700, color: statusColor(spiTone(assignee.spi)) }}>
+                    {assignee.spi.toFixed(2)}
+                  </div>
+                  <div style={{ fontSize: 9.5, color: EVM.ink3 }}>SPI</div>
                 </div>
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ flexShrink: 0, color: EVM.ink4 }}>
+                  <path d="M4 2 L8 6 L4 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
               </button>
-            );
-          })}
+            ) : (
+              <div style={{ fontSize: 12, color: EVM.ink3, fontStyle: 'italic', padding: '8px 0' }}>担当者未割当</div>
+            )}
+          </div>
+        </>
+      )}
+
+      {/* ── MEMBER MODE ── */}
+      {mode === 'member' && memberData && (
+        <>
+          {/* Member header */}
+          <div style={{ padding: '16px 20px', borderBottom: `1px solid ${EVM.rule}` }}>
+            <Eyebrow style={{ marginBottom: 10 }}>Inspector · Member</Eyebrow>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+              <Avatar initials={initialsOf(memberData.name)} size={38} tone="brand"/>
+              <div>
+                <div style={{ fontFamily: EVM.fontSerif, fontSize: 20, color: EVM.ink, lineHeight: 1.2 }}>{memberData.name}</div>
+                <div style={{ fontSize: 11, color: EVM.ink3, marginTop: 3 }}>{memberInfo ? memberInfo.role : ''}</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Member aggregate metrics */}
+          <div style={{ padding: '14px 20px', borderBottom: `1px solid ${EVM.rule}`, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+            <SummaryStat label="SPI" value={memberData.spi.toFixed(2)} tone={spiTone(memberData.spi)}/>
+            <SummaryStat label="CPI" value={memberData.cpi.toFixed(2)} tone={memberData.cpi >= 1 ? 'normal' : memberData.cpi >= 0.9 ? 'warning' : 'critical'}/>
+            <SummaryStat label="EV"  value={fmtYen(memberData.ev)}  sub={`PV ${fmtYen(memberData.pv)}`}/>
+            <SummaryStat label="BAC" value={fmtYen(memberData.bac)} sub={`AC ${fmtYen(memberData.ac)}`}/>
+          </div>
+
+          {/* Member SPI sparkline */}
+          <div style={{ padding: '14px 20px', borderBottom: `1px solid ${EVM.rule}` }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 6 }}>
+              <Eyebrow>SPI Trend</Eyebrow>
+              <span style={{ fontSize: 10, color: EVM.ink3 }}>
+                {`${(memberData.spi - 0.06).toFixed(2)} → ${memberData.spi.toFixed(2)}`}
+              </span>
+            </div>
+            <Sparkline
+              data={[memberData.spi-0.06, memberData.spi-0.05, memberData.spi-0.03, memberData.spi-0.02, memberData.spi-0.01, memberData.spi]}
+              w={340} h={48} color={statusColor(spiTone(memberData.spi))}/>
+          </div>
+
+          {/* Member's task list */}
+          <div style={{ padding: '14px 20px', flex: '1 1 auto', minHeight: 0, overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 10 }}>
+              <Eyebrow>担当タスク</Eyebrow>
+              <span style={{ fontSize: 10, color: EVM.ink3 }}>{memberTasks.length} 件</span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {memberTasks.map(t => {
+                const tone = spiTone(t.spi);
+                return (
+                  <div key={t.id} style={{
+                    padding: '9px 12px', borderRadius: 5,
+                    border: `1px solid ${EVM.rule}`, background: EVM.paperWarm,
+                    display: 'flex', alignItems: 'center', gap: 10,
+                  }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 4 }}>
+                        <span style={{ fontFamily: EVM.fontMono, fontSize: 10, color: EVM.ink3 }}>{t.code}</span>
+                        <span style={{ fontSize: 12.5, color: EVM.ink, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.name}</span>
+                      </div>
+                      <div style={{ height: 4, background: EVM.rule, borderRadius: 2, overflow: 'hidden' }}>
+                        <div style={{ width: `${t.progress}%`, height: '100%', background: t.progress === 100 ? EVM.ok : EVM.brandDeep }}/>
+                      </div>
+                    </div>
+                    <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                      <div style={{ fontFamily: EVM.fontMono, fontSize: 12, fontWeight: 700, color: t.spi == null ? EVM.ink4 : statusColor(tone) }}>
+                        {t.spi == null ? 'N/A' : t.spi.toFixed(2)}
+                      </div>
+                      <div style={{ fontSize: 9, color: EVM.ink3 }}>{t.progress}%</div>
+                    </div>
+                  </div>
+                );
+              })}
+              {memberTasks.length === 0 && (
+                <div style={{ color: EVM.ink3, fontSize: 12, fontStyle: 'italic' }}>担当タスクなし</div>
+              )}
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Member tab selected but no member chosen yet */}
+      {mode === 'member' && !memberData && (
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 10, color: EVM.ink3, padding: 40 }}>
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
+            <circle cx="12" cy="8" r="4" stroke="currentColor" strokeWidth="1.5"/>
+            <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+          </svg>
+          <div style={{ fontSize: 12, textAlign: 'center', lineHeight: 1.6 }}>
+            左レールまたはタスクの担当者カードから<br/>メンバーを選択してください
+          </div>
         </div>
-      </div>
+      )}
     </aside>
   );
 }
@@ -1086,6 +1220,111 @@ function GanttFullscreen({ project, selectedTaskId, onSelectTask, filter, onFilt
               </aside>
             );
           })()}
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+// ── Chart Fullscreen ────────────────────────────────────────────────────
+function ChartFullscreen({ type, project, onClose }) {
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.body.style.overflow = prev;
+    };
+  }, [onClose]);
+
+  const isTrend = type === 'trend';
+  const eyebrow = isTrend ? 'Trend · Snapshots × Time' : 'CCPM Fever';
+  const title   = isTrend ? 'SPI / CPI 推移' : 'バッファ消費 vs 完了率';
+
+  const vw = typeof window !== 'undefined' ? window.innerWidth  : 1400;
+  const vh = typeof window !== 'undefined' ? window.innerHeight : 900;
+  const availW = vw  - 64 - 96;  // modal padding + card padding
+  const availH = vh  - 64 - 60 - 56 - 48; // modal pad + header + footer + card pad
+
+  let chartW, chartH;
+  if (isTrend) {
+    chartW = Math.max(availW, 480);
+    chartH = Math.max(Math.min(availH, Math.round(availW * 0.38)), 260);
+  } else {
+    const sq = Math.max(Math.min(availW * 0.72, availH), 320);
+    chartW = sq;
+    chartH = sq;
+  }
+
+  return ReactDOM.createPortal(
+    <div onClick={onClose} style={{
+      position: 'fixed', inset: 0, zIndex: 9999,
+      background: 'rgba(20, 18, 14, 0.55)',
+      backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      padding: 32, animation: 'evmFadeIn 0.18s ease-out',
+    }}>
+      <div onClick={(e) => e.stopPropagation()} style={{
+        background: EVM.card, borderRadius: 8,
+        boxShadow: '0 24px 80px rgba(0,0,0,0.32), 0 0 0 1px rgba(0,0,0,0.06)',
+        display: 'flex', flexDirection: 'column', overflow: 'hidden',
+        animation: 'evmSlideUp 0.22s cubic-bezier(.2,.7,.3,1)',
+        fontFamily: EVM.font,
+      }}>
+        {/* Header */}
+        <div style={{
+          padding: '14px 24px', borderBottom: `1px solid ${EVM.rule}`,
+          display: 'flex', alignItems: 'center', gap: 16, flex: '0 0 auto',
+        }}>
+          <BrandMark size={22}/>
+          <div style={{ width: 1, height: 22, background: EVM.rule }}/>
+          <div>
+            <Eyebrow>{eyebrow}</Eyebrow>
+            <div style={{ fontFamily: EVM.fontSerif, fontSize: 18, color: EVM.ink, marginTop: 2 }}>{title}</div>
+          </div>
+          <div style={{ width: 1, height: 30, background: EVM.rule }}/>
+          <div style={{ fontFamily: EVM.fontSerif, fontSize: 14, color: EVM.ink2 }}>{project.name}</div>
+          <div style={{ flex: 1 }}/>
+          {isTrend && (
+            <span style={{ fontSize: 11, color: EVM.ink3 }}>過去 {project.spiTrend.length} スナップショット</span>
+          )}
+          {!isTrend && project.fever && (
+            <Pill tone={project.fever.zone === 'GREEN' ? 'brand' : project.fever.zone === 'YELLOW' ? 'warning' : 'critical'}>
+              {project.fever.zone}
+            </Pill>
+          )}
+          <button onClick={onClose} title="閉じる (Esc)" className="evm-icon-btn"
+            style={{
+              width: 34, height: 34, borderRadius: 6, marginLeft: 12,
+              background: EVM.paperWarm, border: `1px solid ${EVM.rule}`,
+              cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              color: EVM.ink2,
+            }}>
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <path d="M3 3 L11 11 M11 3 L3 11" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
+            </svg>
+          </button>
+        </div>
+
+        {/* Chart */}
+        <div style={{ padding: '28px 40px 24px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          {isTrend
+            ? <SpiTrendChart data={project.spiTrend} w={chartW} h={chartH}/>
+            : project.fever
+              ? <FeverChart data={project.fever} w={chartW} h={chartH}/>
+              : <div style={{ color: EVM.ink3, fontStyle: 'italic', fontFamily: EVM.fontSerif, padding: 60 }}>バッファタスク未定義</div>
+          }
+        </div>
+
+        {/* Footer */}
+        <div style={{ padding: '10px 24px', borderTop: `1px solid ${EVM.rule}`, display: 'flex', justifyContent: 'flex-end', flex: '0 0 auto' }}>
+          <span style={{ fontSize: 11, color: EVM.ink3 }}>
+            <kbd style={{ background: EVM.card, border: `1px solid ${EVM.rule}`, padding: '1px 6px', borderRadius: 3, fontFamily: EVM.fontMono, fontSize: 10, color: EVM.ink2 }}>Esc</kbd>
+            {' '}で閉じる
+          </span>
         </div>
       </div>
     </div>,

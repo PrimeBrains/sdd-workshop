@@ -231,6 +231,7 @@ function BrandMark({ size = 28 }) {
 
 // ── Chart: SPI/CPI trend (SVG line chart) ───────────────────────────────
 function SpiTrendChart({ w = 480, h = 220, data = SPI_TREND, padTop = 14, padBottom = 28, padL = 38, padR = 14 }) {
+  const [hovered, setHovered] = React.useState(null);
   const innerW = w - padL - padR;
   const innerH = h - padTop - padBottom;
   const yMin = 0.7, yMax = 1.15;
@@ -240,6 +241,16 @@ function SpiTrendChart({ w = 480, h = 220, data = SPI_TREND, padTop = 14, padBot
 
   const path = (key) => data.map((d, i) => `${i === 0 ? 'M' : 'L'} ${x(i).toFixed(1)} ${y(d[key]).toFixed(1)}`).join(' ');
 
+  const tooltip = hovered !== null ? (() => {
+    const d = data[hovered];
+    const tx = x(hovered);
+    const tw = 138, th = 66;
+    const flip = tx > w - tw - 20;
+    const rx = flip ? tx - tw - 14 : tx + 14;
+    const ry = Math.max(padTop + 4, Math.min(y(d.spi) - th / 2, h - padBottom - th - 4));
+    return { d, tx, tw, th, rx, ry };
+  })() : null;
+
   return (
     <svg width={w} height={h} style={{ display: 'block', overflow: 'visible' }}>
       {/* horizontal grid */}
@@ -247,7 +258,7 @@ function SpiTrendChart({ w = 480, h = 220, data = SPI_TREND, padTop = 14, padBot
         <g key={t}>
           <line x1={padL} x2={w - padR} y1={y(t)} y2={y(t)}
             stroke={t === 1.0 ? EVM.ink3 : EVM.ruleSoft}
-            strokeWidth={t === 1.0 ? 1 : 1}
+            strokeWidth={1}
             strokeDasharray={t === 1.0 ? '3 3' : ''} />
           <text x={padL - 6} y={y(t) + 3} textAnchor="end"
             style={{ fontFamily: EVM.font, fontSize: 10, fill: EVM.ink3, fontVariantNumeric: 'tabular-nums' }}>
@@ -258,22 +269,24 @@ function SpiTrendChart({ w = 480, h = 220, data = SPI_TREND, padTop = 14, padBot
       {/* x labels */}
       {data.map((d, i) => (
         <text key={i} x={x(i)} y={h - padBottom + 14} textAnchor="middle"
-          style={{ fontFamily: EVM.font, fontSize: 10, fill: EVM.ink3 }}>{d.d}</text>
+          style={{ fontFamily: EVM.font, fontSize: 10, fill: hovered === i ? EVM.ink : EVM.ink3 }}>{d.d}</text>
       ))}
       {/* CPI line */}
       <path d={path('cpi')} fill="none" stroke={EVM.ink2} strokeWidth="1.4" strokeDasharray="4 3" />
       {data.map((d, i) => <circle key={'c'+i} cx={x(i)} cy={y(d.cpi)} r={2.4} fill={EVM.card} stroke={EVM.ink2} strokeWidth="1.4"/>)}
       {/* SPI line */}
       <path d={path('spi')} fill="none" stroke={EVM.brandDeep} strokeWidth="2" />
-      {data.map((d, i) => <circle key={'s'+i} cx={x(i)} cy={y(d.spi)} r={3} fill={EVM.brandDeep}/>)}
+      {data.map((d, i) => <circle key={'s'+i} cx={x(i)} cy={y(d.spi)} r={hovered === i ? 5 : 3} fill={EVM.brandDeep} style={{ transition: 'r 0.1s' }}/>)}
       {/* latest annotation */}
-      <g>
-        <circle cx={x(data.length - 1)} cy={y(data[data.length - 1].spi)} r={6} fill="none" stroke={EVM.brandDeep} strokeWidth="1.2" opacity="0.35"/>
-        <text x={x(data.length - 1) + 9} y={y(data[data.length - 1].spi) - 6}
-          style={{ fontFamily: EVM.font, fontSize: 11, fontWeight: 600, fill: EVM.brandDeep, fontVariantNumeric: 'tabular-nums' }}>
-          SPI {data[data.length - 1].spi.toFixed(2)}
-        </text>
-      </g>
+      {hovered !== data.length - 1 && (
+        <g>
+          <circle cx={x(data.length - 1)} cy={y(data[data.length - 1].spi)} r={6} fill="none" stroke={EVM.brandDeep} strokeWidth="1.2" opacity="0.35"/>
+          <text x={x(data.length - 1) + 9} y={y(data[data.length - 1].spi) - 6}
+            style={{ fontFamily: EVM.font, fontSize: 11, fontWeight: 600, fill: EVM.brandDeep, fontVariantNumeric: 'tabular-nums' }}>
+            SPI {data[data.length - 1].spi.toFixed(2)}
+          </text>
+        </g>
+      )}
       {/* Legend */}
       <g transform={`translate(${padL}, ${padTop - 6})`}>
         <line x1="0" x2="14" y1="0" y2="0" stroke={EVM.brandDeep} strokeWidth="2"/>
@@ -281,30 +294,75 @@ function SpiTrendChart({ w = 480, h = 220, data = SPI_TREND, padTop = 14, padBot
         <line x1="50" x2="64" y1="0" y2="0" stroke={EVM.ink2} strokeWidth="1.4" strokeDasharray="4 3"/>
         <text x="68" y="3" style={{ fontFamily: EVM.font, fontSize: 10, fill: EVM.ink2, fontWeight: 600 }}>CPI</text>
       </g>
+      {/* Invisible hit areas — vertical strips per x position */}
+      {data.map((d, i) => {
+        const cx = x(i);
+        const colW = i === 0 || i === data.length - 1
+          ? innerW / (data.length - 1) / 2
+          : innerW / (data.length - 1);
+        const rx = i === 0 ? cx : cx - colW / 2;
+        return (
+          <rect key={'hit'+i} x={rx} y={padTop} width={colW} height={innerH}
+            fill="transparent" style={{ cursor: 'crosshair' }}
+            onMouseEnter={() => setHovered(i)}
+            onMouseLeave={() => setHovered(null)}/>
+        );
+      })}
+      {/* Tooltip */}
+      {tooltip && (
+        <g style={{ pointerEvents: 'none' }}>
+          <line x1={tooltip.tx} x2={tooltip.tx} y1={padTop} y2={h - padBottom}
+            stroke={EVM.brandDeep} strokeWidth="1" strokeDasharray="3 2" opacity="0.35"/>
+          <rect x={tooltip.rx} y={tooltip.ry} width={tooltip.tw} height={tooltip.th} rx={5}
+            fill={EVM.card} stroke={EVM.rule} strokeWidth="1"
+            style={{ filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.10))' }}/>
+          <text x={tooltip.rx + 10} y={tooltip.ry + 15}
+            style={{ fontFamily: EVM.fontMono, fontSize: 10, fill: EVM.ink3 }}>{tooltip.d.d}</text>
+          <rect x={tooltip.rx + 10} y={tooltip.ry + 24} width={10} height={3} rx={1} fill={EVM.brandDeep}/>
+          <text x={tooltip.rx + 24} y={tooltip.ry + 30}
+            style={{ fontFamily: EVM.fontMono, fontSize: 12, fill: EVM.brandDeep, fontWeight: 700 }}>
+            SPI {tooltip.d.spi.toFixed(2)}
+          </text>
+          <line x1={tooltip.rx + 10} x2={tooltip.rx + 20} y1={tooltip.ry + 48} y2={tooltip.ry + 48}
+            stroke={EVM.ink2} strokeWidth="1.5" strokeDasharray="3 2"/>
+          <text x={tooltip.rx + 24} y={tooltip.ry + 52}
+            style={{ fontFamily: EVM.fontMono, fontSize: 12, fill: EVM.ink2 }}>
+            CPI {tooltip.d.cpi.toFixed(2)}
+          </text>
+        </g>
+      )}
     </svg>
   );
 }
 
 // ── Chart: CCPM Fever Chart ─────────────────────────────────────────────
 function FeverChart({ w = 380, h = 280, data = FEVER, padTop = 18, padBottom = 30, padL = 40, padR = 14 }) {
+  const [hovered, setHovered] = React.useState(null); // null | 'current' | number (trail index)
   const innerW = w - padL - padR;
   const innerH = h - padTop - padBottom;
   const x = (v) => padL + v * innerW;
   const y = (v) => padTop + (1 - v) * innerH;
-  // Green zone: y < 0.67x → polygon (0,0)→(1, 0.67)→(1,0) but flipped because y axis inverted
-  const greenPoly = `${x(0)},${y(0)} ${x(1)},${y(0)} ${x(1)},${y(0.67)}`;
-  const yellowPoly = `${x(0)},${y(0)} ${x(1)},${y(0.67)} ${x(1)},${y(1)} ${x(0)},${y(1)}`;
-  // wait — that's not right. zones: green = below diagonal 0.67x, yellow between 0.67x and 1.0x, red above
-  // Let me redo: y = consumption, x = completion. Boundaries: y = 0.67x (green/yellow), y = 1.0x (yellow/red)
-  // Green: y < 0.67x → triangle from (0,0)-(1,0.67)-(1,0)
-  // Yellow: 0.67x ≤ y < 1.0x → quad (0,0)-(1,0.67)-(1,1)... no. (0,0)-(1,1)-(1,0.67)
-  // Red: y ≥ 1.0x → triangle (0,0)-(0,1)-(1,1)
   const green  = `${x(0)},${y(0)} ${x(1)},${y(0.67)} ${x(1)},${y(0)}`;
   const yellow = `${x(0)},${y(0)} ${x(1)},${y(1)} ${x(1)},${y(0.67)}`;
   const red    = `${x(0)},${y(0)} ${x(0)},${y(1)} ${x(1)},${y(1)}`;
 
   const dot = { x: data.criticalChainCompletion, y: data.bufferConsumption };
   const ticks = [0, 0.25, 0.5, 0.75, 1.0];
+
+  const makeTooltip = (px, py, isCurrent) => {
+    const tw = 148, th = isCurrent ? 74 : 60;
+    const flipX = x(px) > w - tw - 20;
+    const flipY = y(py) < padTop + th + 10;
+    const rx = flipX ? x(px) - tw - 14 : x(px) + 14;
+    const ry = flipY ? y(py) + 14 : y(py) - th - 14;
+    return { rx, ry, tw, th, px, py, isCurrent };
+  };
+
+  const tooltip = hovered === 'current'
+    ? makeTooltip(dot.x, dot.y, true)
+    : typeof hovered === 'number'
+      ? makeTooltip(data.trail[hovered].x, data.trail[hovered].y, false)
+      : null;
 
   return (
     <svg width={w} height={h} style={{ display: 'block', overflow: 'visible' }}>
@@ -328,23 +386,67 @@ function FeverChart({ w = 380, h = 280, data = FEVER, padTop = 18, padBottom = 3
       <path d={data.trail.map((p,i) => `${i?'L':'M'} ${x(p.x)} ${y(p.y)}`).join(' ')}
         fill="none" stroke={EVM.brandDeep} strokeWidth="1" strokeDasharray="2 2" opacity="0.55"/>
       {data.trail.slice(0,-1).map((p, i) => (
-        <circle key={i} cx={x(p.x)} cy={y(p.y)} r={2} fill={EVM.brandDeep} opacity={0.35 + i * 0.1}/>
+        <circle key={i} cx={x(p.x)} cy={y(p.y)} r={hovered === i ? 5 : 2}
+          fill={EVM.brandDeep} opacity={0.35 + i * 0.1}/>
       ))}
       {/* current dot */}
       <circle cx={x(dot.x)} cy={y(dot.y)} r={11} fill={EVM.brand} opacity="0.18"/>
-      <circle cx={x(dot.x)} cy={y(dot.y)} r={6.5} fill={EVM.brandDeep} stroke={EVM.card} strokeWidth="2.5"/>
+      <circle cx={x(dot.x)} cy={y(dot.y)} r={hovered === 'current' ? 8 : 6.5}
+        fill={EVM.brandDeep} stroke={EVM.card} strokeWidth="2.5"/>
       {/* labels */}
       <text x={x(0.5)} y={h - 4} textAnchor="middle"
         style={{ fontFamily: EVM.font, fontSize: 10, fill: EVM.ink3, letterSpacing: '0.06em' }}>クリティカルチェーン完了率</text>
       <text x={10} y={h/2} textAnchor="middle"
         transform={`rotate(-90 10 ${h/2})`}
         style={{ fontFamily: EVM.font, fontSize: 10, fill: EVM.ink3, letterSpacing: '0.06em' }}>バッファ消費率</text>
-      {/* zone label */}
-      <g transform={`translate(${x(dot.x) + 14}, ${y(dot.y) - 14})`}>
-        <rect x={-2} y={-12} width="68" height="20" rx="3" fill={EVM.card} stroke={EVM.brand} strokeWidth="1"/>
-        <text x="32" y="2" textAnchor="middle"
-          style={{ fontFamily: EVM.font, fontSize: 10, fontWeight: 600, fill: EVM.brandDeep, letterSpacing: '0.04em' }}>GREEN</text>
-      </g>
+      {/* zone label (hide when current dot is hovered) */}
+      {hovered !== 'current' && (
+        <g transform={`translate(${x(dot.x) + 14}, ${y(dot.y) - 14})`}>
+          <rect x={-2} y={-12} width="68" height="20" rx="3" fill={EVM.card} stroke={EVM.brand} strokeWidth="1"/>
+          <text x="32" y="2" textAnchor="middle"
+            style={{ fontFamily: EVM.font, fontSize: 10, fontWeight: 600, fill: EVM.brandDeep, letterSpacing: '0.04em' }}>{data.zone}</text>
+        </g>
+      )}
+      {/* Invisible hit areas — trail points */}
+      {data.trail.slice(0,-1).map((p, i) => (
+        <circle key={'hit-t'+i} cx={x(p.x)} cy={y(p.y)} r={12}
+          fill="transparent" style={{ cursor: 'crosshair' }}
+          onMouseEnter={() => setHovered(i)}
+          onMouseLeave={() => setHovered(null)}/>
+      ))}
+      {/* Invisible hit area — current dot */}
+      <circle cx={x(dot.x)} cy={y(dot.y)} r={16}
+        fill="transparent" style={{ cursor: 'crosshair' }}
+        onMouseEnter={() => setHovered('current')}
+        onMouseLeave={() => setHovered(null)}/>
+      {/* Tooltip */}
+      {tooltip && (
+        <g style={{ pointerEvents: 'none' }}>
+          <rect x={tooltip.rx} y={tooltip.ry} width={tooltip.tw} height={tooltip.th} rx={5}
+            fill={EVM.card} stroke={EVM.rule} strokeWidth="1"
+            style={{ filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.10))' }}/>
+          {tooltip.isCurrent && (
+            <text x={tooltip.rx + 10} y={tooltip.ry + 15}
+              style={{ fontFamily: EVM.font, fontSize: 10, fontWeight: 700, fill: EVM.brandDeep, letterSpacing: '0.08em' }}>
+              現在 · {data.zone}
+            </text>
+          )}
+          {!tooltip.isCurrent && (
+            <text x={tooltip.rx + 10} y={tooltip.ry + 15}
+              style={{ fontFamily: EVM.font, fontSize: 10, fill: EVM.ink3 }}>
+              過去スナップショット
+            </text>
+          )}
+          <text x={tooltip.rx + 10} y={tooltip.ry + (tooltip.isCurrent ? 35 : 32)}
+            style={{ fontFamily: EVM.fontMono, fontSize: 11, fill: EVM.ink2 }}>
+            CC完了　<tspan fontWeight="700" fill={EVM.ink}>{(tooltip.px * 100).toFixed(0)}%</tspan>
+          </text>
+          <text x={tooltip.rx + 10} y={tooltip.ry + (tooltip.isCurrent ? 55 : 50)}
+            style={{ fontFamily: EVM.fontMono, fontSize: 11, fill: EVM.ink2 }}>
+            BF消費　<tspan fontWeight="700" fill={EVM.ink}>{(tooltip.py * 100).toFixed(0)}%</tspan>
+          </text>
+        </g>
+      )}
     </svg>
   );
 }
