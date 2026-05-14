@@ -20,6 +20,23 @@ import {
 } from '../db/schema.js'
 import * as schema from '../db/schema.js'
 
+// ─── Date helpers ────────────────────────────────────────────────────────────
+
+/**
+ * YAML パーサーが Date オブジェクトとして返した値を 'YYYY-MM-DD' 文字列に変換する。
+ * js-yaml は YAML 1.1 の非クォート日付（例: 2026-04-06）を Date に変換するため。
+ */
+function toYMD(val: unknown): string | null {
+  if (val == null) return null
+  if (val instanceof Date) {
+    const y = val.getFullYear()
+    const m = String(val.getMonth() + 1).padStart(2, '0')
+    const d = String(val.getDate()).padStart(2, '0')
+    return `${y}-${m}-${d}`
+  }
+  return String(val)
+}
+
 // ─── Parsed YAML interfaces ──────────────────────────────────────────────────
 
 export interface ParsedTask {
@@ -145,13 +162,13 @@ export function parseTasksYaml(yamlString: string): ParsedTasksYaml {
       id: String(item['id']),
       title: String(item['title']),
       estimate_days: item['estimate_days'] != null ? Number(item['estimate_days']) : 0,
-      planned_start: item['planned_start'] != null ? String(item['planned_start']) : null,
-      planned_end: item['planned_end'] != null ? String(item['planned_end']) : null,
+      planned_start: toYMD(item['planned_start']),
+      planned_end: toYMD(item['planned_end']),
       ...(item['parent_id'] !== undefined ? { parent_id: item['parent_id'] as string | null } : {}),
       ...(item['depends_on'] !== undefined ? { depends_on: item['depends_on'] as string[] } : {}),
       ...(item['assignee'] !== undefined ? { assignee: item['assignee'] as string | null } : {}),
-      ...(item['actual_start'] !== undefined ? { actual_start: item['actual_start'] as string | null } : {}),
-      ...(item['actual_end'] !== undefined ? { actual_end: item['actual_end'] as string | null } : {}),
+      ...(item['actual_start'] !== undefined ? { actual_start: toYMD(item['actual_start']) } : {}),
+      ...(item['actual_end'] !== undefined ? { actual_end: toYMD(item['actual_end']) } : {}),
       ...(item['progress_pct'] !== undefined ? { progress_pct: Number(item['progress_pct']) } : {}),
       ...(item['is_buffer'] !== undefined ? { is_buffer: Boolean(item['is_buffer']) } : {}),
     }
@@ -265,16 +282,16 @@ export function parseScheduleYaml(yamlString: string): ParsedScheduleYaml {
       requireField(item, 'planned_end', `schedule.yaml assignments[${index}]`)
       return {
         task_id: String(item['task_id']),
-        planned_start: String(item['planned_start']),
-        planned_end: String(item['planned_end']),
+        planned_start: toYMD(item['planned_start']) ?? '',
+        planned_end: toYMD(item['planned_end']) ?? '',
       }
     })
   }
 
   return {
     meta: {
-      schedule_start: String(metaRaw['schedule_start']),
-      schedule_end: String(metaRaw['schedule_end']),
+      schedule_start: toYMD(metaRaw['schedule_start']) ?? '',
+      schedule_end: toYMD(metaRaw['schedule_end']) ?? '',
     },
     ...(assignments !== undefined ? { assignments } : {}),
   }
