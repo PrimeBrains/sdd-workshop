@@ -798,12 +798,89 @@ describe('evaluateAlertLevel', () => {
 
 // ─── calculateFeverChart ─────────────────────────────────────────────────────
 
+import { calculateFeverChart } from './evm-engine.js'
+
 describe('calculateFeverChart', () => {
   it.todo('GREEN ゾーン判定を検証する')
   it.todo('YELLOW ゾーン判定を検証する')
   it.todo('RED ゾーン判定を検証する')
   it.todo('バッファ消費率を正確に計算する')
   it.todo('クリティカルチェーン完了率を正確に計算する')
+
+  // --- 具体的なテストケース ---
+
+  it('bufferConsumption と criticalChainCompletion を正確に計算する（要件 6.1, 6.2）', () => {
+    // cumulativeDelayDays=2, bufferTotalDays=10 → bufferConsumption=0.2
+    // completedEvOnChain=5, bacOfChain=10 → criticalChainCompletion=0.5
+    const result = calculateFeverChart(2, 10, 5, 10)
+    expect(result.bufferConsumption).toBeCloseTo(0.2)
+    expect(result.criticalChainCompletion).toBeCloseTo(0.5)
+  })
+
+  it('GREEN: bufferConsumption < completion * 0.67 → GREEN を返す（要件 6.3）', () => {
+    // bufferConsumption=0.2, completion=0.5 → 0.2 < 0.5*0.67=0.335 → GREEN
+    const result = calculateFeverChart(2, 10, 5, 10)
+    expect(result.zone).toBe('GREEN')
+  })
+
+  it('YELLOW: bufferConsumption >= completion*0.67 かつ < completion → YELLOW を返す（要件 6.4）', () => {
+    // bufferConsumption=0.4, completion=0.5 → 0.4 >= 0.335 かつ 0.4 < 0.5 → YELLOW
+    const result = calculateFeverChart(4, 10, 5, 10)
+    expect(result.zone).toBe('YELLOW')
+  })
+
+  it('RED: bufferConsumption >= completion → RED を返す（要件 6.5）', () => {
+    // bufferConsumption=0.6, completion=0.5 → 0.6 >= 0.5 → RED
+    const result = calculateFeverChart(6, 10, 5, 10)
+    expect(result.zone).toBe('RED')
+  })
+
+  it('GREEN/YELLOW 境界: bufferConsumption = completion*0.67 → YELLOW を返す（境界値）', () => {
+    // completion=0.5, boundary=0.335, bufferConsumption=0.335 → YELLOW（< ではないので GREEN でない）
+    // cumulativeDelayDays=3.35, bufferTotalDays=10 → bufferConsumption=0.335
+    const result = calculateFeverChart(3.35, 10, 5, 10)
+    expect(result.zone).toBe('YELLOW')
+  })
+
+  it('YELLOW/RED 境界: bufferConsumption = completion → RED を返す（境界値）', () => {
+    // completion=0.5, bufferConsumption=0.5 → RED（< ではないので YELLOW でない）
+    const result = calculateFeverChart(5, 10, 5, 10)
+    expect(result.zone).toBe('RED')
+  })
+
+  it('bufferTotalDays=0 のとき bufferConsumption=0 を返す（ゼロ除算防御・要件 6.6）', () => {
+    const result = calculateFeverChart(0, 0, 5, 10)
+    expect(result.bufferConsumption).toBe(0)
+    expect(Number.isNaN(result.bufferConsumption)).toBe(false)
+  })
+
+  it('bacOfChain=0 のとき criticalChainCompletion=0 を返す（ゼロ除算防御・要件 6.6）', () => {
+    const result = calculateFeverChart(2, 10, 0, 0)
+    expect(result.criticalChainCompletion).toBe(0)
+    expect(Number.isNaN(result.criticalChainCompletion)).toBe(false)
+  })
+
+  it('完了率100%（criticalChainCompletion=1.0）でも正しくゾーン判定する（要件 7.1）', () => {
+    // completion=1.0, bufferConsumption=0.5 → 0.5 < 1.0*0.67=0.67 → GREEN
+    const result = calculateFeverChart(5, 10, 10, 10)
+    expect(result.criticalChainCompletion).toBeCloseTo(1.0)
+    expect(result.zone).toBe('GREEN')
+  })
+
+  it('完了率100%（criticalChainCompletion=1.0）で YELLOW ゾーン判定する（要件 7.1）', () => {
+    // completion=1.0, bufferConsumption=0.8 → 0.67 <= 0.8 < 1.0 → YELLOW
+    const result = calculateFeverChart(8, 10, 10, 10)
+    expect(result.criticalChainCompletion).toBeCloseTo(1.0)
+    expect(result.bufferConsumption).toBeCloseTo(0.8)
+    expect(result.zone).toBe('YELLOW')
+  })
+
+  it('bufferConsumption が 1.0 超（バッファ超過）でも RED を返す（要件 7.3）', () => {
+    // bufferConsumption=1.2, completion=0.5 → RED
+    const result = calculateFeverChart(12, 10, 5, 10)
+    expect(result.bufferConsumption).toBeCloseTo(1.2)
+    expect(result.zone).toBe('RED')
+  })
 })
 
 // ─── findCriticalPath (critical-path.ts) ────────────────────────────────────

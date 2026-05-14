@@ -70,7 +70,7 @@
   - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 7.3_
   - _Boundary: EvmEngine_
 
-- [ ] 2.6 CCPM フィーバーチャート計算関数を実装する
+- [x] 2.6 CCPM フィーバーチャート計算関数を実装する
   - `calculateFeverChart(cumulativeDelayDays, bufferTotalDays, completedEvOnChain, bacOfChain): FeverChartData` を実装する
   - `bufferConsumption = cumulativeDelayDays / bufferTotalDays`
   - `criticalChainCompletion = completedEvOnChain / bacOfChain`

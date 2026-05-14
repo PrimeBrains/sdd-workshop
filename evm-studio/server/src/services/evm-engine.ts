@@ -319,6 +319,16 @@ export function evaluateAlertLevel(
 
 /**
  * CCPM フィーバーチャートデータを算出する
+ *
+ * - bufferConsumption = cumulativeDelayDays / bufferTotalDays
+ * - criticalChainCompletion = completedEvOnChain / bacOfChain
+ * - ゾーン判定:
+ *   - bufferConsumption < criticalChainCompletion * 0.67 → GREEN
+ *   - bufferConsumption < criticalChainCompletion * 1.0  → YELLOW
+ *   - それ以上                                           → RED
+ *
+ * ゼロ除算防御: bufferTotalDays=0 の場合は bufferConsumption=0、
+ * bacOfChain=0 の場合は criticalChainCompletion=0 として扱う（NaN 防止）
  */
 export function calculateFeverChart(
   cumulativeDelayDays: number,
@@ -326,9 +336,21 @@ export function calculateFeverChart(
   completedEvOnChain: number,
   bacOfChain: number,
 ): FeverChartData {
+  const bufferConsumption = bufferTotalDays !== 0 ? cumulativeDelayDays / bufferTotalDays : 0
+  const criticalChainCompletion = bacOfChain !== 0 ? completedEvOnChain / bacOfChain : 0
+
+  let zone: FeverChartZone
+  if (bufferConsumption < criticalChainCompletion * 0.67) {
+    zone = 'GREEN'
+  } else if (bufferConsumption < criticalChainCompletion * 1.0) {
+    zone = 'YELLOW'
+  } else {
+    zone = 'RED'
+  }
+
   return {
-    bufferConsumption: 0,
-    criticalChainCompletion: 0,
-    zone: 'GREEN',
+    bufferConsumption,
+    criticalChainCompletion,
+    zone,
   }
 }
