@@ -110,7 +110,7 @@
   - _Boundary: ImportRouter_
   - _Depends: 4.2_
 
-- [ ] 5.2 tRPC appRouter と Hono サーバーエントリーポイントを実装する
+- [x] 5.2 tRPC appRouter と Hono サーバーエントリーポイントを実装する
   - `server/src/router.ts` に全ルーター（projects・tasks・members・holidays・import）を `createTRPCRouter` でマウントする
   - `server/src/index.ts` に Hono アプリを作成し、CORS（localhost のみ）、`hono/logger` ミドルウェア、tRPC ハンドラーを設定する
   - `runMigrations()` をサーバー起動前に呼び出す
