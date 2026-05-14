@@ -48,7 +48,7 @@
   - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7_
   - _Boundary: ProjectsRouter_
 
-- [ ] 3.2 (P) Task CRUD tRPC ルーターを実装する
+- [x] 3.2 (P) Task CRUD tRPC ルーターを実装する
   - `server/src/api/tasks.ts` に `tasks.listByProject`、`tasks.getById`、`tasks.create`、`tasks.update`、`tasks.delete` プロシージャを実装する
   - `createTaskSchema` に `estimateDays`（非負実数）、`plannedStart`/`plannedEnd`（YYYY-MM-DD regex）、`isBuffer`（boolean）、`isLeaf`（boolean）を含める
   - `tasks.listByProject` が `sort_order` 昇順で結果を返すこと
