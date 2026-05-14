@@ -58,7 +58,7 @@
 
 - `Task` エンティティのカラム追加・型変更（`estimate_days`, `planned_start`, `planned_end`, `is_buffer`, `is_leaf` 等）
 - `TaskDependency` テーブルの構造変更
-- `ProgressSnapshot` テーブルのカラム変更（`progress_pct`, `ac_days`）
+- `ProgressSnapshot` テーブルのカラム変更（`progress_pct`, `pv_days`, `ev_days`, `ac_days`）
 - `Member.availability_rate` の型・意味変更
 - `Holiday.date` のフォーマット変更
 
@@ -245,7 +245,7 @@ export interface EvmInput {
   tasks: Task[]
   members: Member[]                   // availability_rate 参照用
   holidays: Holiday[]                 // 稼働日計算の除外リスト
-  snapshots: ProgressSnapshot[]       // progress_pct と ac_days を含む
+  snapshots: ProgressSnapshot[]       // progress_pct / ac_days を含む。pv_days・ev_days はリスケ保全済みの記録値（ダッシュボードの時系列 S カーブはこれを直接参照する）
   baseDate: string                    // 'YYYY-MM-DD' 形式
 }
 
@@ -503,7 +503,7 @@ export function findCriticalPath(input: CriticalPathInput): CriticalPathResult
 | `Task` | `id`, `estimateDays`, `plannedStart`, `plannedEnd`, `assigneeId`, `isBuffer`, `isLeaf` | PV/EV 計算・クリティカルパス |
 | `Member` | `id`, `availabilityRate` | PV 計算の稼働率参照 |
 | `Holiday` | `date` | 稼働日数計算からの除外 |
-| `ProgressSnapshot` | `taskId`, `progressPct`, `acDays` | EV・AC 計算 |
+| `ProgressSnapshot` | `taskId`, `progressPct`, `pvDays`, `evDays`, `acDays` | EV・AC 計算、S カーブ時系列参照 |
 | `TaskDependency` | `taskId`, `dependsOnTaskId` | クリティカルパス依存グラフ構築 |
 
 ### 出力型（本スペックが定義）

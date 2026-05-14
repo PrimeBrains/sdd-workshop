@@ -348,6 +348,8 @@ export const progressSnapshots = sqliteTable('progress_snapshots', {
   taskId:       integer('task_id').notNull().references(() => tasks.id, { onDelete: 'cascade' }),
   snapshotDate: text('snapshot_date').notNull(),
   progressPct:  real('progress_pct').notNull().default(0),
+  pvDays:       real('pv_days').notNull().default(0),   // リスケ保全用: 記録時点の PV を保存
+  evDays:       real('ev_days').notNull().default(0),   // 再見積保全用: 記録時点の EV を保存
   acDays:       real('ac_days').notNull().default(0),
   createdAt:    integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
 }, (progressSnapshots) => ({
@@ -691,6 +693,9 @@ export function importWbsYaml(input: WbsImportInput): ImportSummary
 - `staffing.yaml` の YAML 構造: `members: [{ id, name, availability_rate, assignment_start?, assignment_end? }]`, `meta.public_holidays: [string]`
 - `schedule.yaml` の YAML 構造: `meta.schedule_start`, `meta.schedule_end`（Project のstart_date / end_date に対応）
 - better-sqlite3 の同期 API を使用してトランザクションを管理する: `db.transaction(() => { ... })()`
+- 初回 ProgressSnapshot 作成時の `pv_days` / `ev_days` 計算:
+  - `ev_days = estimate_days × (progress_pct / 100)`（tasks.yaml の progress_pct を使用）
+  - `pv_days`: インポート日が `planned_start` 以前なら 0、`planned_end` 以降なら `estimate_days`、期間内なら `min(稼働日数 × availability_rate, estimate_days)` で計算（assignee 未指定時は availability_rate = 1.0）
 
 ---
 

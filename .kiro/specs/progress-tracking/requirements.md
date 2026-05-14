@@ -33,8 +33,8 @@ EVM Studio のユーザー（プロジェクト管理者・担当者）が、タ
 
 #### Acceptance Criteria
 
-1. When `progress.record` is called with a `task_id`, `snapshot_date`, `progress_pct`, and `ac_days`, the Progress Tracking Service shall upsert the record, updating it if a record for the same `(task_id, snapshot_date)` already exists, or creating a new one otherwise.
-   *`task_id`・`snapshot_date`・`progress_pct`・`ac_days` を指定して `progress.record` を呼び出すと、同一 `(task_id, snapshot_date)` のレコードが存在すれば上書き（upsert）し、存在しなければ新規作成する。*
+1. When `progress.record` is called with a `task_id`, `snapshot_date`, `progress_pct`, and `ac_days`, the Progress Tracking Service shall upsert the record (including calculated `pv_days` and `ev_days`), updating it if a record for the same `(task_id, snapshot_date)` already exists, or creating a new one otherwise.
+   *`task_id`・`snapshot_date`・`progress_pct`・`ac_days` を指定して `progress.record` を呼び出すと、サービスが `pv_days`（スナップショット日時点の計画出来高）と `ev_days`（`estimate_days × progress_pct / 100`）を算出し、同一 `(task_id, snapshot_date)` のレコードが存在すれば上書き（upsert）し、存在しなければ新規作成する。*
 2. The Progress Tracking Service shall accept only integers between 0 and 100 (inclusive) for `progress_pct`, and shall return a validation error if a value outside that range is provided.
    *`progress_pct` は 0 以上 100 以下の整数のみ受け付け、範囲外の値が指定された場合はバリデーションエラーを返す。*
 3. The Progress Tracking Service shall accept only non-negative floating-point numbers for `ac_days`, and shall return a validation error if a negative value is provided.
@@ -75,8 +75,8 @@ EVM Studio のユーザー（プロジェクト管理者・担当者）が、タ
    *同一タスクに複数のスナップショットが存在する場合、`snapshot_date` が最大のもののみを返す。*
 3. The Progress Tracking Service shall exclude from the result any task that has never had a snapshot recorded.
    *スナップショットが一度も記録されていないタスクは結果に含めない。*
-4. When `progress.getLatest` is called, the Progress Tracking Service shall include `task_id`, `snapshot_date`, `progress_pct`, and `ac_days` in each result item.
-   *`progress.getLatest` が呼び出されたとき、結果に `task_id`・`snapshot_date`・`progress_pct`・`ac_days` を含める。*
+4. When `progress.getLatest` is called, the Progress Tracking Service shall include `task_id`, `snapshot_date`, `progress_pct`, `pv_days`, `ev_days`, and `ac_days` in each result item.
+   *`progress.getLatest` が呼び出されたとき、結果に `task_id`・`snapshot_date`・`progress_pct`・`pv_days`・`ev_days`・`ac_days` を含める。*
 
 ### Requirement 4: 単一タスクのスナップショット履歴取得
 
@@ -88,8 +88,8 @@ EVM Studio のユーザー（プロジェクト管理者・担当者）が、タ
    *`task_id` を指定して `progress.getHistory` を呼び出すと、指定タスクのすべてのスナップショットを `snapshot_date` 昇順で返す。*
 2. The Progress Tracking Service shall return an empty array if the specified `task_id` does not exist in the database.
    *`task_id` が DB に存在しない場合、空配列を返す。*
-3. The Progress Tracking Service shall include `id`, `task_id`, `snapshot_date`, `progress_pct`, `ac_days`, and `createdAt` in each snapshot item.
-   *各スナップショットに `id`・`task_id`・`snapshot_date`・`progress_pct`・`ac_days`・`createdAt` を含める。*
+3. The Progress Tracking Service shall include `id`, `task_id`, `snapshot_date`, `progress_pct`, `pv_days`, `ev_days`, `ac_days`, and `createdAt` in each snapshot item.
+   *各スナップショットに `id`・`task_id`・`snapshot_date`・`progress_pct`・`pv_days`・`ev_days`・`ac_days`・`createdAt` を含める。*
 
 ### Requirement 5: 日次進捗入力フォーム UI
 

@@ -26,6 +26,7 @@
   - `is_buffer`・`is_leaf` は `{ mode: 'boolean' }` で整数保存、日付は TEXT（`YYYY-MM-DD`）、タイムスタンプは `{ mode: 'timestamp' }` で保存する
   - `tasks.parentId` は `() => tasks.id` で自己参照する遅延評価で定義する
   - `Project`、`Task`、`Member`、`Holiday`、`TaskDependency`、`ProgressSnapshot` および `New*` 型が Drizzle inference からエクスポートされること
+  - `ProgressSnapshot` 型に `pvDays`・`evDays` フィールドが含まれていること（リスケ・再見積後も過去スナップショットの PV/EV が正確に参照できるよう記録時点の値を保存）
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 7.3, 7.4_
 
 - [ ] 2.2 DB 接続の初期化とマイグレーション実行を実装する
@@ -88,6 +89,7 @@
   - `tasks.yaml` の `depends_on[]` を `task_dependencies` テーブルにインサートし、external_id から DB id に解決する
   - `tasks.yaml` の `assignee`（external_id 形式）を DB の内部 `id` に解決して `Task.assignee_id` を設定する
   - `progress_pct` が指定されたタスクに対してインポート日付を `snapshot_date` とする初回 `ProgressSnapshot` を作成する
+  - 初回スナップショット作成時に `ev_days = estimate_days × (progress_pct / 100)` および `pv_days = 稼働日数ベースの計算値`（インポート日と planned_start/end の関係に基づく）を算出して格納する
   - `staffing.meta.public_holidays[]` を `holidays` テーブルに upsert する
   - トランザクション内でエラーが発生した場合、部分書き込みなしでロールバックされること（アトミック性の確認）
   - `ImportSummary`（tasks・members・holidays・dependencies・snapshots のカウント）を返すこと

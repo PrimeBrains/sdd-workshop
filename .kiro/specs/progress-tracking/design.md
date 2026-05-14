@@ -49,7 +49,7 @@
 
 ### Allowed Dependencies
 
-- `server/src/db/schema.ts` — `progressSnapshots`・`tasks` テーブル型（core-data-model 提供）
+- `server/src/db/schema.ts` — `progressSnapshots`・`tasks`・`members`・`holidays` テーブル型（core-data-model 提供）— `pv_days` 計算のため tasks + members + holidays を参照
 - `server/src/db/index.ts` — `db` インスタンス（core-data-model 提供）
 - `server/src/errors/AppError.ts` — `AppError` クラス（core-data-model 提供）
 - `server/src/errors/codes.ts` — `ErrorCode`（core-data-model 提供）
@@ -178,7 +178,9 @@ sequenceDiagram
         Router-->>Hook: TRPCError NOT_FOUND (SNAP_TASK_NOT_FOUND)
         Hook-->>UI: エラー表示
     else タスク存在
-        Router->>DB: INSERT INTO progress_snapshots ON CONFLICT(task_id, snapshot_date) DO UPDATE SET progress_pct, ac_days
+        Router->>DB: SELECT tasks + members + holidays (pv_days 計算用)
+        Router->>Router: ev_days = estimate_days × (progressPct / 100); pv_days = calculatePvDays(task, member, holidays, snapshotDate)
+        Router->>DB: INSERT INTO progress_snapshots ON CONFLICT(task_id, snapshot_date) DO UPDATE SET progress_pct, pv_days, ev_days, ac_days
         Router-->>Hook: ProgressSnapshot
         Hook-->>UI: 成功通知
     end
@@ -266,6 +268,7 @@ const recordProgressSchema = z.object({
   snapshotDate: dateString,
   progressPct:  z.number().int().min(0).max(100),
   acDays:       z.number().nonnegative(),
+  // pv_days・ev_days はサービス側で自動計算するため入力スキーマに含めない
 })
 
 // progress.record — upsert
@@ -276,7 +279,10 @@ const recordProgressSchema = z.object({
 
 **実装ノート**
 
-- `progress.record`: `db.insert(progressSnapshots).values(newRecord).onConflictDoUpdate({ target: [progressSnapshots.taskId, progressSnapshots.snapshotDate], set: { progressPct: sql`excluded.progress_pct`, acDays: sql`excluded.ac_days` } })`
+- `progress.record`: upsert 実行前に task + member + holidays を取得して以下を計算する:
+  - `ev_days = task.estimateDays × (input.progressPct / 100)`
+  - `pv_days = calculatePvDays(task, member, holidays, input.snapshotDate)`（サービス内プライベート関数。assignee 未設定時は availability_rate = 1.0）
+  - `db.insert(progressSnapshots).values(newRecord).onConflictDoUpdate({ target: [progressSnapshots.taskId, progressSnapshots.snapshotDate], set: { progressPct: sql\`excluded.progress_pct\`, pvDays: sql\`excluded.pv_days\`, evDays: sql\`excluded.ev_days\`, acDays: sql\`excluded.ac_days\` } })`
 - `progress.getLatest`: `tasks` テーブルと JOIN し、各タスクの MAX(snapshot_date) を持つレコードのみを返す相関サブクエリを使用
 - `progress.getByDate`: `tasks.project_id = input.projectId` AND `ps.snapshot_date = input.snapshotDate` の条件で JOIN クエリ
 
@@ -408,6 +414,8 @@ ProgressSnapshot {
   task_id:      INTEGER FK → tasks.id (CASCADE DELETE)
   snapshot_date: TEXT (YYYY-MM-DD)
   progress_pct: REAL (0–100)
+  pv_days:      REAL (≥ 0)   -- リスケ保全用: 記録時点の PV（稼働日数 × availability_rate ベース）
+  ev_days:      REAL (≥ 0)   -- 再見積保全用: 記録時点の EV（estimate_days × progress_pct / 100）
   ac_days:      REAL (≥ 0)
   created_at:   INTEGER (timestamp)
   UNIQUE(task_id, snapshot_date)
