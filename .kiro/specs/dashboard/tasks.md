@@ -128,7 +128,7 @@
 ---
 
 - [ ] 5. Integration: DashboardPage へのコンポーネント統合とレスポンシブレイアウト
-- [ ] 5.1 DashboardPage に全コンポーネントを組み込む
+- [x] 5.1 DashboardPage に全コンポーネントを組み込む
   - `DashboardPage` に `AlertBanner`, `ProjectSummaryCards`, `SpiTrendChart`, `FeverChart`, `AssigneeTable` を組み込む
   - `useEvmCalculate` の戻り値を各コンポーネントの props に渡す
   - TailwindCSS 4 でレスポンシブグリッドレイアウトを実装する（lg: 2 カラム: SpiTrendChart + FeverChart、sm: 1 カラム）
@@ -145,7 +145,7 @@
 ---
 
 - [ ] 7. Core: GanttChart コンポーネントの実装
-- [ ] 7.1 evm.calculate に gantt フィールドを追加
+- [x] 7.1 evm.calculate に gantt フィールドを追加
   - `server/src/api/evm.ts` の `EvmCalculateOutput` に `gantt: GanttTaskOutput[]` フィールドを追加する
   - `GanttTaskOutput` 型（`id`, `name`, `assigneeName`, `plannedStart`, `plannedEnd`, `progressPct`, `spi`, `level`, `sortOrder`, `isBuffer`, `isLeaf`）を定義してエクスポートする
   - `evm.calculate` 実装でタスク一覧を `sort_order` 昇順に並べ、各タスクの最新 `progressPct` と `spi`（TaskEvmMetrics から）を解決して `gantt` フィールドを構築する

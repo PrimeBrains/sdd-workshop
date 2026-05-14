@@ -342,6 +342,29 @@ export function createEvmRouter(db: DrizzleDb) {
           })
         }
 
+        // ── Task 7.1: ガントチャート用タスクリスト ────────────────────────────────
+
+        const gantt: GanttTaskOutput[] = projectTasks
+          .sort((a, b) => a.sortOrder - b.sortOrder)
+          .map((task): GanttTaskOutput => {
+            const latestSnap = latestSnapshots.find((s) => s.taskId === task.id)
+            const taskMetric = projectMetrics.taskMetrics.find((m) => m.taskId === task.id)
+            const assignee = projectMembers.find((m) => m.id === task.assigneeId)
+            return {
+              id:           task.id,
+              name:         task.name,
+              assigneeName: assignee?.name ?? null,
+              plannedStart: task.plannedStart ?? '',
+              plannedEnd:   task.plannedEnd ?? '',
+              progressPct:  latestSnap?.progressPct ?? 0,
+              spi:          taskMetric?.spi ?? null,
+              level:        task.level,
+              sortOrder:    task.sortOrder,
+              isBuffer:     task.isBuffer,
+              isLeaf:       task.isLeaf,
+            }
+          })
+
         return {
           summary,
           tasks:      projectMetrics.taskMetrics,
@@ -349,7 +372,7 @@ export function createEvmRouter(db: DrizzleDb) {
           alerts,
           feverChart,
           spiTrend,
-          gantt:      [],
+          gantt,
         }
       }),
   })
