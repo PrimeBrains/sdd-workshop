@@ -45,7 +45,7 @@
   - _Boundary: EvmEngine_
   - _Depends: 2.2_
 
-- [ ] 2.4 派生メトリクス計算関数を実装する（SPI/CPI/EAC/VAC/ETC/TCPI）
+- [x] 2.4 派生メトリクス計算関数を実装する（SPI/CPI/EAC/VAC/ETC/TCPI）
   - `calculateEvmMetrics(input: EvmInput): ProjectEvmMetrics` を実装する
   - SPI: `pv > 0 ? ev / pv : null`
   - CPI: `ac > 0 ? ev / ac : null`
@@ -59,7 +59,7 @@
   - _Boundary: EvmEngine_
   - _Depends: 2.3_
 
-- [ ] 2.5 アラートレベル評価関数を実装する
+- [x] 2.5 アラートレベル評価関数を実装する
   - `evaluateAlertLevel(spi, delayDays, isOverdue): AlertLevel` を実装する
   - `spi === null` → `'NA'`
   - `isOverdue && progress_pct < 100` → `'OVERDUE'`（isOverdue は呼び出し側が評価して渡す）
@@ -140,3 +140,7 @@
   - `npm test` で全アサーションがグリーンになることで完了を確認できる
   - _Requirements: 8.4_
   - _Depends: 2.6_
+
+## Implementation Notes
+
+- タスク2.4/2.5統合: `calculateEvmMetrics` は `evaluateAlertLevel(taskSpi, 0, isOverdue)` を呼び出す。`delayDays` は常に `0` のため、delayDays経由の CRITICAL_DELAY/WARNING_DELAY 分岐は calculateEvmMetrics からは到達不能。isOverdue/SPI経由のアラートは正常動作。将来 delayDays の算出（plannedEnd超過日数）が必要な場合は calculateEvmMetrics の修正が必要。

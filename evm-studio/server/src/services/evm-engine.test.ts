@@ -6,6 +6,7 @@ import {
   calculateTaskEv,
   calculateProjectEv,
   calculateProjectAc,
+  evaluateAlertLevel,
 } from './evm-engine.js'
 import type { Holiday, Member, ProgressSnapshot, Task } from '../db/schema.js'
 import { AppError } from '../errors/AppError.js'
@@ -425,35 +426,310 @@ describe('calculateProjectAc', () => {
 
 // ─── calculateEvmMetrics (SPI/CPI/EAC/VAC/ETC/TCPI) ────────────────────────
 
+import { calculateEvmMetrics } from './evm-engine.js'
+
+// calculateEvmMetrics テスト用ヘルパー
+function makeEvmInput(overrides: {
+  tasks?: Task[]
+  members?: Member[]
+  holidays?: Holiday[]
+  snapshots?: ProgressSnapshot[]
+  baseDate?: string
+}): Parameters<typeof calculateEvmMetrics>[0] {
+  return {
+    tasks: overrides.tasks ?? [],
+    members: overrides.members ?? [],
+    holidays: overrides.holidays ?? [],
+    snapshots: overrides.snapshots ?? [],
+    baseDate: overrides.baseDate ?? '2026-05-14',
+  }
+}
+
+// 標準タスク (estimateDays=10, plannedStart=2026-05-01, plannedEnd=2026-05-10)
+// baseDate=2026-05-14 → baseDate >= plannedEnd → PV = estimateDays = 10
+const evmTask: Task = {
+  ...baseTask,
+  id: 1,
+  estimateDays: 10,
+  plannedStart: '2026-05-01',
+  plannedEnd: '2026-05-10',
+  isBuffer: false,
+  assigneeId: null,
+}
+
 describe('calculateEvmMetrics', () => {
+  describe('基本フィールド', () => {
+    it('BAC はバッファ除外タスクの estimateDays 合計である（要件 3.x）', () => {
+      const bufferTask: Task = { ...baseTask, id: 2, isBuffer: true, estimateDays: 5 }
+      const result = calculateEvmMetrics(makeEvmInput({
+        tasks: [evmTask, bufferTask],
+        baseDate: '2026-05-14',
+      }))
+      // バッファ除外 → BAC = 10
+      expect(result.bac).toBe(10)
+    })
+
+    it('taskMetrics にバッファ以外の各タスクメトリクスが含まれる（要件 7.3）', () => {
+      const result = calculateEvmMetrics(makeEvmInput({
+        tasks: [evmTask],
+        baseDate: '2026-05-14',
+      }))
+      expect(result.taskMetrics).toHaveLength(1)
+      expect(result.taskMetrics[0]?.taskId).toBe(1)
+    })
+  })
+
   describe('SPI', () => {
-    it.todo('PV=0 → null を返す')
-    it.todo('正常値計算の精度を検証する')
+    it('PV=0 → SPI は null を返す（要件 3.2）', () => {
+      // baseDate < plannedStart → PV=0
+      const futureTask: Task = {
+        ...baseTask,
+        id: 1,
+        estimateDays: 10,
+        plannedStart: '2026-06-01',
+        plannedEnd: '2026-06-10',
+        isBuffer: false,
+        assigneeId: null,
+      }
+      const result = calculateEvmMetrics(makeEvmInput({
+        tasks: [futureTask],
+        baseDate: '2026-05-14',
+      }))
+      expect(result.pv).toBe(0)
+      expect(result.spi).toBeNull()
+    })
+
+    it('PV>0, EV=6 → SPI = EV/PV = 0.6（要件 3.1）', () => {
+      const snapshots: ProgressSnapshot[] = [
+        makeSnapshot({ taskId: 1, progressPct: 60 }), // EV = 10 * 0.6 = 6
+      ]
+      const result = calculateEvmMetrics(makeEvmInput({
+        tasks: [evmTask],
+        snapshots,
+        baseDate: '2026-05-14',
+      }))
+      // PV = 10 (baseDate >= plannedEnd), EV = 6
+      expect(result.pv).toBe(10)
+      expect(result.ev).toBeCloseTo(6)
+      expect(result.spi).toBeCloseTo(0.6)
+    })
   })
 
   describe('CPI', () => {
-    it.todo('AC=0 → null を返す')
-    it.todo('正常値計算の精度を検証する')
+    it('AC=0 → CPI は null を返す（要件 3.4）', () => {
+      const snapshots: ProgressSnapshot[] = [
+        makeSnapshot({ taskId: 1, progressPct: 50, acDays: 0 }),
+      ]
+      const result = calculateEvmMetrics(makeEvmInput({
+        tasks: [evmTask],
+        snapshots,
+        baseDate: '2026-05-14',
+      }))
+      expect(result.ac).toBe(0)
+      expect(result.cpi).toBeNull()
+    })
+
+    it('AC>0, EV=6, AC=8 → CPI = EV/AC = 0.75（要件 3.3）', () => {
+      const snapshots: ProgressSnapshot[] = [
+        makeSnapshot({ taskId: 1, progressPct: 60, acDays: 8 }), // EV=6, AC=8
+      ]
+      const result = calculateEvmMetrics(makeEvmInput({
+        tasks: [evmTask],
+        snapshots,
+        baseDate: '2026-05-14',
+      }))
+      expect(result.ev).toBeCloseTo(6)
+      expect(result.ac).toBeCloseTo(8)
+      expect(result.cpi).toBeCloseTo(0.75)
+    })
   })
 
   describe('EAC', () => {
-    it.todo('通常値計算を検証する')
-    it.todo('CPI=null のとき null を返す')
+    it('SPI=null (PV=0) のとき EAC は null を返す（要件 3.5）', () => {
+      const futureTask: Task = {
+        ...baseTask,
+        id: 1,
+        estimateDays: 10,
+        plannedStart: '2026-06-01',
+        plannedEnd: '2026-06-10',
+        isBuffer: false,
+        assigneeId: null,
+      }
+      const result = calculateEvmMetrics(makeEvmInput({
+        tasks: [futureTask],
+        baseDate: '2026-05-14',
+      }))
+      expect(result.spi).toBeNull()
+      expect(result.eac).toBeNull()
+    })
+
+    it('SPI=0.8 のとき EAC = BAC/SPI = 12.5（要件 3.5）', () => {
+      // BAC=10, EV=8, PV=10 → SPI=0.8 → EAC=10/0.8=12.5
+      const snapshots: ProgressSnapshot[] = [
+        makeSnapshot({ taskId: 1, progressPct: 80, acDays: 0 }), // EV=8
+      ]
+      const result = calculateEvmMetrics(makeEvmInput({
+        tasks: [evmTask],
+        snapshots,
+        baseDate: '2026-05-14',
+      }))
+      expect(result.spi).toBeCloseTo(0.8)
+      expect(result.eac).toBeCloseTo(12.5)
+    })
   })
 
   describe('VAC', () => {
-    it.todo('通常値計算を検証する')
-    it.todo('EAC=null のとき null を返す')
+    it('EAC=null のとき VAC は null を返す（要件 3.6）', () => {
+      const futureTask: Task = {
+        ...baseTask,
+        id: 1,
+        estimateDays: 10,
+        plannedStart: '2026-06-01',
+        plannedEnd: '2026-06-10',
+        isBuffer: false,
+        assigneeId: null,
+      }
+      const result = calculateEvmMetrics(makeEvmInput({
+        tasks: [futureTask],
+        baseDate: '2026-05-14',
+      }))
+      expect(result.eac).toBeNull()
+      expect(result.vac).toBeNull()
+    })
+
+    it('BAC=10, EAC=12.5 → VAC = -2.5（要件 3.6）', () => {
+      const snapshots: ProgressSnapshot[] = [
+        makeSnapshot({ taskId: 1, progressPct: 80, acDays: 0 }),
+      ]
+      const result = calculateEvmMetrics(makeEvmInput({
+        tasks: [evmTask],
+        snapshots,
+        baseDate: '2026-05-14',
+      }))
+      expect(result.vac).toBeCloseTo(-2.5)
+    })
   })
 
   describe('ETC', () => {
-    it.todo('通常値計算を検証する')
-    it.todo('CPI=null のとき null を返す')
+    it('EAC=null のとき ETC は null を返す（要件 3.7）', () => {
+      const futureTask: Task = {
+        ...baseTask,
+        id: 1,
+        estimateDays: 10,
+        plannedStart: '2026-06-01',
+        plannedEnd: '2026-06-10',
+        isBuffer: false,
+        assigneeId: null,
+      }
+      const result = calculateEvmMetrics(makeEvmInput({
+        tasks: [futureTask],
+        baseDate: '2026-05-14',
+      }))
+      expect(result.eac).toBeNull()
+      expect(result.etc).toBeNull()
+    })
+
+    it('EAC=12.5, AC=8 → ETC = 4.5（要件 3.7）', () => {
+      const snapshots: ProgressSnapshot[] = [
+        makeSnapshot({ taskId: 1, progressPct: 80, acDays: 8 }),
+      ]
+      const result = calculateEvmMetrics(makeEvmInput({
+        tasks: [evmTask],
+        snapshots,
+        baseDate: '2026-05-14',
+      }))
+      // SPI=EV/PV, EV=8, PV=10 → SPI=0.8, EAC=BAC/SPI=10/0.8=12.5, ETC=EAC-AC=12.5-8=4.5
+      expect(result.etc).toBeCloseTo(4.5)
+    })
   })
 
   describe('TCPI', () => {
-    it.todo('通常値計算を検証する')
-    it.todo('BAC-AC=0 → null を返す')
+    it('BAC-AC=0 → TCPI は null を返す（要件 3.9）', () => {
+      // AC=BAC=10 → BAC-AC=0
+      const snapshots: ProgressSnapshot[] = [
+        makeSnapshot({ taskId: 1, progressPct: 50, acDays: 10 }),
+      ]
+      const result = calculateEvmMetrics(makeEvmInput({
+        tasks: [evmTask],
+        snapshots,
+        baseDate: '2026-05-14',
+      }))
+      expect(result.ac).toBe(10)
+      expect(result.bac).toBe(10)
+      expect(result.tcpi).toBeNull()
+    })
+
+    it('BAC=10, EV=4, AC=5 → TCPI = (10-4)/(10-5) = 1.2（要件 3.8）', () => {
+      const snapshots: ProgressSnapshot[] = [
+        makeSnapshot({ taskId: 1, progressPct: 40, acDays: 5 }), // EV=4, AC=5
+      ]
+      const result = calculateEvmMetrics(makeEvmInput({
+        tasks: [evmTask],
+        snapshots,
+        baseDate: '2026-05-14',
+      }))
+      expect(result.tcpi).toBeCloseTo(1.2)
+    })
+  })
+
+  describe('taskMetrics', () => {
+    it('各タスクに PV/EV/AC/SPI/CPI/alertLevel が含まれる（要件 7.3）', () => {
+      const snapshots: ProgressSnapshot[] = [
+        makeSnapshot({ taskId: 1, progressPct: 60, acDays: 8 }),
+      ]
+      const result = calculateEvmMetrics(makeEvmInput({
+        tasks: [evmTask],
+        snapshots,
+        baseDate: '2026-05-14',
+      }))
+      expect(result.taskMetrics).toHaveLength(1)
+      const tm = result.taskMetrics[0]
+      expect(tm).toBeDefined()
+      if (tm) {
+        expect(tm.taskId).toBe(1)
+        expect(tm.pv).toBe(10)
+        expect(tm.ev).toBeCloseTo(6)
+        expect(tm.ac).toBeCloseTo(8)
+        expect(tm.spi).toBeCloseTo(0.6)
+        expect(tm.cpi).toBeCloseTo(0.75)
+        // baseDate(2026-05-14) > plannedEnd(2026-05-10) かつ progressPct=60 < 100 → OVERDUE
+        expect(tm.alertLevel).toBe('OVERDUE')
+      }
+    })
+
+    it('タスク PV=0 のとき taskMetrics の SPI は null（要件 3.2）', () => {
+      const futureTask: Task = {
+        ...baseTask,
+        id: 1,
+        estimateDays: 10,
+        plannedStart: '2026-06-01',
+        plannedEnd: '2026-06-10',
+        isBuffer: false,
+        assigneeId: null,
+      }
+      const result = calculateEvmMetrics(makeEvmInput({
+        tasks: [futureTask],
+        baseDate: '2026-05-14',
+      }))
+      const tm = result.taskMetrics[0]
+      expect(tm).toBeDefined()
+      if (tm) {
+        expect(tm.spi).toBeNull()
+      }
+    })
+
+    it('タスク AC=0 のとき taskMetrics の CPI は null（要件 3.4）', () => {
+      const result = calculateEvmMetrics(makeEvmInput({
+        tasks: [evmTask],
+        snapshots: [makeSnapshot({ taskId: 1, progressPct: 50, acDays: 0 })],
+        baseDate: '2026-05-14',
+      }))
+      const tm = result.taskMetrics[0]
+      expect(tm).toBeDefined()
+      if (tm) {
+        expect(tm.cpi).toBeNull()
+      }
+    })
   })
 })
 
@@ -466,6 +742,58 @@ describe('evaluateAlertLevel', () => {
   it.todo('SPI >= 0.9 → NORMAL を返す')
   it.todo('planned_end 超過・未完了 → OVERDUE を返す')
   it.todo('SPI=null → NA を返す')
+
+  // --- 具体的なテストケース ---
+
+  it('SPI=null → NA を返す（要件 4.5）', () => {
+    expect(evaluateAlertLevel(null, 0, false)).toBe('NA')
+  })
+
+  it('SPI=null かつ isOverdue=true でも NA を返す（NA が最優先）', () => {
+    expect(evaluateAlertLevel(null, 3, true)).toBe('NA')
+  })
+
+  it('isOverdue=true → OVERDUE を返す（要件 4.4）', () => {
+    // SPI が正常範囲でも overdue が優先される
+    expect(evaluateAlertLevel(0.95, 0, true)).toBe('OVERDUE')
+  })
+
+  it('SPI < 0.8 → CRITICAL_DELAY を返す（要件 4.1）', () => {
+    expect(evaluateAlertLevel(0.79, 0, false)).toBe('CRITICAL_DELAY')
+    expect(evaluateAlertLevel(0.5, 0, false)).toBe('CRITICAL_DELAY')
+  })
+
+  it('delayDays > 5 → CRITICAL_DELAY を返す（要件 4.1）', () => {
+    // SPI が 0.9 以上でも delayDays > 5 なら CRITICAL_DELAY
+    expect(evaluateAlertLevel(0.95, 6, false)).toBe('CRITICAL_DELAY')
+  })
+
+  it('SPI=0.8（境界）かつ delayDays=0 → WARNING_DELAY を返さない（SPI<0.9 で WARNING）', () => {
+    // SPI=0.8 は 0.8 以上 0.9 未満 → WARNING_DELAY
+    expect(evaluateAlertLevel(0.8, 0, false)).toBe('WARNING_DELAY')
+  })
+
+  it('0.8 <= SPI < 0.9 → WARNING_DELAY を返す（要件 4.2）', () => {
+    expect(evaluateAlertLevel(0.85, 0, false)).toBe('WARNING_DELAY')
+  })
+
+  it('delayDays > 0（かつ delayDays <= 5）かつ SPI >= 0.9 → WARNING_DELAY を返す（要件 4.2）', () => {
+    expect(evaluateAlertLevel(0.95, 3, false)).toBe('WARNING_DELAY')
+  })
+
+  it('delayDays=5（境界）→ WARNING_DELAY を返す（要件 4.2）', () => {
+    expect(evaluateAlertLevel(0.95, 5, false)).toBe('WARNING_DELAY')
+  })
+
+  it('delayDays=6（境界越え）→ CRITICAL_DELAY を返す（要件 4.1）', () => {
+    expect(evaluateAlertLevel(0.95, 6, false)).toBe('CRITICAL_DELAY')
+  })
+
+  it('SPI >= 0.9 かつ delayDays=0 かつ isOverdue=false → NORMAL を返す（要件 4.3）', () => {
+    expect(evaluateAlertLevel(0.9, 0, false)).toBe('NORMAL')
+    expect(evaluateAlertLevel(1.0, 0, false)).toBe('NORMAL')
+    expect(evaluateAlertLevel(1.2, 0, false)).toBe('NORMAL')
+  })
 })
 
 // ─── calculateFeverChart ─────────────────────────────────────────────────────

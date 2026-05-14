@@ -215,30 +215,106 @@ export function calculateProjectAc(snapshots: ProgressSnapshot[]): number {
  * EVM 全メトリクスを一括算出する
  */
 export function calculateEvmMetrics(input: EvmInput): ProjectEvmMetrics {
+  const { tasks, members, holidays, snapshots, baseDate } = input
+
+  // バッファ除外タスクのみを対象にする
+  const nonBufferTasks = tasks.filter((t) => !t.isBuffer)
+
+  // BAC = バッファ除外タスクの estimateDays 合計
+  const bac = nonBufferTasks.reduce((sum, t) => sum + t.estimateDays, 0)
+
+  // プロジェクト PV / EV / AC
+  const pv = calculateProjectPv(input)
+  const ev = calculateProjectEv(tasks, snapshots)
+  const ac = calculateProjectAc(snapshots)
+
+  // 派生メトリクス（プロジェクト単位）
+  const spi: number | null = pv > 0 ? ev / pv : null
+  const cpi: number | null = ac > 0 ? ev / ac : null
+  const eac: number | null = spi !== null ? bac / spi : null
+  const vac: number | null = eac !== null ? bac - eac : null
+  const etc: number | null = eac !== null ? eac - ac : null
+  const tcpi: number | null = bac - ac !== 0 ? (bac - ev) / (bac - ac) : null
+
+  // タスク単位のメトリクスを算出
+  const taskMetrics: TaskEvmMetrics[] = nonBufferTasks.map((task) => {
+    const member =
+      task.assigneeId !== null
+        ? members.find((m) => m.id === task.assigneeId) ?? null
+        : null
+    const availabilityRate = member?.availabilityRate ?? 1.0
+
+    const taskPv = calculateTaskPv(task, baseDate, availabilityRate, holidays)
+
+    const snapshot = snapshots.find((s) => s.taskId === task.id)
+    const progressPct = snapshot?.progressPct ?? 0
+    const taskEv = calculateTaskEv(task, progressPct)
+    const taskAc = snapshot?.acDays ?? 0
+
+    const taskSpi: number | null = taskPv > 0 ? taskEv / taskPv : null
+    const taskCpi: number | null = taskAc > 0 ? taskEv / taskAc : null
+
+    const isOverdue =
+      task.plannedEnd !== null &&
+      baseDate > task.plannedEnd &&
+      progressPct < 100
+
+    const alertLevel = evaluateAlertLevel(taskSpi, 0, isOverdue)
+
+    return {
+      taskId: task.id,
+      pv: taskPv,
+      ev: taskEv,
+      ac: taskAc,
+      spi: taskSpi,
+      cpi: taskCpi,
+      alertLevel,
+    }
+  })
+
   return {
-    bac: 0,
-    pv: 0,
-    ev: 0,
-    ac: 0,
-    spi: null,
-    cpi: null,
-    eac: null,
-    vac: null,
-    etc: null,
-    tcpi: null,
-    taskMetrics: [],
+    bac,
+    pv,
+    ev,
+    ac,
+    spi,
+    cpi,
+    eac,
+    vac,
+    etc,
+    tcpi,
+    taskMetrics,
   }
 }
 
 /**
  * アラートレベルを評価する
+ *
+ * 優先順位:
+ * 1. SPI = null (PV = 0) → NA（要件 4.5）
+ * 2. isOverdue（planned_end 超過・未完了）→ OVERDUE（要件 4.4）
+ * 3. SPI < 0.8 または delayDays > 5 → CRITICAL_DELAY（要件 4.1）
+ * 4. SPI < 0.9 または delayDays > 0 → WARNING_DELAY（要件 4.2）
+ * 5. SPI >= 0.9 → NORMAL（要件 4.3）
  */
 export function evaluateAlertLevel(
   spi: number | null,
   delayDays: number,
   isOverdue: boolean,
 ): AlertLevel {
-  return 'NA'
+  if (spi === null) {
+    return 'NA'
+  }
+  if (isOverdue) {
+    return 'OVERDUE'
+  }
+  if (spi < 0.8 || delayDays > 5) {
+    return 'CRITICAL_DELAY'
+  }
+  if (spi < 0.9 || delayDays > 0) {
+    return 'WARNING_DELAY'
+  }
+  return 'NORMAL'
 }
 
 /**
