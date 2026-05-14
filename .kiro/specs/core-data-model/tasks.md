@@ -136,7 +136,7 @@
   - _Requirements: 2.4, 4.5_
   - _Boundary: ProjectsRouter, MembersRouter_
 
-- [ ] 6.3* WBS インポート → タスク一覧確認の E2E テストを実装する
+- [x] 6.3* WBS インポート → タスク一覧確認の E2E テストを実装する
   - `e2e/import.spec.ts` に 3 YAML ファイルをインポートしてタスク一覧が正しく返ることを検証する Playwright テストを実装する
   - `npm run test:e2e` を実行してテストがパスすること
   - _Requirements: 6.1, 6.9_
