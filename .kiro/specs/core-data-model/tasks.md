@@ -20,7 +20,7 @@
 ---
 
 - [ ] 2. データベース: Drizzle スキーマとマイグレーション
-- [ ] 2.1 全エンティティの Drizzle スキーマを定義する
+- [x] 2.1 全エンティティの Drizzle スキーマを定義する
   - `server/src/db/schema.ts` に `projects`、`tasks`、`members`、`holidays`、`task_dependencies`、`progress_snapshots` の 6 テーブルを定義する
   - カラム名は snake_case（DB）、TypeScript プロパティは camelCase にマッピングする（例: `plannedStart: text('planned_start')`）
   - `is_buffer`・`is_leaf` は `{ mode: 'boolean' }` で整数保存、日付は TEXT（`YYYY-MM-DD`）、タイムスタンプは `{ mode: 'timestamp' }` で保存する
