@@ -18,7 +18,7 @@
   - _Boundary: ErrorCodes_
 
 - [ ] 2. Core: progress tRPC ルーター実装
-- [ ] 2.1 progress.record プロシージャを実装する
+- [x] 2.1 progress.record プロシージャを実装する
   - `server/src/api/progress.ts` を新規作成し、`recordProgressSchema`（taskId・snapshotDate・progressPct・acDays）を Zod で定義する
   - `progressPct` は 0〜100 の整数、`acDays` は 0 以上の数値として Zod バリデーションを設定する
   - `snapshotDate` は `/^\d{4}-\d{2}-\d{2}$/` の正規表現バリデーションを設定する
@@ -29,7 +29,7 @@
   - _Depends: 1.1, 1.2_
   - _Boundary: ProgressRouter_
 
-- [ ] 2.2 (P) progress.getByDate プロシージャを実装する
+- [x] 2.2 (P) progress.getByDate プロシージャを実装する
   - `progress.getByDate({ projectId, snapshotDate })` を実装する
   - `tasks` テーブルと JOIN し `tasks.projectId = input.projectId` AND `progressSnapshots.snapshotDate = input.snapshotDate` でフィルタするクエリを記述する
   - 結果を `task_id` 昇順でソートして返す
@@ -38,7 +38,7 @@
   - _Depends: 1.1_
   - _Boundary: ProgressRouter_
 
-- [ ] 2.3 (P) progress.getLatest プロシージャを実装する
+- [x] 2.3 (P) progress.getLatest プロシージャを実装する
   - `progress.getLatest({ projectId })` を実装する
   - `tasks` テーブルと JOIN し、各タスクの `MAX(snapshot_date)` を持つスナップショットのみを返す相関サブクエリを Drizzle `sql` ヘルパーで記述する
   - `GET progress.getLatest({ projectId: 1 })` が各タスク 1 件ずつ（最新日付のもの）を返すこと
@@ -47,7 +47,7 @@
   - _Depends: 1.1_
   - _Boundary: ProgressRouter_
 
-- [ ] 2.4 (P) progress.getHistory プロシージャを実装する
+- [x] 2.4 (P) progress.getHistory プロシージャを実装する
   - `progress.getHistory({ taskId })` を実装する
   - `progressSnapshots.taskId = input.taskId` でフィルタし、`snapshot_date` 昇順でソートするクエリを記述する
   - 存在しない `taskId` の場合は空配列を返す（エラーなし）
@@ -56,7 +56,7 @@
   - _Depends: 1.1_
   - _Boundary: ProgressRouter_
 
-- [ ] 2.5 progress ルーターを appRouter にマウントする
+- [x] 2.5 progress ルーターを appRouter にマウントする
   - `server/src/router.ts` の `appRouter` に `progress: progressRouter` をマウントする
   - `server/src/api/progress.ts` から `progressRouter` をインポートして統合する
   - tRPC クライアントから `trpc.progress.record` が型補完で見えること

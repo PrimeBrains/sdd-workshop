@@ -12,6 +12,7 @@ import { createTasksRouter } from './api/tasks.js'
 import { createMembersRouter } from './api/members.js'
 import { createHolidaysRouter } from './api/holidays.js'
 import { createImportRouter } from './api/import.js'
+import { createProgressRouter } from './api/progress.js'
 
 // ── Feature Flag ──────────────────────────────────────────────────────────────
 export const ENABLE_APP_ROUTER = true
@@ -31,6 +32,7 @@ export const appRouter = t.router({
   members:  createMembersRouter(db),
   holidays: createHolidaysRouter(db),
   import:   createImportRouter(db),
+  progress: createProgressRouter(db),
 })
 
 export type AppRouter = typeof appRouter
