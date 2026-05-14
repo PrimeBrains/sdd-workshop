@@ -29,7 +29,7 @@
   - `ProgressSnapshot` 型に `pvDays`・`evDays` フィールドが含まれていること（リスケ・再見積後も過去スナップショットの PV/EV が正確に参照できるよう記録時点の値を保存）
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 7.3, 7.4_
 
-- [ ] 2.2 DB 接続の初期化とマイグレーション実行を実装する
+- [x] 2.2 DB 接続の初期化とマイグレーション実行を実装する
   - `server/src/db/index.ts` に `better-sqlite3` 接続と `drizzle()` ラッパーをシングルトンとして実装する
   - 接続後即時に `sqlite.pragma('foreign_keys = ON')` を実行する
   - `runMigrations()` 関数を実装し、アプリ起動時に `migrate()` で最新スキーマを適用する
