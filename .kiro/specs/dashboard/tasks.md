@@ -83,7 +83,7 @@
 ---
 
 - [ ] 4. Core: UI コンポーネント実装（並列可能）
-- [ ] 4.1 (P) AlertBanner コンポーネントの実装
+- [x] 4.1 (P) AlertBanner コンポーネントの実装
   - `client/src/components/AlertBanner.tsx` を新規作成し、`alerts: AlertOutput[]` props を受け取る
   - `alerts` が空配列の場合はコンポーネントを非表示にする（要件 2.4）
   - critical アラートを赤背景、warning アラートを黄背景で表示し、各行にタスク名・担当者名・SPI 値を表示する
@@ -91,7 +91,7 @@
   - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5_
   - _Boundary: AlertBanner_
 
-- [ ] 4.2 (P) ProjectSummaryCards コンポーネントの実装
+- [x] 4.2 (P) ProjectSummaryCards コンポーネントの実装
   - `client/src/components/ProjectSummaryCards.tsx` を新規作成し、`summary: EvmSummaryOutput` props を受け取る
   - BAC・EAC・VAC・ETC・TCPI・全体 SPI・全体 CPI を数値カードとして表示する
   - SPI カードに閾値連動の色付けを実装する（SPI < 0.8: 赤、0.8–0.9: 黄、≥ 0.9: 緑）
@@ -99,7 +99,7 @@
   - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5_
   - _Boundary: ProjectSummaryCards_
 
-- [ ] 4.3 (P) SpiTrendChart コンポーネントの実装
+- [x] 4.3 (P) SpiTrendChart コンポーネントの実装
   - `client/src/components/SpiTrendChart.tsx` を新規作成し、`data: SpiTrendPoint[]` props を受け取る
   - recharts の `LineChart` + 2 本の `Line`（SPI: 青・CPI: 橙）で折れ線チャートを描画する
   - `ReferenceLine y={1.0}` で基準線を表示する（要件 4.3）
@@ -108,7 +108,7 @@
   - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5_
   - _Boundary: SpiTrendChart_
 
-- [ ] 4.4 (P) FeverChart コンポーネントの実装
+- [x] 4.4 (P) FeverChart コンポーネントの実装
   - `client/src/components/FeverChart.tsx` を新規作成し、`data: FeverChartOutput | null` props を受け取る
   - recharts の `ScatterChart` で X 軸にクリティカルチェーン完了率・Y 軸にバッファ消費率をプロットする
   - `ReferenceArea` を 3 つ重ねて Green/Yellow/Red ゾーンの背景色を描画する
@@ -117,7 +117,7 @@
   - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5_
   - _Boundary: FeverChart_
 
-- [ ] 4.5 (P) AssigneeTable コンポーネントの実装
+- [x] 4.5 (P) AssigneeTable コンポーネントの実装
   - `client/src/components/AssigneeTable.tsx` を新規作成し、`assignees: AssigneeEvmOutput[]` props を受け取る
   - 担当者名・BAC・EV・PV・SPI・AC・CPI・ステータスの列を持つテーブルを表示する
   - `status` に応じた行の背景色（critical: 赤・warning: 黄・normal: 緑・na: デフォルト）を TailwindCSS で適用する
