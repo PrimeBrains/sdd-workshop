@@ -11,7 +11,7 @@
   - `npm install` が完了し、`server/src/` ディレクトリ構造（`db/`、`services/`、`api/`、`errors/`）が存在すること
   - _Requirements: 7.1, 7.2, 7.3_
 
-- [ ] 1.2 ErrorCode 定数と AppError クラスを実装する
+- [x] 1.2 ErrorCode 定数と AppError クラスを実装する
   - `server/src/errors/codes.ts` に `PROJ_NOT_FOUND`、`TASK_NOT_FOUND`、`MEMBER_NOT_FOUND`、`MEMBER_INVALID_RATE`、`IMPORT_INVALID_YAML`、`IMPORT_PARSE_ERROR`、`IMPORT_MISSING_FIELD` を定義する
   - `server/src/errors/AppError.ts` に `AppError extends Error` クラスを実装し、`code: ErrorCode` プロパティを持たせる
   - 全エラーコードが `codes.ts` に定義されており、文字列リテラルを直書きせずに参照できること
