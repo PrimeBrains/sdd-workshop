@@ -7,7 +7,7 @@
   - TypeScript コンパイルが通ることで追加コードが正しいことを確認できる
   - _Requirements: 7.4, 7.5_
 
-- [ ] 1.2 Vitest テストファイルを空ファイルとして作成する
+- [x] 1.2 Vitest テストファイルを空ファイルとして作成する
   - `server/src/services/evm-engine.test.ts` を作成し、`describe` ブロックのスケルトンのみ記述する
   - `npm test` を実行してテストランナーが正常に起動することを確認する
   - _Requirements: 8.1_
