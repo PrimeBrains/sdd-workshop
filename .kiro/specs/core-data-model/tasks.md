@@ -65,7 +65,7 @@
   - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 4.6_
   - _Boundary: MembersRouter_
 
-- [ ] 3.4 (P) Holiday CRUD tRPC ルーターを実装する
+- [x] 3.4 (P) Holiday CRUD tRPC ルーターを実装する
   - `server/src/api/holidays.ts` に `holidays.listByProject`、`holidays.create`、`holidays.delete` プロシージャを実装する
   - `holidays.listByProject` が date 昇順で結果を返すこと
   - 不正な日付形式（YYYY-MM-DD 以外）で `BAD_REQUEST` エラーが返ること
