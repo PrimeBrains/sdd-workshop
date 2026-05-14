@@ -122,14 +122,14 @@
 ---
 
 - [ ] 6. テスト: サーバー単体テストと E2E テスト
-- [ ] 6.1 WBS インポートサービスの単体テストを実装する
+- [x] 6.1 WBS インポートサービスの単体テストを実装する
   - `server/src/services/wbs-importer.test.ts` に以下のテストケースを実装する：正常インポート（3 YAML → DB）、parent_id の external_id 解決、depends_on の task_dependencies 挿入、不正 YAML でのアトミックロールバック、再インポート（upsert）での重複なし
   - インメモリ SQLite（`:memory:`）または一時ファイルを使ってテスト間の独立性を確保する
   - `npm test` を実行してすべてのテストがパスすること
   - _Requirements: 6.1, 6.2, 6.3, 6.7, 6.8_
   - _Boundary: WbsImporter_
 
-- [ ] 6.2 Project・Member ルーターのエラーケース単体テストを実装する
+- [x] 6.2 Project・Member ルーターのエラーケース単体テストを実装する
   - `server/src/api/projects.test.ts` に `projects.getById` で存在しない id を渡したとき `PROJ_NOT_FOUND` が返るテストを実装する
   - `server/src/api/members.test.ts` に `availabilityRate` が 0〜1 範囲外のとき `BAD_REQUEST` が返るテストを実装する
   - `npm test` を実行してすべてのテストがパスすること
