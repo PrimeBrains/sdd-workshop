@@ -165,7 +165,7 @@
   - _Boundary: GanttChart_
   - _Depends: 7.1_
 
-- [ ] 7.3 DashboardPage に GanttChart を組み込む
+- [x] 7.3 DashboardPage に GanttChart を組み込む
   - `DashboardPage` の UI に `GanttChart` コンポーネントを追加し、`useEvmCalculate` の `gantt` フィールドを props に渡す
   - `baseDate` ステートを `GanttChart` にも渡し、稲妻線がリアルタイムに更新されることを確認する
   - プロジェクト選択 → ガントチャート表示の流れが画面上で動作することを確認する

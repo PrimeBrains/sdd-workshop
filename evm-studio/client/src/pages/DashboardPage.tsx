@@ -13,6 +13,7 @@ import ProjectSummaryCards from '../components/ProjectSummaryCards'
 import SpiTrendChart from '../components/SpiTrendChart'
 import FeverChart from '../components/FeverChart'
 import AssigneeTable from '../components/AssigneeTable'
+import GanttChart from '../components/GanttChart'
 
 // 今日の ISO 日付文字列を返す
 function todayISO(): string {
@@ -110,10 +111,10 @@ export default function DashboardPage() {
             <AssigneeTable assignees={evmQuery.data.assignees} />
           </div>
 
-          {/* ガントチャート（Task 7.3 で実装予定） */}
-          <div className="bg-white rounded-lg border border-gray-200 p-4">
-            <h3 className="text-sm font-semibold text-gray-700 mb-3">ガントチャート</h3>
-            <p className="text-gray-400 text-sm text-center py-4">ガントチャートは Task 7.3 で実装予定</p>
+          {/* ガントチャート */}
+          <div className="mt-6">
+            <h2 className="text-lg font-semibold text-gray-700 mb-3">ガントチャート</h2>
+            <GanttChart tasks={evmQuery.data.gantt} baseDate={baseDate} />
           </div>
         </div>
       )}
