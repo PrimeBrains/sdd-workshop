@@ -65,7 +65,7 @@
   - _Boundary: HonoServer, ProgressRouter_
 
 - [ ] 3. Core: クライアント tRPC インフラ構築
-- [ ] 3.1 tRPC クライアント設定を作成する
+- [x] 3.1 tRPC クライアント設定を作成する
   - `client/src/lib/trpc.ts` を新規作成し、`createTRPCReact<AppRouter>()` で `trpc` クライアントをエクスポートする
   - `client/src/lib/trpc.ts` に `QueryClient` インスタンスとデフォルト設定をエクスポートする
   - `client/src/App.tsx` に `QueryClientProvider` と `trpc.Provider` をラップして追加する（API URL: `http://localhost:3001/trpc`）
@@ -74,7 +74,7 @@
   - _Depends: 2.5_
   - _Boundary: TRPCClient_
 
-- [ ] 3.2 useProgress フックを実装する
+- [x] 3.2 useProgress フックを実装する
   - `client/src/hooks/useProgress.ts` を新規作成する
   - `useProgressByDate(projectId: number | null, snapshotDate: string)`: `trpc.progress.getByDate.useQuery` で既存スナップショットを取得する（`enabled: !!projectId && !!snapshotDate`）
   - `useRecordProgress()`: `trpc.progress.record.useMutation` を返す。成功後に `progress.getByDate` クエリを invalidate する
@@ -86,7 +86,7 @@
   - _Boundary: useProgress_
 
 - [ ] 4. Core: ProgressInputPage UI 実装
-- [ ] 4.1 ProgressInputPage コンポーネントを実装する
+- [x] 4.1 ProgressInputPage コンポーネントを実装する
   - `client/src/pages/ProgressInputPage.tsx` を新規作成する
   - プロジェクトセレクト・日付インプット（初期値: 今日の日付）を実装する（要件 5.1）
   - プロジェクトと日付が選択されたとき、`useTasksByProject` で取得した is_leaf=true のタスク一覧を表示し、各行に `progressPct`（0-100）と `acDays`（≥0）の入力フィールドを表示する（要件 5.2）
@@ -97,7 +97,7 @@
   - _Depends: 3.2_
   - _Boundary: ProgressInputPage_
 
-- [ ] 4.2 保存処理とフィードバックを実装する
+- [x] 4.2 保存処理とフィードバックを実装する
   - 「保存」ボタン押下時にクライアントバリデーションを実行し、エラーがなければ全タスクの `useRecordProgress().mutateAsync` を `Promise.all` で並列送信する（要件 5.3）
   - 保存成功時に成功通知（簡易トースト or 画面上部メッセージ）を表示する（要件 5.4）
   - 保存中にエラーが発生した場合にエラーメッセージを表示する（要件 5.5）
@@ -106,7 +106,7 @@
   - _Depends: 4.1_
   - _Boundary: ProgressInputPage_
 
-- [ ] 4.3 App.tsx にルートを追加する
+- [x] 4.3 App.tsx にルートを追加する
   - `client/src/App.tsx` に `/progress` ルートを追加し、`ProgressInputPage` を表示する（React Router または条件付きレンダリング）
   - ブラウザで `/progress` にアクセスしたとき `ProgressInputPage` が表示されること
   - _Requirements: 5.1_
