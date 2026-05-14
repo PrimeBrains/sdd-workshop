@@ -40,7 +40,7 @@
 ---
 
 - [ ] 3. CRUD API: Project・Task・Member・Holiday ルーター（並列実装可）
-- [ ] 3.1 (P) Project CRUD tRPC ルーターを実装する
+- [x] 3.1 (P) Project CRUD tRPC ルーターを実装する
   - `server/src/api/projects.ts` に `projects.list`、`projects.getById`、`projects.create`、`projects.update`、`projects.delete` プロシージャを実装する
   - `createProjectSchema`（name/startDate/endDate を Zod で検証）と `updateProjectSchema` を定義する
   - `projects.getById` で存在しない id を渡すと `AppError(PROJ_NOT_FOUND)` が throw され、tRPC `NOT_FOUND` に変換されること
