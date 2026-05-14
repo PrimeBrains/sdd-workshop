@@ -57,7 +57,7 @@
   - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7, 3.8, 3.9_
   - _Boundary: TasksRouter_
 
-- [ ] 3.3 (P) Member CRUD tRPC ルーターを実装する
+- [x] 3.3 (P) Member CRUD tRPC ルーターを実装する
   - `server/src/api/members.ts` に `members.listByProject`、`members.create`、`members.update`、`members.delete` プロシージャを実装する
   - `createMemberSchema` で `availabilityRate` を `z.number().min(0).max(1)` で検証する
   - `members.delete` 実行後、そのメンバーを参照していた `tasks.assignee_id` が NULL になること
