@@ -153,7 +153,7 @@
   - _Requirements: 10.1, 10.5_
   - _Depends: 2.1_
 
-- [ ] 7.2 (P) GanttChart コンポーネントの実装
+- [x] 7.2 (P) GanttChart コンポーネントの実装
   - `client/src/components/GanttChart.tsx` を新規作成し、`tasks: GanttTaskOutput[]`, `baseDate: string`, `onProgressUpdate?`, `onTaskReschedule?` props を受け取る
   - 横軸タイムラインをプロジェクト内の最小 `plannedStart` ～最大 `plannedEnd` で自動計算し、タスクバーを描画する
   - タスクバーを `progressPct` 割合で塗りつぶし（要件 10.2）、SPI 値に応じた色（赤/黄/青）を適用する（要件 10.4）
@@ -175,7 +175,7 @@
 ---
 
 - [ ] 6. Validation: E2E テストとサーバー単体テストの追加
-- [ ] 6.1 evm.calculate サーバー単体テスト（Vitest）の完成
+- [x] 6.1 evm.calculate サーバー単体テスト（Vitest）の完成
   - `server/src/api/evm.test.ts` に以下のテストケースを追加する: 正常系（全フィールド返却）、プロジェクト未存在 → NOT_FOUND、baseDate フォーマット不正 → BAD_REQUEST、バッファなし → feverChart null、SPI < 0.8 → critical アラート、0.8 ≤ SPI < 0.9 → warning アラート
   - `npm test` で全テストが pass することを確認する
   - _Requirements: 8.1, 8.2, 8.3, 8.4, 2.1, 2.2, 5.5_
