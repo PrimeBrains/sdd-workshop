@@ -13,7 +13,7 @@ wbs-* スキルが生成する YAML（tasks / staffing / schedule）を入力と
 
 ## Scope
 
-- **In**: WBS YAML インポート、プロジェクト/タスク/メンバー管理、EVM 計算、進捗入力、ダッシュボード、朝報レポート
+- **In**: WBS YAML インポート、プロジェクト/タスク/メンバー管理、EVM 計算、進捗入力、ダッシュボード
 - **Out**: WBS 生成（wbs-* スキルが担う）、認証・認可（ローカル限定）、xlsm インポート（将来対応）
 
 ## Constraints
@@ -33,4 +33,3 @@ wbs-* スキルが生成する YAML（tasks / staffing / schedule）を入力と
 - [x] evm-engine -- PV/EV/AC/SPI/CPI/EAC/CCPM バッファ計算エンジン + クリティカルパス算出。Dependencies: core-data-model
 - [x] progress-tracking -- 進捗記録（実績工数・完了率の日次入力）+ スナップショット管理。Dependencies: core-data-model
 - [x] dashboard -- SPI トレンドチャート・フィーバーチャート・アラート・担当者別 EVM 可視化。Dependencies: evm-engine, progress-tracking
-- [x] reporting -- 朝報レポート・遅延タスク一覧・EVM サマリー生成。Dependencies: evm-engine, progress-tracking

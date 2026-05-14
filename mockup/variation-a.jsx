@@ -29,7 +29,7 @@ const fmtDeltaPct = (d) => d === 0 ? '±0pp' : (d > 0 ? '+' : '−') + Math.abs(
 const deltaTone   = (d, posGood = true) => d === 0 ? 'na' : (d > 0) === posGood ? 'normal' : 'critical';
 
 // ── Main ────────────────────────────────────────────────────────────────
-function VariationA({ onTabChange }) {
+function VariationA() {
   const [projectId, setProjectId] = useState(1);
   const [selectedTaskId, setSelectedTaskId] = useState(32);
   const [baseDate, setBaseDate] = useState(BASE_DATE);
@@ -90,17 +90,11 @@ function VariationA({ onTabChange }) {
         <div style={{ fontFamily: EVM.fontBrand, fontSize: 13, letterSpacing: '0.18em', color: EVM.ink2 }}>EVM STUDIO</div>
 
         <nav style={{ display: 'flex', gap: 4, marginLeft: 18 }}>
-          {['ダッシュボード', 'レポート'].map((t, i) => (
-            <button key={t} className={i === 0 ? 'evm-tab active' : 'evm-tab'}
-              onClick={() => onTabChange && onTabChange(t)}
-              style={{
-                padding: '6px 12px', borderRadius: 4, border: 0,
-                background: i === 0 ? EVM.brandWash : 'transparent',
-                color: i === 0 ? EVM.brandDeep : EVM.ink3,
-                fontFamily: 'inherit', fontSize: 12.5, fontWeight: i === 0 ? 600 : 500,
-                cursor: 'pointer',
-              }}>{t}</button>
-          ))}
+          <span style={{
+            padding: '6px 12px', borderRadius: 4,
+            background: EVM.brandWash, color: EVM.brandDeep,
+            fontFamily: 'inherit', fontSize: 12.5, fontWeight: 600,
+          }}>ダッシュボード</span>
         </nav>
 
         <div style={{ flex: 1 }}/>

@@ -4,8 +4,6 @@
 const { useState: useStateWS, useEffect: useEffectWS } = React;
 
 function WorkbenchShell({
-  activeTab = 'ダッシュボード',
-  onTabChange,
   projectId, onProjectChange,
   rightPanel, children, baseDate = BASE_DATE,
   toolbar,
@@ -30,20 +28,11 @@ function WorkbenchShell({
         <div style={{ fontFamily: EVM.fontBrand, fontSize: 13, letterSpacing: '0.18em', color: EVM.ink2 }}>EVM STUDIO</div>
 
         <nav style={{ display: 'flex', gap: 4, marginLeft: 18 }}>
-          {['ダッシュボード', 'レポート'].map(t => {
-            const active = t === activeTab;
-            return (
-              <button key={t} className={active ? 'evm-tab active' : 'evm-tab'}
-                onClick={() => onTabChange && onTabChange(t)}
-                style={{
-                  padding: '6px 12px', borderRadius: 4, border: 0,
-                  background: active ? EVM.brandWash : 'transparent',
-                  color: active ? EVM.brandDeep : EVM.ink3,
-                  fontFamily: 'inherit', fontSize: 12.5, fontWeight: active ? 600 : 500,
-                  cursor: 'pointer',
-                }}>{t}</button>
-            );
-          })}
+          <span style={{
+            padding: '6px 12px', borderRadius: 4,
+            background: EVM.brandWash, color: EVM.brandDeep,
+            fontFamily: 'inherit', fontSize: 12.5, fontWeight: 600,
+          }}>ダッシュボード</span>
         </nav>
 
         <div style={{ flex: 1 }}/>

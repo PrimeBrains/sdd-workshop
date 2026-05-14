@@ -26,15 +26,11 @@
   <script type="text/babel" src="projects-data.jsx"></script>
   <script type="text/babel" src="workbench-shell.jsx"></script>
   <script type="text/babel" src="variation-a.jsx"></script>
-  <script type="text/babel" src="tab-report.jsx"></script>
-
   <script type="text/babel" data-presets="react">
     function AppMain() {
-      const [activeTab, setActiveTab] = React.useState('ダッシュボード');
       return (
         <div style={{ width: '100vw', height: '100vh', overflow: 'hidden' }}>
-          {activeTab === 'ダッシュボード' && <VariationA onTabChange={setActiveTab} />}
-          {activeTab === 'レポート'       && <ReportWorkbench onTabChange={setActiveTab} />}
+          <VariationA />
         </div>
       );
     }
