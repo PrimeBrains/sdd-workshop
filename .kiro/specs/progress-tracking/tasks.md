@@ -11,7 +11,7 @@
   - _Requirements: 6.1, 6.2_
   - _Boundary: HonoServer, TRPCHandler_
 
-- [ ] 1.2 SNAP_TASK_NOT_FOUND エラーコードを追加する
+- [x] 1.2 SNAP_TASK_NOT_FOUND エラーコードを追加する
   - `server/src/errors/codes.ts` の `ErrorCode` オブジェクトに `SNAP_TASK_NOT_FOUND: 'SNAP_TASK_NOT_FOUND'` を追加する
   - TypeScript の型推論で `ErrorCode` 型に `SNAP_TASK_NOT_FOUND` が含まれることを確認する
   - _Requirements: 6.3_

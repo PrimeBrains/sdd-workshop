@@ -15,6 +15,8 @@ export const ErrorCode = {
   IMPORT_INVALID_YAML: 'IMPORT_INVALID_YAML',
   IMPORT_PARSE_ERROR: 'IMPORT_PARSE_ERROR',
   IMPORT_MISSING_FIELD: 'IMPORT_MISSING_FIELD',
+  // Snapshot (Progress Tracking)
+  SNAP_TASK_NOT_FOUND: 'SNAP_TASK_NOT_FOUND',
 } as const
 
 export type ErrorCode = typeof ErrorCode[keyof typeof ErrorCode]
