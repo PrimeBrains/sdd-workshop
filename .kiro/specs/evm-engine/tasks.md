@@ -35,7 +35,7 @@
   - _Boundary: EvmEngine_
   - _Depends: 2.1_
 
-- [ ] 2.3 (P) プロジェクト累積 PV・EV・AC 計算関数を実装する
+- [x] 2.3 (P) プロジェクト累積 PV・EV・AC 計算関数を実装する
   - `calculateProjectPv(input: EvmInput)` を実装する: `tasks.filter(t => !t.isBuffer)` に対し各タスクの `calculateTaskPv` を呼び出して合計する。`assigneeId` から `members` を引いて `availabilityRate` を取得し、見つからない場合は `1.0` を使用する
   - `calculateTaskEv(task, progressPct)` を実装する: `task.estimateDays * (progressPct / 100)`
   - `calculateProjectEv(tasks, snapshots)` を実装する: `is_buffer` 除外タスクの EV 合計（`snapshots` から `progressPct` を参照）

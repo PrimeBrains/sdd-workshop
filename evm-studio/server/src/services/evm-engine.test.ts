@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { countWorkingDays, calculateTaskPv } from './evm-engine.js'
-import type { Holiday, Task } from '../db/schema.js'
+import {
+  countWorkingDays,
+  calculateTaskPv,
+  calculateProjectPv,
+  calculateTaskEv,
+  calculateProjectEv,
+  calculateProjectAc,
+} from './evm-engine.js'
+import type { Holiday, Member, ProgressSnapshot, Task } from '../db/schema.js'
 import { AppError } from '../errors/AppError.js'
 import { ErrorCode } from '../errors/codes.js'
 
@@ -196,26 +203,224 @@ describe('calculateTaskPv', () => {
   })
 })
 
+// 共通 Member ベース
+const baseMember: Member = {
+  id: 10,
+  projectId: 1,
+  externalId: 'M001',
+  name: 'テストメンバー',
+  availabilityRate: 1.0,
+  assignmentStart: null,
+  assignmentEnd: null,
+  createdAt: new Date(),
+  updatedAt: new Date(),
+}
+
 describe('calculateProjectPv', () => {
   it.todo('is_buffer=true タスクを PV 累積から除外する')
   it.todo('複数タスクの PV を合計する')
+
+  it('is_buffer=true タスクを累積 PV から除外する（要件 1.5）', () => {
+    const normalTask: Task = {
+      ...baseTask,
+      id: 1,
+      assigneeId: null,
+      isBuffer: false,
+      plannedStart: '2026-05-11',
+      plannedEnd: '2026-05-20',
+      estimateDays: 5,
+    }
+    const bufferTask: Task = {
+      ...baseTask,
+      id: 2,
+      assigneeId: null,
+      isBuffer: true,
+      estimateDays: 3,
+    }
+    const result = calculateProjectPv({
+      tasks: [normalTask, bufferTask],
+      members: [],
+      holidays: [],
+      snapshots: [],
+      baseDate: '2026-05-20',
+    })
+    // bufferTask は除外されるので normalTask の estimateDays=5 のみ
+    expect(result).toBe(5)
+  })
+
+  it('複数タスクの PV を合計する（要件 1.6）', () => {
+    const task1: Task = {
+      ...baseTask,
+      id: 1,
+      assigneeId: null,
+      isBuffer: false,
+      plannedStart: '2026-05-11',
+      plannedEnd: '2026-05-15',
+      estimateDays: 3,
+    }
+    const task2: Task = {
+      ...baseTask,
+      id: 2,
+      assigneeId: null,
+      isBuffer: false,
+      plannedStart: '2026-05-11',
+      plannedEnd: '2026-05-15',
+      estimateDays: 4,
+    }
+    const result = calculateProjectPv({
+      tasks: [task1, task2],
+      members: [],
+      holidays: [],
+      snapshots: [],
+      baseDate: '2026-05-20',
+    })
+    // どちらも baseDate >= plannedEnd → estimateDays の合計 = 3 + 4 = 7
+    expect(result).toBe(7)
+  })
+
+  it('assigneeId に対応する Member の availabilityRate を使用する', () => {
+    const member: Member = { ...baseMember, id: 10, availabilityRate: 0.5 }
+    const task: Task = {
+      ...baseTask,
+      id: 1,
+      assigneeId: 10,
+      isBuffer: false,
+      plannedStart: '2026-05-11',
+      plannedEnd: '2026-05-20',
+      estimateDays: 10,
+    }
+    const result = calculateProjectPv({
+      tasks: [task],
+      members: [member],
+      holidays: [],
+      snapshots: [],
+      // 中間日: 2026-05-13 → 3稼働日 → min(3*0.5, 10) = 1.5
+      baseDate: '2026-05-13',
+    })
+    expect(result).toBeCloseTo(1.5)
+  })
+
+  it('assigneeId に対応する Member が見つからない場合は availabilityRate=1.0 を使用する', () => {
+    const task: Task = {
+      ...baseTask,
+      id: 1,
+      assigneeId: 999, // 存在しない ID
+      isBuffer: false,
+      plannedStart: '2026-05-11',
+      plannedEnd: '2026-05-20',
+      estimateDays: 10,
+    }
+    const result = calculateProjectPv({
+      tasks: [task],
+      members: [],
+      holidays: [],
+      snapshots: [],
+      // 中間日: 2026-05-13 → 3稼働日 → min(3*1.0, 10) = 3
+      baseDate: '2026-05-13',
+    })
+    expect(result).toBe(3)
+  })
 })
 
 // ─── calculateTaskEv / calculateProjectEv / calculateProjectAc ──────────────
+
+// 共通 ProgressSnapshot ベース
+function makeSnapshot(overrides: Partial<ProgressSnapshot>): ProgressSnapshot {
+  return {
+    id: 1,
+    taskId: 1,
+    snapshotDate: '2026-05-13',
+    progressPct: 0,
+    pvDays: 0,
+    evDays: 0,
+    acDays: 0,
+    createdAt: new Date(),
+    ...overrides,
+  }
+}
 
 describe('calculateTaskEv', () => {
   it.todo('progress_pct=0 → 0 を返す')
   it.todo('progress_pct=100 → estimate_days を返す')
   it.todo('is_buffer=true タスクは EV 累積から除外する')
+
+  it('progress_pct=0 → 0 を返す（要件 2.1）', () => {
+    const task: Task = { ...baseTask, estimateDays: 5 }
+    expect(calculateTaskEv(task, 0)).toBe(0)
+  })
+
+  it('progress_pct=100 → estimate_days を返す（要件 2.1）', () => {
+    const task: Task = { ...baseTask, estimateDays: 5 }
+    expect(calculateTaskEv(task, 100)).toBe(5)
+  })
+
+  it('progress_pct=50 → estimate_days * 0.5 を返す（要件 2.1）', () => {
+    const task: Task = { ...baseTask, estimateDays: 10 }
+    expect(calculateTaskEv(task, 50)).toBe(5)
+  })
+
+  it('estimateDays=3, progress_pct=33 → 0.99 を返す（要件 2.1）', () => {
+    const task: Task = { ...baseTask, estimateDays: 3 }
+    expect(calculateTaskEv(task, 33)).toBeCloseTo(0.99)
+  })
 })
 
 describe('calculateProjectEv', () => {
   it.todo('is_buffer=true タスクを除外して EV を合計する')
+
+  it('is_buffer=true タスクを除外して EV を合計する（要件 2.2, 2.3）', () => {
+    const normalTask: Task = { ...baseTask, id: 1, isBuffer: false, estimateDays: 10 }
+    const bufferTask: Task = { ...baseTask, id: 2, isBuffer: true, estimateDays: 5 }
+    const snapshots: ProgressSnapshot[] = [
+      makeSnapshot({ taskId: 1, progressPct: 50 }),  // EV = 10 * 0.5 = 5
+      makeSnapshot({ id: 2, taskId: 2, progressPct: 80 }),  // bufferTask → 除外
+    ]
+    const result = calculateProjectEv([normalTask, bufferTask], snapshots)
+    expect(result).toBe(5)
+  })
+
+  it('複数の非バッファタスクの EV を合計する（要件 2.2）', () => {
+    const task1: Task = { ...baseTask, id: 1, isBuffer: false, estimateDays: 10 }
+    const task2: Task = { ...baseTask, id: 2, isBuffer: false, estimateDays: 4 }
+    const snapshots: ProgressSnapshot[] = [
+      makeSnapshot({ taskId: 1, progressPct: 100 }),  // EV = 10
+      makeSnapshot({ id: 2, taskId: 2, progressPct: 50 }),  // EV = 2
+    ]
+    const result = calculateProjectEv([task1, task2], snapshots)
+    expect(result).toBe(12)
+  })
+
+  it('スナップショットがないタスクは EV=0 として扱う', () => {
+    const task1: Task = { ...baseTask, id: 1, isBuffer: false, estimateDays: 10 }
+    const snapshots: ProgressSnapshot[] = []  // snapshot なし
+    const result = calculateProjectEv([task1], snapshots)
+    expect(result).toBe(0)
+  })
 })
 
 describe('calculateProjectAc', () => {
   it.todo('全タスクの AC を合計する')
   it.todo('is_buffer=true タスクを AC 累積から除外する')
+
+  it('全スナップショットの acDays を合計する（要件 2.4）', () => {
+    const snapshots: ProgressSnapshot[] = [
+      makeSnapshot({ acDays: 2 }),
+      makeSnapshot({ id: 2, taskId: 2, acDays: 3.5 }),
+    ]
+    expect(calculateProjectAc(snapshots)).toBeCloseTo(5.5)
+  })
+
+  it('スナップショットが空の場合 0 を返す（要件 2.4）', () => {
+    expect(calculateProjectAc([])).toBe(0)
+  })
+
+  it('acDays が全て 0 の場合 0 を返す', () => {
+    const snapshots: ProgressSnapshot[] = [
+      makeSnapshot({ acDays: 0 }),
+      makeSnapshot({ id: 2, taskId: 2, acDays: 0 }),
+    ]
+    expect(calculateProjectAc(snapshots)).toBe(0)
+  })
 })
 
 // ─── calculateEvmMetrics (SPI/CPI/EAC/VAC/ETC/TCPI) ────────────────────────

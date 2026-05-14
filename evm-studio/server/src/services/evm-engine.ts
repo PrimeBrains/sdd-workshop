@@ -162,9 +162,20 @@ export function calculateTaskPv(
 
 /**
  * プロジェクト全体の累積 PV を算出する（is_buffer タスク除外）
+ * assigneeId から members を引いて availabilityRate を取得する（見つからない場合は 1.0 を使用）
  */
 export function calculateProjectPv(input: EvmInput): number {
-  return 0
+  const { tasks, members, holidays, baseDate } = input
+  return tasks
+    .filter((t) => !t.isBuffer)
+    .reduce((sum, task) => {
+      const member =
+        task.assigneeId !== null
+          ? members.find((m) => m.id === task.assigneeId) ?? null
+          : null
+      const availabilityRate = member?.availabilityRate ?? 1.0
+      return sum + calculateTaskPv(task, baseDate, availabilityRate, holidays)
+    }, 0)
 }
 
 /**
@@ -172,24 +183,32 @@ export function calculateProjectPv(input: EvmInput): number {
  * EV = estimate_days × (progress_pct / 100)
  */
 export function calculateTaskEv(task: Task, progressPct: number): number {
-  return 0
+  return task.estimateDays * (progressPct / 100)
 }
 
 /**
  * プロジェクト全体の累積 EV を算出する（is_buffer タスク除外）
+ * snapshots から progressPct を参照する
  */
 export function calculateProjectEv(
   tasks: Task[],
   snapshots: ProgressSnapshot[],
 ): number {
-  return 0
+  return tasks
+    .filter((t) => !t.isBuffer)
+    .reduce((sum, task) => {
+      const snapshot = snapshots.find((s) => s.taskId === task.id)
+      const progressPct = snapshot?.progressPct ?? 0
+      return sum + calculateTaskEv(task, progressPct)
+    }, 0)
 }
 
 /**
  * プロジェクト全体の AC を算出する
+ * AC = ProgressSnapshot.acDays の合計
  */
 export function calculateProjectAc(snapshots: ProgressSnapshot[]): number {
-  return 0
+  return snapshots.reduce((sum, s) => sum + s.acDays, 0)
 }
 
 /**
