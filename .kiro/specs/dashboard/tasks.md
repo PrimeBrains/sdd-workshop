@@ -65,14 +65,14 @@
 ---
 
 - [ ] 3. Core: フロントエンド基盤（useEvm フック + DashboardPage 骨格）
-- [ ] 3.1 useEvm フックの実装
+- [x] 3.1 useEvm フックの実装
   - `client/src/hooks/useEvm.ts` を新規作成し、`trpc.evm.calculate.useQuery` を `staleTime: 5 * 60 * 1000`（5 分）で呼び出す `useEvmCalculate` フックを実装する
   - `projectId` または `baseDate` が null のとき `enabled: false` でクエリを無効化する
   - `client/src/App.tsx` に `/dashboard` ルートと `DashboardPage` コンポーネントを追加する
   - _Requirements: 7.1, 7.2, 7.3_
   - _Depends: 1.1_
 
-- [ ] 3.2 DashboardPage のプロジェクト・基準日選択 UI の実装
+- [x] 3.2 DashboardPage のプロジェクト・基準日選択 UI の実装
   - `client/src/pages/DashboardPage.tsx` を新規作成し、`projects.list` クエリでプロジェクト一覧を取得してドロップダウンに表示する
   - `selectedProjectId: number | null` と `baseDate: string`（初期値: today の ISO 形式）のステート管理を実装する
   - 基準日ピッカー（`<input type="date">`）を配置し、変更時に `baseDate` ステートを更新する
