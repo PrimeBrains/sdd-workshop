@@ -3,7 +3,7 @@
 ## Tasks
 
 - [ ] 1. 基盤: tRPC サーバーセットアップとエラーコード追加
-- [ ] 1.1 tRPC サーバーと appRouter を構成する
+- [x] 1.1 tRPC サーバーと appRouter を構成する
   - `server/src/router.ts` を新規作成し、`createTRPCRouter` で `appRouter` を定義してエクスポートする
   - `server/src/index.ts` に `@hono/trpc-server` アダプターをインポートし、tRPC ハンドラーを `/trpc` パスにマウントする
   - `AppRouter` 型を `server/src/router.ts` からエクスポートし、クライアントが参照できるようにする
