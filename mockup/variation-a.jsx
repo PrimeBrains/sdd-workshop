@@ -23,6 +23,11 @@ function statusJp(s) {
   return { active: '稼働中', paused: '一時停止', draft: '計画中', archived: 'アーカイブ' }[s] || s;
 }
 
+const fmtDeltaIdx = (d) => d === 0 ? '±0.00' : (d > 0 ? '▲' : '▼') + Math.abs(d).toFixed(2);
+const fmtDeltaMD  = (d) => d === 0 ? '±0.0 MD' : (d > 0 ? '+' : '−') + (Math.abs(d) / 1_000_000).toFixed(1) + ' MD';
+const fmtDeltaPct = (d) => d === 0 ? '±0pp' : (d > 0 ? '+' : '−') + Math.abs(d) + 'pp';
+const deltaTone   = (d, posGood = true) => d === 0 ? 'na' : (d > 0) === posGood ? 'normal' : 'critical';
+
 // ── Main ────────────────────────────────────────────────────────────────
 function VariationA({ onTabChange }) {
   const [projectId, setProjectId] = useState(1);
@@ -35,6 +40,7 @@ function VariationA({ onTabChange }) {
   const [inspectorMemberId, setInspectorMemberId] = useState(null);
   const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [projectMenuOpen, setProjectMenuOpen] = useState(false);
+  const [compareMode, setCompareMode] = useState(false);
 
   const project = PROJECT_DATA.find(p => p.id === projectId);
 
@@ -57,6 +63,15 @@ function VariationA({ onTabChange }) {
   const trend = project.spiTrend;
   const spiPrev = trend[trend.length - 2]?.spi;
   const spiNow  = trend[trend.length - 1]?.spi;
+
+  // Compare-mode deltas vs previous business day
+  const prevSum = project.prevDay.summary;
+  const dSPI = project.summary.spi - prevSum.spi;
+  const dCPI = project.summary.cpi - prevSum.cpi;
+  const dEV  = project.summary.ev  - prevSum.ev;
+  const dPV  = project.summary.pv  - prevSum.pv;
+  const dAC  = project.summary.ac  - prevSum.ac;
+  const dVAC = project.summary.vac - prevSum.vac;
 
   return (
     <div style={{
@@ -324,17 +339,40 @@ function VariationA({ onTabChange }) {
               </div>
             </div>
             <div style={{ width: 1, height: 56, background: EVM.rule }}/>
-            <SummaryStat label="SPI" value={project.summary.spi.toFixed(2)} tone="brand"
-              sub={project.summary.spiDelta ? `vs先週 ${project.summary.spiDelta > 0 ? '+' : ''}${project.summary.spiDelta.toFixed(2)}` : '横ばい'}/>
-            <SummaryStat label="CPI" value={project.summary.cpi.toFixed(2)} tone="brand"
-              sub={project.summary.cpiDelta ? `vs先週 ${project.summary.cpiDelta > 0 ? '+' : ''}${project.summary.cpiDelta.toFixed(2)}` : '横ばい'}/>
-            <div style={{ width: 1, height: 56, background: EVM.rule }}/>
-            <SummaryStat label="BAC" value={fmtMD(project.summary.bac)} sub="計画総予算"/>
-            <SummaryStat label="EV"  value={fmtMD(project.summary.ev)}  sub={`PV ${fmtMD(project.summary.pv)}`}/>
-            <SummaryStat label="AC"  value={fmtMD(project.summary.ac)}  sub={`残ETC ${fmtMD(project.summary.etc)}`}/>
-            <SummaryStat label="VAC" value={fmtSignedMD(project.summary.vac)}
-              tone={project.summary.vac >= 0 ? 'normal' : 'critical'}
-              sub={`EAC ${fmtMD(project.summary.eac)}`}/>
+            {compareMode ? (<>
+              <SummaryStat label="SPI" value={fmtDeltaIdx(dSPI)} tone={deltaTone(dSPI)} sub={`現在 ${project.summary.spi.toFixed(2)}`}/>
+              <SummaryStat label="CPI" value={fmtDeltaIdx(dCPI)} tone={deltaTone(dCPI)} sub={`現在 ${project.summary.cpi.toFixed(2)}`}/>
+              <div style={{ width: 1, height: 56, background: EVM.rule }}/>
+              <SummaryStat label="EV"  value={fmtDeltaMD(dEV)}  tone={deltaTone(dEV)}  sub={`現在 ${fmtMD(project.summary.ev)}`}/>
+              <SummaryStat label="PV"  value={fmtDeltaMD(dPV)}  tone="na"              sub={`現在 ${fmtMD(project.summary.pv)}`}/>
+              <SummaryStat label="AC"  value={fmtDeltaMD(dAC)}  tone="na"              sub={`現在 ${fmtMD(project.summary.ac)}`}/>
+              <SummaryStat label="VAC" value={fmtDeltaMD(dVAC)} tone={deltaTone(dVAC)} sub={`現在 ${fmtSignedMD(project.summary.vac)}`}/>
+            </>) : (<>
+              <SummaryStat label="SPI" value={project.summary.spi.toFixed(2)} tone="brand"
+                sub={project.summary.spiDelta ? `vs先週 ${project.summary.spiDelta > 0 ? '+' : ''}${project.summary.spiDelta.toFixed(2)}` : '横ばい'}/>
+              <SummaryStat label="CPI" value={project.summary.cpi.toFixed(2)} tone="brand"
+                sub={project.summary.cpiDelta ? `vs先週 ${project.summary.cpiDelta > 0 ? '+' : ''}${project.summary.cpiDelta.toFixed(2)}` : '横ばい'}/>
+              <div style={{ width: 1, height: 56, background: EVM.rule }}/>
+              <SummaryStat label="BAC" value={fmtMD(project.summary.bac)} sub="計画総予算"/>
+              <SummaryStat label="EV"  value={fmtMD(project.summary.ev)}  sub={`PV ${fmtMD(project.summary.pv)}`}/>
+              <SummaryStat label="AC"  value={fmtMD(project.summary.ac)}  sub={`残ETC ${fmtMD(project.summary.etc)}`}/>
+              <SummaryStat label="VAC" value={fmtSignedMD(project.summary.vac)}
+                tone={project.summary.vac >= 0 ? 'normal' : 'critical'}
+                sub={`EAC ${fmtMD(project.summary.eac)}`}/>
+            </>)}
+            <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+              <span style={{ fontSize: 10.5, letterSpacing: '0.06em', color: compareMode ? EVM.brandDeep : EVM.ink3, fontWeight: compareMode ? 600 : 400 }}>前日比</span>
+              <button onClick={() => setCompareMode(m => !m)} style={{
+                width: 36, height: 20, borderRadius: 10, border: 'none', cursor: 'pointer', position: 'relative',
+                background: compareMode ? EVM.brandDeep : EVM.rule,
+              }}>
+                <span style={{
+                  position: 'absolute', top: 2, left: compareMode ? 18 : 2,
+                  width: 16, height: 16, borderRadius: 8, background: '#fff',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.25)', display: 'block',
+                }}/>
+              </button>
+            </div>
           </div>
 
           {/* Alert strip */}
@@ -467,8 +505,10 @@ function VariationA({ onTabChange }) {
           project={project}
           mode={inspectorMode}
           memberId={inspectorMemberId}
+          compareMode={compareMode}
           onSwitchTask={() => setInspectorMode('task')}
           onSwitchMember={(a) => { if (a) setInspectorMemberId(a.id); setInspectorMode('member'); }}
+          onSwitchTeam={() => setInspectorMode('team')}
         />
       </div>
 
@@ -536,7 +576,7 @@ function AlertStrip({ alerts, onJump }) {
 }
 
 // ── Inspector ───────────────────────────────────────────────────────────
-function Inspector({ task, taskMetrics, taskTone, project, mode, memberId, onSwitchTask, onSwitchMember }) {
+function Inspector({ task, taskMetrics, taskTone, project, mode, memberId, compareMode, onSwitchTask, onSwitchMember, onSwitchTeam }) {
   const dateFromOffset = (offset) => {
     const s = new Date(project.startISO);
     const d = new Date(s.getTime() + offset * 86400000);
@@ -545,14 +585,31 @@ function Inspector({ task, taskMetrics, taskTone, project, mode, memberId, onSwi
 
   const assignee   = task.assignee ? project.assignees.find(a => a.name === task.assignee) : null;
   const memberData = memberId ? project.assignees.find(a => a.id === memberId) : null;
+
+  // Compare-mode prev-day lookups
+  const prevDay = project.prevDay;
+  const prevTaskEntry   = compareMode ? prevDay.tasks.find(t => t.id === task.id) : null;
+  const prevTaskData    = prevTaskEntry ? { ...task, progress: prevTaskEntry.progress, spi: prevTaskEntry.spi } : task;
+  const prevTaskMetrics = compareMode ? deriveTaskMetrics(prevTaskData, project.baseDay) : null;
+  const prevMember      = compareMode && memberId ? prevDay.assignees.find(a => a.id === memberId) : null;
+  const dProgress = prevTaskEntry ? task.progress - prevTaskEntry.progress : 0;
+  const dTaskSPI  = prevTaskEntry && task.spi != null && prevTaskEntry.spi != null ? task.spi - prevTaskEntry.spi : null;
+  const dTaskEV   = prevTaskMetrics ? taskMetrics.ev  - prevTaskMetrics.ev  : 0;
+  const dTaskPV   = prevTaskMetrics ? taskMetrics.pv  - prevTaskMetrics.pv  : 0;
+  const dTaskAC   = prevTaskMetrics ? taskMetrics.ac  - prevTaskMetrics.ac  : 0;
+  const dMemSPI   = prevMember && memberData ? memberData.spi - prevMember.spi : 0;
+  const dMemCPI   = prevMember && memberData ? memberData.cpi - prevMember.cpi : 0;
+  const dMemEV    = prevMember && memberData ? memberData.ev  - prevMember.ev  : 0;
+  const dMemPV    = prevMember && memberData ? memberData.pv  - prevMember.pv  : 0;
+  const dMemAC    = prevMember && memberData ? memberData.ac  - prevMember.ac  : 0;
   const memberInfo = memberData ? project.members.find(m => m.name === memberData.name) : null;
   const memberTasks = memberData ? project.tasks.filter(t => t.assignee === memberData.name) : [];
 
   const TabBar = () => (
     <div style={{ display: 'flex', borderBottom: `1px solid ${EVM.rule}`, flex: '0 0 auto' }}>
-      {[['task', 'Task'], ['member', 'Member']].map(([key, label]) => (
+      {[['task', 'Task'], ['member', 'Member'], ['team', 'Team']].map(([key, label]) => (
         <button key={key}
-          onClick={() => key === 'task' ? onSwitchTask() : onSwitchMember(memberData)}
+          onClick={() => key === 'task' ? onSwitchTask() : key === 'team' ? onSwitchTeam() : onSwitchMember(memberData)}
           style={{
             flex: 1, padding: '10px 0', border: 0,
             borderBottom: `2px solid ${mode === key ? EVM.brandDeep : 'transparent'}`,
@@ -600,6 +657,11 @@ function Inspector({ task, taskMetrics, taskTone, project, mode, memberId, onSwi
               <Eyebrow>Progress</Eyebrow>
               <span style={{ fontFamily: EVM.fontSerif, fontSize: 26, color: EVM.ink, fontVariantNumeric: 'tabular-nums' }}>
                 {task.progress}<span style={{ fontSize: 14, color: EVM.ink3 }}>%</span>
+                {compareMode && prevTaskEntry && (
+                  <span style={{ fontSize: 12, marginLeft: 8, color: dProgress > 0 ? EVM.ok : dProgress < 0 ? EVM.crit : EVM.ink4 }}>
+                    {fmtDeltaPct(dProgress)}
+                  </span>
+                )}
               </span>
             </div>
             <div style={{ height: 8, background: EVM.paperWarm, borderRadius: 4, overflow: 'hidden', border: `1px solid ${EVM.rule}` }}>
@@ -613,12 +675,21 @@ function Inspector({ task, taskMetrics, taskTone, project, mode, memberId, onSwi
 
           {/* Metrics */}
           <div style={{ padding: '14px 20px', borderBottom: `1px solid ${EVM.rule}`, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-            <SummaryStat label="SPI" value={task.spi == null ? 'N/A' : task.spi.toFixed(2)} tone={taskTone}/>
-            <SummaryStat label="CPI" value={taskMetrics.cpi == null ? 'N/A' : taskMetrics.cpi.toFixed(2)} tone={taskMetrics.cpi == null ? 'na' : 'normal'}/>
-            <SummaryStat label="EV"  value={fmtMD(taskMetrics.ev)}/>
-            <SummaryStat label="PV"  value={fmtMD(taskMetrics.pv)}/>
-            <SummaryStat label="AC"  value={fmtMD(taskMetrics.ac)}/>
-            <SummaryStat label="BAC" value={fmtMD(taskMetrics.bac)}/>
+            {compareMode && prevTaskMetrics ? (<>
+              <SummaryStat label="SPI" value={dTaskSPI != null ? fmtDeltaIdx(dTaskSPI) : 'N/A'} tone={dTaskSPI != null ? deltaTone(dTaskSPI) : 'na'} sub={task.spi != null ? `現在 ${task.spi.toFixed(2)}` : undefined}/>
+              <SummaryStat label="CPI" value={fmtDeltaIdx(taskMetrics.cpi != null && prevTaskMetrics.cpi != null ? taskMetrics.cpi - prevTaskMetrics.cpi : 0)} tone="na" sub={taskMetrics.cpi != null ? `現在 ${taskMetrics.cpi.toFixed(2)}` : undefined}/>
+              <SummaryStat label="EV"  value={fmtDeltaMD(dTaskEV)} tone={deltaTone(dTaskEV)}  sub={`現在 ${fmtMD(taskMetrics.ev)}`}/>
+              <SummaryStat label="PV"  value={fmtDeltaMD(dTaskPV)} tone="na"                   sub={`現在 ${fmtMD(taskMetrics.pv)}`}/>
+              <SummaryStat label="AC"  value={fmtDeltaMD(dTaskAC)} tone="na"                   sub={`現在 ${fmtMD(taskMetrics.ac)}`}/>
+              <SummaryStat label="BAC" value="±0.0 MD"              tone="na"                   sub={`現在 ${fmtMD(taskMetrics.bac)}`}/>
+            </>) : (<>
+              <SummaryStat label="SPI" value={task.spi == null ? 'N/A' : task.spi.toFixed(2)} tone={taskTone}/>
+              <SummaryStat label="CPI" value={taskMetrics.cpi == null ? 'N/A' : taskMetrics.cpi.toFixed(2)} tone={taskMetrics.cpi == null ? 'na' : 'normal'}/>
+              <SummaryStat label="EV"  value={fmtMD(taskMetrics.ev)}/>
+              <SummaryStat label="PV"  value={fmtMD(taskMetrics.pv)}/>
+              <SummaryStat label="AC"  value={fmtMD(taskMetrics.ac)}/>
+              <SummaryStat label="BAC" value={fmtMD(taskMetrics.bac)}/>
+            </>)}
           </div>
 
           {/* Task SPI trend */}
@@ -688,10 +759,17 @@ function Inspector({ task, taskMetrics, taskTone, project, mode, memberId, onSwi
 
           {/* Member aggregate metrics */}
           <div style={{ padding: '14px 20px', borderBottom: `1px solid ${EVM.rule}`, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-            <SummaryStat label="SPI" value={memberData.spi.toFixed(2)} tone={spiTone(memberData.spi)}/>
-            <SummaryStat label="CPI" value={memberData.cpi.toFixed(2)} tone={memberData.cpi >= 1 ? 'normal' : memberData.cpi >= 0.9 ? 'warning' : 'critical'}/>
-            <SummaryStat label="EV"  value={fmtMD(memberData.ev)}  sub={`PV ${fmtMD(memberData.pv)}`}/>
-            <SummaryStat label="BAC" value={fmtMD(memberData.bac)} sub={`AC ${fmtMD(memberData.ac)}`}/>
+            {compareMode && prevMember ? (<>
+              <SummaryStat label="SPI" value={fmtDeltaIdx(dMemSPI)} tone={deltaTone(dMemSPI)} sub={`現在 ${memberData.spi.toFixed(2)}`}/>
+              <SummaryStat label="CPI" value={fmtDeltaIdx(dMemCPI)} tone={deltaTone(dMemCPI)} sub={`現在 ${memberData.cpi.toFixed(2)}`}/>
+              <SummaryStat label="EV"  value={fmtDeltaMD(dMemEV)}  tone={deltaTone(dMemEV)}  sub={`PV ${fmtDeltaMD(dMemPV)}`}/>
+              <SummaryStat label="AC"  value={fmtDeltaMD(dMemAC)}  tone="na"                  sub={`現在 ${fmtMD(memberData.ac)}`}/>
+            </>) : (<>
+              <SummaryStat label="SPI" value={memberData.spi.toFixed(2)} tone={spiTone(memberData.spi)}/>
+              <SummaryStat label="CPI" value={memberData.cpi.toFixed(2)} tone={memberData.cpi >= 1 ? 'normal' : memberData.cpi >= 0.9 ? 'warning' : 'critical'}/>
+              <SummaryStat label="EV"  value={fmtMD(memberData.ev)}  sub={`PV ${fmtMD(memberData.pv)}`}/>
+              <SummaryStat label="BAC" value={fmtMD(memberData.bac)} sub={`AC ${fmtMD(memberData.ac)}`}/>
+            </>)}
           </div>
 
           {/* Member SPI sparkline */}
@@ -759,6 +837,69 @@ function Inspector({ task, taskMetrics, taskTone, project, mode, memberId, onSwi
             左レールまたはタスクの担当者カードから<br/>メンバーを選択してください
           </div>
         </div>
+      )}
+
+      {/* ── TEAM MODE ── */}
+      {mode === 'team' && (
+        <>
+          <div style={{ padding: '14px 20px 10px', borderBottom: `1px solid ${EVM.rule}`, flexShrink: 0 }}>
+            <Eyebrow>Inspector · Team</Eyebrow>
+            <div style={{ marginTop: 4, fontSize: 11, color: compareMode ? EVM.brandDeep : EVM.ink3, fontWeight: compareMode ? 600 : 400 }}>
+              {compareMode ? '前日比 — 全メンバー' : `全 ${project.assignees.length} 名`}
+            </div>
+          </div>
+          <div style={{ overflow: 'auto', flex: '1 1 auto' }}>
+            {project.assignees.map(a => {
+              const prev = prevDay.assignees.find(p => p.id === a.id);
+              const dSPI = prev ? a.spi - prev.spi : null;
+              const dCPI = prev ? a.cpi - prev.cpi : null;
+              const dEV  = prev ? a.ev  - prev.ev  : null;
+              const mInfo = project.members.find(m => m.name === a.name);
+              return (
+                <button key={a.id} onClick={() => onSwitchMember(a)}
+                  className="evm-assignee-row"
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 12,
+                    width: '100%', padding: '11px 20px',
+                    borderBottom: `1px solid ${EVM.rule}`, border: 0,
+                    background: 'transparent', cursor: 'pointer',
+                    fontFamily: 'inherit', color: 'inherit', textAlign: 'left',
+                  }}>
+                  <Avatar initials={initialsOf(a.name)} size={28} tone={spiTone(a.spi)}/>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 12.5, fontWeight: 600, color: EVM.ink }}>{a.name}</div>
+                    <div style={{ fontSize: 10, color: EVM.ink3, marginTop: 2 }}>{mInfo?.role || ''}</div>
+                  </div>
+                  {compareMode && prev ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 3, alignItems: 'flex-end', flexShrink: 0 }}>
+                      <div style={{ display: 'flex', gap: 10 }}>
+                        <span style={{ fontSize: 10.5, fontFamily: EVM.fontMono, fontWeight: 700, color: statusColor(deltaTone(dSPI)) }}>
+                          SPI {fmtDeltaIdx(dSPI)}
+                        </span>
+                        <span style={{ fontSize: 10.5, fontFamily: EVM.fontMono, fontWeight: 700, color: statusColor(deltaTone(dCPI)) }}>
+                          CPI {fmtDeltaIdx(dCPI)}
+                        </span>
+                      </div>
+                      <span style={{ fontSize: 10, fontFamily: EVM.fontMono, color: statusColor(deltaTone(dEV)) }}>
+                        EV {fmtDeltaMD(dEV)}
+                      </span>
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2, flexShrink: 0 }}>
+                      <span style={{ fontFamily: EVM.fontMono, fontSize: 13, fontWeight: 700, color: statusColor(spiTone(a.spi)) }}>
+                        {a.spi.toFixed(2)}
+                      </span>
+                      <span style={{ fontSize: 9.5, color: EVM.ink3 }}>SPI</span>
+                    </div>
+                  )}
+                  <svg width="10" height="10" viewBox="0 0 12 12" fill="none" style={{ flexShrink: 0, color: EVM.ink4 }}>
+                    <path d="M4 2 L8 6 L4 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </button>
+              );
+            })}
+          </div>
+        </>
       )}
     </aside>
   );

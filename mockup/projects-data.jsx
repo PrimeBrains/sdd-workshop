@@ -58,6 +58,26 @@ const PROJECT_DATA = [
       { id:42, code:'4.2', name:'受入テスト',               level:2, start:78, end: 95, progress:  0, spi:null, assignee:'高橋 直樹',  leaf:true,  bac: 3_600_000 },
       { id:90, code:'B',   name:'プロジェクトバッファ',     level:1, start:95, end:103, progress:  0, spi:null, assignee:null,         leaf:true, buffer:true, bac: 1_800_000 },
     ],
+    prevDay: {
+      summary: { pv:27_500_000, ev:25_800_000, ac:24_700_000, spi:0.94, cpi:1.04, eac:46_920_000, vac:1_080_000, etc:21_020_000, tcpi:0.97 },
+      assignees: [
+        { id:1, ev:4_300_000, pv:4_440_000, ac:3_940_000, spi:0.97, cpi:1.09 },
+        { id:2, ev:7_200_000, pv:7_600_000, ac:6_900_000, spi:0.95, cpi:1.04 },
+        { id:3, ev:5_700_000, pv:6_400_000, ac:5_600_000, spi:0.89, cpi:1.02 },
+        { id:4, ev:5_400_000, pv:5_360_000, ac:5_060_000, spi:1.01, cpi:1.07 },
+        { id:5, ev:1_160_000, pv:1_440_000, ac:1_260_000, spi:0.81, cpi:0.92 },
+        { id:6, ev:1_640_000, pv:1_880_000, ac:1_840_000, spi:0.87, cpi:0.89 },
+      ],
+      tasks: [
+        { id:22, progress: 91, spi:0.90 },
+        { id:23, progress: 83, spi:1.00 },
+        { id:31, progress: 68, spi:0.94 },
+        { id:32, progress: 54, spi:0.88 },
+        { id:33, progress: 36, spi:1.01 },
+        { id:40, progress:  5, spi:0.80 },
+        { id:41, progress: 12, spi:0.78 },
+      ],
+    },
   },
 
   // ── 2. 受発注ハブ統合 (slightly behind, 1 warning) ──
@@ -116,6 +136,25 @@ const PROJECT_DATA = [
       { id:132, code:'4.2', name:'本番展開',           level:2, start:115, end:135, progress:  0, spi:null, assignee:'佐藤 拓海', leaf:true,  bac: 5_800_000 },
       { id:190, code:'B',   name:'プロジェクトバッファ', level:1, start:135, end:137, progress:0, spi:null, assignee:null,        leaf:true,  buffer:true, bac: 1_700_000 },
     ],
+    prevDay: {
+      summary: { pv:23_200_000, ev:19_900_000, ac:21_800_000, spi:0.86, cpi:0.91, eac:75_830_000, vac:-7_330_000, etc:52_930_000, tcpi:1.05 },
+      assignees: [
+        { id:2, ev:4_820_000, pv:5_180_000, ac:5_060_000, spi:0.93, cpi:0.95 },
+        { id:7, ev:4_660_000, pv:4_980_000, ac:4_880_000, spi:0.94, cpi:0.96 },
+        { id:8, ev:5_860_000, pv:7_520_000, ac:6_640_000, spi:0.78, cpi:0.88 },
+        { id:3, ev:3_840_000, pv:4_380_000, ac:4_280_000, spi:0.88, cpi:0.90 },
+        { id:5, ev:  680_000, pv:1_140_000, ac:1_060_000, spi:0.60, cpi:0.64 },
+      ],
+      tasks: [
+        { id:110, progress: 82, spi:0.91 },
+        { id:112, progress: 91, spi:0.89 },
+        { id:113, progress: 64, spi:0.91 },
+        { id:121, progress: 36, spi:0.80 },
+        { id:122, progress: 14, spi:0.58 },
+        { id:123, progress:  6, spi:0.74 },
+        { id:124, progress:  2, spi:null  },
+      ],
+    },
   },
 
   // ── 3. 社内データ可視化PoC (paused) ──
@@ -155,6 +194,18 @@ const PROJECT_DATA = [
       { id:204, code:'5', name:'ユーザビリティテスト', level:1, start:92, end:114, progress:  0, spi:null, assignee:'山本 楓',     leaf:true, bac: 1_800_000 },
       { id:205, code:'6', name:'最終レポート',         level:1, start:108,end:118, progress:  0, spi:null, assignee:'山本 楓',     leaf:true, bac:   600_000 },
     ],
+    prevDay: {
+      summary: { pv:10_800_000, ev:7_940_000, ac:8_120_000, spi:0.74, cpi:0.98, eac:12_660_000, vac:-260_000, etc:4_540_000, tcpi:1.02 },
+      assignees: [
+        { id:4, ev:3_440_000, pv:4_400_000, ac:3_400_000, spi:0.78, cpi:1.01 },
+        { id:9, ev:2_900_000, pv:4_000_000, ac:3_120_000, spi:0.73, cpi:0.93 },
+        { id:3, ev:1_600_000, pv:2_400_000, ac:1_600_000, spi:0.67, cpi:1.00 },
+      ],
+      tasks: [
+        { id:201, progress: 92, spi:0.86 },
+        { id:203, progress: 52, spi:0.62 },
+      ],
+    },
   },
 
   // ── 4. モバイル決済モジュール v3 (healthy) ──
@@ -208,6 +259,21 @@ const PROJECT_DATA = [
       { id:332, code:'4.2', name:'本番リリース',         level:2, start:175, end:185, progress:0, spi:null, assignee:'高橋 直樹', leaf:true,  bac: 4_400_000 },
       { id:390, code:'B',   name:'プロジェクトバッファ', level:1, start:185, end:197, progress:0, spi:null, assignee:null,        leaf:true,  buffer:true, bac: 1_800_000 },
     ],
+    prevDay: {
+      summary: { pv:59_400_000, ev:60_760_000, ac:57_220_000, spi:1.02, cpi:1.05, eac:91_120_000, vac:4_880_000, etc:32_560_000, tcpi:0.93 },
+      assignees: [
+        { id: 6, ev:12_040_000, pv:11_160_000, ac:11_280_000, spi:1.08, cpi:1.07 },
+        { id: 2, ev:16_840_000, pv:16_440_000, ac:15_720_000, spi:1.02, cpi:1.07 },
+        { id:10, ev:14_280_000, pv:14_160_000, ac:13_700_000, spi:1.01, cpi:1.04 },
+        { id: 4, ev: 9_560_000, pv: 8_940_000, ac: 8_720_000, spi:1.07, cpi:1.10 },
+        { id:11, ev: 8_040_000, pv: 8_700_000, ac: 7_800_000, spi:0.92, cpi:1.03 },
+      ],
+      tasks: [
+        { id:321, progress: 70, spi:1.02 },
+        { id:322, progress: 54, spi:1.00 },
+        { id:323, progress: 38, spi:0.96 },
+      ],
+    },
   },
 
   // ── 5. BPM ガイドライン整備 (draft) ──
@@ -241,6 +307,16 @@ const PROJECT_DATA = [
       { id:402, code:'3', name:'レビュー・承認',       level:1, start:50, end: 76, progress:  0, spi:null, assignee:'田中 美咲', leaf:true, bac: 1_600_000 },
       { id:403, code:'4', name:'展開・教育',           level:1, start:72, end: 92, progress:  0, spi:null, assignee:'岡田 由香', leaf:true, bac:   800_000 },
     ],
+    prevDay: {
+      summary: { pv:960_000, ev:560_000, ac:640_000, spi:0.58, cpi:0.88, eac:9_540_000, vac:-1_140_000, etc:8_860_000, tcpi:1.07 },
+      assignees: [
+        { id:1, ev:380_000, pv:600_000, ac:400_000, spi:0.63, cpi:0.95 },
+        { id:9, ev:180_000, pv:360_000, ac:240_000, spi:0.50, cpi:0.75 },
+      ],
+      tasks: [
+        { id:400, progress: 20, spi:0.47 },
+      ],
+    },
   },
 ];
 
