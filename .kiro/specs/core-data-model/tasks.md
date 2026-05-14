@@ -100,7 +100,7 @@
 ---
 
 - [ ] 5. API: Import tRPC ルーターと Hono サーバー統合
-- [ ] 5.1 Import tRPC ルーターを実装する
+- [x] 5.1 Import tRPC ルーターを実装する
   - `server/src/api/import.ts` に `import.wbsYaml` プロシージャを実装する
   - `importWbsYamlSchema`（projectId・tasksYaml・staffingYaml・scheduleYaml）で Zod バリデーションを行う
   - `WbsImporter.importWbsYaml()` を呼び出し、`ImportSummary` を返す
