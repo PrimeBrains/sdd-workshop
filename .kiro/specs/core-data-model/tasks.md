@@ -5,7 +5,7 @@
 ---
 
 - [ ] 1. 基盤: エラーレイヤーとプロジェクトスキャフォールド
-- [ ] 1.1 サーバーの依存パッケージをインストールしてプロジェクト構造を確立する
+- [x] 1.1 サーバーの依存パッケージをインストールしてプロジェクト構造を確立する
   - `evm-studio/server/` に `package.json`、`tsconfig.json`、`vitest.config.ts` を配置する
   - `better-sqlite3`、`drizzle-orm`、`@trpc/server`、`hono`、`zod`、`js-yaml`、`pino`、`drizzle-kit` を依存として追加する
   - `npm install` が完了し、`server/src/` ディレクトリ構造（`db/`、`services/`、`api/`、`errors/`）が存在すること
