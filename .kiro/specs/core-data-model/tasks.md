@@ -75,7 +75,7 @@
 ---
 
 - [ ] 4. サービス: WBS YAML インポートロジック
-- [ ] 4.1 WBS YAML パーサーと構造バリデーションを実装する
+- [x] 4.1 WBS YAML パーサーと構造バリデーションを実装する
   - `server/src/services/wbs-importer.ts` に `tasks.yaml`・`staffing.yaml`・`schedule.yaml` を `js-yaml.load()` の SAFE_LOAD オプションでパースする処理を実装する
   - 必須フィールドが欠落している場合は `AppError(IMPORT_MISSING_FIELD)` を、YAML パース自体が失敗した場合は `AppError(IMPORT_PARSE_ERROR)` を throw する
   - 正常な YAML が渡されたとき、各エンティティデータを構造化オブジェクトとして保持できること
