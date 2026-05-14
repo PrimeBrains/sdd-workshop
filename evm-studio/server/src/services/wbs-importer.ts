@@ -11,6 +11,7 @@ import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { AppError } from '../errors/AppError.js'
 import { ErrorCode } from '../errors/codes.js'
 import {
+  projects,
   members,
   tasks,
   holidays,
@@ -317,6 +318,16 @@ function calcPvDays(
  */
 export function importWbsYaml(input: WbsImportInput): ImportSummary {
   const { db: dbInstance, projectId, tasksYaml, staffingYaml, scheduleYaml } = input
+
+  // 事前条件: projectId が DB に存在すること (design.md WbsImporter 事前条件)
+  const projectExists = dbInstance
+    .select({ id: projects.id })
+    .from(projects)
+    .where(eq(projects.id, projectId))
+    .get()
+  if (!projectExists) {
+    throw new AppError(ErrorCode.PROJ_NOT_FOUND, `プロジェクト id=${projectId} が見つかりません。`)
+  }
 
   // YAML パース（エラーはトランザクション外で throw — パースエラーは部分書き込みなし）
   const parsedTasks = parseTasksYaml(tasksYaml)
