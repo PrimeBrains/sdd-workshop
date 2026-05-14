@@ -15,10 +15,35 @@ import { ErrorCode } from '../errors/codes.js'
 // ─── countWorkingDays ────────────────────────────────────────────────────────
 
 describe('countWorkingDays', () => {
-  it.todo('祝日なし: 月〜金の5日間で5を返す')
-  it.todo('祝日あり: 祝日を除外した稼働日数を返す')
-  it.todo('土日を除外する')
-  it.todo('開始日 = 終了日の場合に1または0を返す')
+  it('祝日なし: 月〜金の5日間で5を返す', () => {
+    // 2026-05-11(月) 〜 2026-05-15(金): 祝日なし → 5稼働日
+    const result = countWorkingDays('2026-05-11', '2026-05-15', [])
+    expect(result).toBe(5)
+  })
+
+  it('祝日あり: 祝日を除外した稼働日数を返す', () => {
+    // 2026-05-11(月) 〜 2026-05-15(金): 2026-05-13(水)が祝日 → 4稼働日
+    const holidays: Holiday[] = [{ id: 1, projectId: 1, date: '2026-05-13' }]
+    const result = countWorkingDays('2026-05-11', '2026-05-15', holidays)
+    expect(result).toBe(4)
+  })
+
+  it('土日を除外する', () => {
+    // 2026-05-15(金) 〜 2026-05-18(月): 金・土・日・月 のうち土日除外 → 2稼働日
+    const result = countWorkingDays('2026-05-15', '2026-05-18', [])
+    expect(result).toBe(2)
+  })
+
+  it('開始日 = 終了日（平日）の場合に1を返す', () => {
+    const result = countWorkingDays('2026-05-11', '2026-05-11', [])
+    expect(result).toBe(1)
+  })
+
+  it('開始日 = 終了日（土曜）の場合に0を返す', () => {
+    // 2026-05-16 は土曜
+    const result = countWorkingDays('2026-05-16', '2026-05-16', [])
+    expect(result).toBe(0)
+  })
 
   // --- 具体的なテストケース ---
 
@@ -218,8 +243,34 @@ const baseMember: Member = {
 }
 
 describe('calculateProjectPv', () => {
-  it.todo('is_buffer=true タスクを PV 累積から除外する')
-  it.todo('複数タスクの PV を合計する')
+  it('is_buffer=true タスクを PV 累積から除外する（要件 1.5）', () => {
+    // is_buffer=true タスクは PV に含まれない
+    const normalTask: Task = { ...baseTask, id: 1, isBuffer: false, plannedStart: '2026-05-11', plannedEnd: '2026-05-15', estimateDays: 4, assigneeId: null }
+    const bufferTask: Task = { ...baseTask, id: 2, isBuffer: true, estimateDays: 10 }
+    const result = calculateProjectPv({
+      tasks: [normalTask, bufferTask],
+      members: [],
+      holidays: [],
+      snapshots: [],
+      baseDate: '2026-05-20',
+    })
+    // bufferTask は除外 → PV = normalTask の estimateDays = 4
+    expect(result).toBe(4)
+  })
+
+  it('複数タスクの PV を合計する（要件 1.6）', () => {
+    const task1: Task = { ...baseTask, id: 1, isBuffer: false, plannedStart: '2026-05-11', plannedEnd: '2026-05-13', estimateDays: 2, assigneeId: null }
+    const task2: Task = { ...baseTask, id: 2, isBuffer: false, plannedStart: '2026-05-11', plannedEnd: '2026-05-15', estimateDays: 3, assigneeId: null }
+    const result = calculateProjectPv({
+      tasks: [task1, task2],
+      members: [],
+      holidays: [],
+      snapshots: [],
+      baseDate: '2026-05-20',
+    })
+    // どちらも baseDate >= plannedEnd → 2 + 3 = 5
+    expect(result).toBe(5)
+  })
 
   it('is_buffer=true タスクを累積 PV から除外する（要件 1.5）', () => {
     const normalTask: Task = {
@@ -341,9 +392,22 @@ function makeSnapshot(overrides: Partial<ProgressSnapshot>): ProgressSnapshot {
 }
 
 describe('calculateTaskEv', () => {
-  it.todo('progress_pct=0 → 0 を返す')
-  it.todo('progress_pct=100 → estimate_days を返す')
-  it.todo('is_buffer=true タスクは EV 累積から除外する')
+  it('progress_pct=0 → 0 を返す（要件 2.1）', () => {
+    const task: Task = { ...baseTask, estimateDays: 5 }
+    expect(calculateTaskEv(task, 0)).toBe(0)
+  })
+
+  it('progress_pct=100 → estimate_days を返す（要件 2.1）', () => {
+    const task: Task = { ...baseTask, estimateDays: 5 }
+    expect(calculateTaskEv(task, 100)).toBe(5)
+  })
+
+  it('is_buffer=true タスクは calculateTaskEv に渡されないことを前提とする（is_buffer 除外は calculateProjectEv で行う）', () => {
+    // calculateTaskEv 自体は is_buffer を考慮しない（呼び出し側で除外）
+    // progress_pct=50, estimateDays=6 の場合は 3 を返す
+    const task: Task = { ...baseTask, isBuffer: true, estimateDays: 6 }
+    expect(calculateTaskEv(task, 50)).toBeCloseTo(3)
+  })
 
   it('progress_pct=0 → 0 を返す（要件 2.1）', () => {
     const task: Task = { ...baseTask, estimateDays: 5 }
@@ -367,7 +431,16 @@ describe('calculateTaskEv', () => {
 })
 
 describe('calculateProjectEv', () => {
-  it.todo('is_buffer=true タスクを除外して EV を合計する')
+  it('is_buffer=true タスクを除外して EV を合計する（要件 2.2, 2.3）', () => {
+    const normalTask: Task = { ...baseTask, id: 1, isBuffer: false, estimateDays: 8 }
+    const bufferTask: Task = { ...baseTask, id: 2, isBuffer: true, estimateDays: 4 }
+    const snapshots: ProgressSnapshot[] = [
+      makeSnapshot({ taskId: 1, progressPct: 50 }),   // EV = 8 * 0.5 = 4
+      makeSnapshot({ id: 2, taskId: 2, progressPct: 100 }), // bufferTask → 除外
+    ]
+    const result = calculateProjectEv([normalTask, bufferTask], snapshots)
+    expect(result).toBe(4)
+  })
 
   it('is_buffer=true タスクを除外して EV を合計する（要件 2.2, 2.3）', () => {
     const normalTask: Task = { ...baseTask, id: 1, isBuffer: false, estimateDays: 10 }
@@ -400,8 +473,22 @@ describe('calculateProjectEv', () => {
 })
 
 describe('calculateProjectAc', () => {
-  it.todo('全タスクの AC を合計する')
-  it.todo('is_buffer=true タスクを AC 累積から除外する')
+  it('全スナップショットの acDays を合計する（要件 2.4）', () => {
+    const snapshots: ProgressSnapshot[] = [
+      makeSnapshot({ acDays: 3 }),
+      makeSnapshot({ id: 2, taskId: 2, acDays: 4 }),
+    ]
+    expect(calculateProjectAc(snapshots)).toBeCloseTo(7)
+  })
+
+  it('is_buffer=true タスクを AC 累積から除外する（備考: calculateProjectAc は snapshots のみを受け取るため、AC 除外はスナップショット渡し側で制御）', () => {
+    // calculateProjectAc 自体は is_buffer を知らない。渡された snapshots の合算のみ行う。
+    // is_buffer タスクのスナップショットを渡さない = 除外
+    const snapshots: ProgressSnapshot[] = [
+      makeSnapshot({ acDays: 5 }), // 非バッファタスクのみ
+    ]
+    expect(calculateProjectAc(snapshots)).toBe(5)
+  })
 
   it('全スナップショットの acDays を合計する（要件 2.4）', () => {
     const snapshots: ProgressSnapshot[] = [
@@ -736,12 +823,36 @@ describe('calculateEvmMetrics', () => {
 // ─── evaluateAlertLevel ─────────────────────────────────────────────────────
 
 describe('evaluateAlertLevel', () => {
-  it.todo('SPI < 0.8 → CRITICAL_DELAY を返す')
-  it.todo('delayDays > 5 → CRITICAL_DELAY を返す')
-  it.todo('0.8 <= SPI < 0.9 → WARNING_DELAY を返す')
-  it.todo('SPI >= 0.9 → NORMAL を返す')
-  it.todo('planned_end 超過・未完了 → OVERDUE を返す')
-  it.todo('SPI=null → NA を返す')
+  it('SPI < 0.8 → CRITICAL_DELAY を返す（要件 4.1）', () => {
+    expect(evaluateAlertLevel(0.75, 0, false)).toBe('CRITICAL_DELAY')
+  })
+
+  it('delayDays > 5（delayDays=7）→ CRITICAL_DELAY を返す（要件 4.1）', () => {
+    // calculateEvmMetrics は delayDays=0 固定のため、直接 evaluateAlertLevel を呼び出す
+    expect(evaluateAlertLevel(null, 7, false)).toBe('NA') // SPI=null → NA が優先
+    // SPI が有効値でも delayDays=7 → CRITICAL_DELAY
+    expect(evaluateAlertLevel(0.95, 7, false)).toBe('CRITICAL_DELAY')
+  })
+
+  it('0.8 <= SPI < 0.9（SPI=0.85）→ WARNING_DELAY を返す（要件 4.2）', () => {
+    expect(evaluateAlertLevel(0.85, 0, false)).toBe('WARNING_DELAY')
+  })
+
+  it('delayDays=2（0 < delayDays <= 5）かつ SPI >= 0.9 → WARNING_DELAY を返す（要件 4.2）', () => {
+    expect(evaluateAlertLevel(0.95, 2, false)).toBe('WARNING_DELAY')
+  })
+
+  it('SPI >= 0.9（SPI=0.95）かつ delayDays=0 → NORMAL を返す（要件 4.3）', () => {
+    expect(evaluateAlertLevel(0.95, 0, false)).toBe('NORMAL')
+  })
+
+  it('planned_end 超過・未完了（isOverdue=true）→ OVERDUE を返す（要件 4.4）', () => {
+    expect(evaluateAlertLevel(0.95, 0, true)).toBe('OVERDUE')
+  })
+
+  it('SPI=null → NA を返す（要件 4.5）', () => {
+    expect(evaluateAlertLevel(null, 0, false)).toBe('NA')
+  })
 
   // --- 具体的なテストケース ---
 
@@ -801,11 +912,35 @@ describe('evaluateAlertLevel', () => {
 import { calculateFeverChart } from './evm-engine.js'
 
 describe('calculateFeverChart', () => {
-  it.todo('GREEN ゾーン判定を検証する')
-  it.todo('YELLOW ゾーン判定を検証する')
-  it.todo('RED ゾーン判定を検証する')
-  it.todo('バッファ消費率を正確に計算する')
-  it.todo('クリティカルチェーン完了率を正確に計算する')
+  it('GREEN ゾーン判定を検証する（bufferConsumption=0.2, completion=0.5 → GREEN）', () => {
+    // bufferConsumption=0.2, completion=0.5 → 0.2 < 0.5*0.67=0.335 → GREEN
+    const result = calculateFeverChart(2, 10, 5, 10)
+    expect(result.zone).toBe('GREEN')
+  })
+
+  it('YELLOW ゾーン判定を検証する（bufferConsumption=0.4, completion=0.5 → YELLOW）', () => {
+    // bufferConsumption=0.4, completion=0.5 → 0.335 <= 0.4 < 0.5 → YELLOW
+    const result = calculateFeverChart(4, 10, 5, 10)
+    expect(result.zone).toBe('YELLOW')
+  })
+
+  it('RED ゾーン判定を検証する（bufferConsumption=0.6, completion=0.5 → RED）', () => {
+    // bufferConsumption=0.6, completion=0.5 → 0.6 >= 0.5 → RED
+    const result = calculateFeverChart(6, 10, 5, 10)
+    expect(result.zone).toBe('RED')
+  })
+
+  it('バッファ消費率を正確に計算する（cumulativeDelayDays/bufferTotalDays）', () => {
+    // cumulativeDelayDays=3, bufferTotalDays=15 → bufferConsumption=0.2
+    const result = calculateFeverChart(3, 15, 5, 10)
+    expect(result.bufferConsumption).toBeCloseTo(0.2)
+  })
+
+  it('クリティカルチェーン完了率を正確に計算する（completedEvOnChain/bacOfChain）', () => {
+    // completedEvOnChain=7, bacOfChain=14 → criticalChainCompletion=0.5
+    const result = calculateFeverChart(1, 10, 7, 14)
+    expect(result.criticalChainCompletion).toBeCloseTo(0.5)
+  })
 
   // --- 具体的なテストケース ---
 
@@ -889,7 +1024,37 @@ import { findCriticalPath } from './critical-path.js'
 import type { TaskDependency } from '../db/schema.js'
 
 describe('findCriticalPath', () => {
-  it.todo('is_buffer=true タスクをパス探索から除外する')
+  it('is_buffer=true タスクをパス探索から除外する（要件 5.1）', () => {
+    // T1 → T2(buffer) → T3 の依存関係で、T2 がバッファのため終端は T1 になる
+    const t1: Task = { ...baseTask, id: 1, plannedStart: '2026-05-01', plannedEnd: '2026-05-05', isBuffer: false }
+    const t2: Task = { ...baseTask, id: 2, plannedStart: '2026-05-06', plannedEnd: '2026-05-20', isBuffer: true }
+    const deps: TaskDependency[] = [
+      { id: 1, taskId: 2, dependsOnTaskId: 1 }, // T2(buffer) は T1 に依存
+    ]
+    const result = findCriticalPath({ tasks: [t1, t2], dependencies: deps })
+    // T2 は is_buffer=true なので除外 → クリティカルパスは [1] のみ
+    expect(result.criticalPath).not.toContain(2)
+    expect(result.criticalPath).toContain(1)
+  })
+
+  it('2経路（A→B→D と A→C→D）で plannedEnd 最遅の経路が選択される（要件 5.3）', () => {
+    // A→B→D (plannedEnd: 05-20) と A→C→D (C の plannedEnd: 05-25)
+    // B(05-10) と C(05-25) のどちらを経由するかで D の先行が決まる
+    const tA: Task = { ...baseTask, id: 1, plannedStart: '2026-05-01', plannedEnd: '2026-05-05', isBuffer: false }
+    const tB: Task = { ...baseTask, id: 2, plannedStart: '2026-05-06', plannedEnd: '2026-05-10', isBuffer: false }
+    const tC: Task = { ...baseTask, id: 3, plannedStart: '2026-05-06', plannedEnd: '2026-05-25', isBuffer: false }
+    const tD: Task = { ...baseTask, id: 4, plannedStart: '2026-05-26', plannedEnd: '2026-05-30', isBuffer: false }
+    const deps: TaskDependency[] = [
+      { id: 1, taskId: 2, dependsOnTaskId: 1 }, // B は A に依存
+      { id: 2, taskId: 3, dependsOnTaskId: 1 }, // C は A に依存
+      { id: 3, taskId: 4, dependsOnTaskId: 2 }, // D は B に依存
+      { id: 4, taskId: 4, dependsOnTaskId: 3 }, // D は C にも依存
+    ]
+    const result = findCriticalPath({ tasks: [tA, tB, tC, tD], dependencies: deps })
+    // D の先行として C(plannedEnd=05-25) が B(plannedEnd=05-10) より遅い → パスは A→C→D
+    expect(result.criticalPath).toEqual([1, 3, 4])
+    expect(result.terminalTaskId).toBe(4)
+  })
 
   it('正常系: 3タスク直列でクリティカルパスを返す（要件 5.1, 5.2, 5.3）', () => {
     // T1 → T2 → T3 の直列依存

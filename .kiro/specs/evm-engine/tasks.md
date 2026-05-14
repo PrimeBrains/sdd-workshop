@@ -93,7 +93,7 @@
   - _Boundary: CriticalPath_
 
 - [ ] 4. 統合: 単体テストの全ケース実装
-- [ ] 4.1 PV 計算テストを実装する
+- [x] 4.1 PV 計算テストを実装する
   - 境界値 3 ケース（before/during/after planned period）の各パターンをアサートする
   - 稼働率 `0.6` で `min(N * 0.6, estimate_days)` のキャップ動作をアサートする
   - 祝日あり vs 祝日なしで稼働日数に差異が生じることをアサートする
@@ -102,7 +102,7 @@
   - _Requirements: 8.1, 8.6_
   - _Depends: 2.2, 2.3_
 
-- [ ] 4.2 (P) EV/AC・派生メトリクステストを実装する
+- [x] 4.2 (P) EV/AC・派生メトリクステストを実装する
   - `progress_pct = 0/50/100` での EV をアサートする
   - `is_buffer = true` タスクが EV 累積から除外されることをアサートする
   - SPI: `PV = 0` で `null`、正常値 `EV=2, PV=4` で `0.5` をアサートする
@@ -112,7 +112,7 @@
   - _Requirements: 8.2_
   - _Depends: 2.4_
 
-- [ ] 4.3 (P) アラートレベルテストを実装する
+- [x] 4.3 (P) アラートレベルテストを実装する
   - `SPI = 0.75` → `CRITICAL_DELAY` をアサートする
   - `delayDays = 7` → `CRITICAL_DELAY` をアサートする
   - `SPI = 0.85` → `WARNING_DELAY` をアサートする
@@ -124,7 +124,7 @@
   - _Requirements: 8.5_
   - _Depends: 2.5_
 
-- [ ] 4.4 (P) クリティカルパステストを実装する
+- [x] 4.4 (P) クリティカルパステストを実装する
   - 3 タスク直列（A→B→C）で `[A.id, B.id, C.id]` が返ることをアサートする
   - 2 経路がある場合（A→B→D と A→C→D）で `plannedEnd` 最遅の経路が選択されることをアサートする
   - `is_buffer = true` タスクがパスから除外されることをアサートする
@@ -133,7 +133,7 @@
   - _Requirements: 8.3_
   - _Depends: 3.1_
 
-- [ ] 4.5 (P) フィーバーチャートテストを実装する
+- [x] 4.5 (P) フィーバーチャートテストを実装する
   - `bufferConsumption = 0.2, completion = 0.5` → `GREEN` をアサートする（0.2 < 0.5×0.67=0.335）
   - `bufferConsumption = 0.4, completion = 0.5` → `YELLOW` をアサートする（0.4 ≥ 0.335 かつ < 0.5）
   - `bufferConsumption = 0.6, completion = 0.5` → `RED` をアサートする（0.6 ≥ 0.5）
