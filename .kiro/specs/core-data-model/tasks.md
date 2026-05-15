@@ -36,7 +36,7 @@
   - _Requirements: 2.6, 2.7_
   - _Boundary: services/members-service.ts_
 
-- [ ] 2.2 (P) `services/members-service.test.ts` を追加し、`generateInitials` の単体テストを実装する
+- [x] 2.2 (P) `services/members-service.test.ts` を追加し、`generateInitials` の単体テストを実装する
   - Vitest 4 を用いて、半角空白 / 全角空白 / 空白なし / サロゲートペア（絵文字を含む名前）の 4 ケースをテストする
   - 観測可能な完了条件: `npm test -- members-service` で 4 ケースがすべてパスする
   - _Requirements: 2.6, 2.7, 8.4_
