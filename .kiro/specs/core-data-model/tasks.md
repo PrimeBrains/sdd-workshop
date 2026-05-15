@@ -53,7 +53,7 @@
   - _Boundary: services/wbs-importer.ts_
   - _Depends: 1.1, 1.3_
 
-- [ ] 3.2 WBS Importer の DB 書き込み処理に新フィールドの反映と `IMPORT_INVALID_PROJECT_STATUS` ハンドリングを追加する
+- [x] 3.2 WBS Importer の DB 書き込み処理に新フィールドの反映と `IMPORT_INVALID_PROJECT_STATUS` ハンドリングを追加する
   - パース後の `project_status` が enum 範囲外と判定された場合は `AppError` を `ErrorCode.IMPORT_INVALID_PROJECT_STATUS` でスローする（Zod が enum 違反を捕捉する場合は `ZodError` を `IMPORT_INVALID_PROJECT_STATUS` に変換する）
   - `projects.upsert` 時に `project_status` が指定されていればそれを、未指定なら DB のデフォルト `'active'` を採用する
   - `members.upsert` 時に `role` / `initials` を反映し、`initials` が省略 (`undefined`) かつ `name` から自動生成可能な場合は `generateInitials(name)` で補完する。`null` が明示されている場合は `null` のまま保存する

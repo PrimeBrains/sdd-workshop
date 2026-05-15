@@ -20,6 +20,7 @@ import {
   progressSnapshots,
 } from '../db/schema.js'
 import * as schema from '../db/schema.js'
+import { generateInitials } from './members-service.js'
 
 // ─── Zod schemas (Task 3.1: optional new fields) ────────────────────────────
 
@@ -313,8 +314,25 @@ export function parseScheduleYaml(yamlString: string): ParsedScheduleYaml {
 
   // Task 3.1: 新オプショナルフィールド (project_status / project_code) の Zod バリデーション。
   // 既存フィールド (schedule_start / schedule_end) の検証ルールは変更しない。
-  // project_status の enum 違反は ZodError として伝播する（task 3.2 で AppError 変換）。
-  const metaOptional = scheduleMetaOptionalFieldsSchema.parse(metaRaw)
+  // Task 3.2: project_status の enum 違反 (ZodError) を IMPORT_INVALID_PROJECT_STATUS に変換する (Req 4.6)。
+  let metaOptional: z.infer<typeof scheduleMetaOptionalFieldsSchema>
+  try {
+    metaOptional = scheduleMetaOptionalFieldsSchema.parse(metaRaw)
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      // project_status の enum 違反かどうかを判定
+      const isProjectStatusError = err.issues.some(
+        (issue) => issue.path[0] === 'project_status',
+      )
+      if (isProjectStatusError) {
+        throw new AppError(
+          ErrorCode.IMPORT_INVALID_PROJECT_STATUS,
+          `schedule.meta.project_status は 'active' / 'paused' / 'draft' / 'archived' のいずれかである必要があります。`,
+        )
+      }
+    }
+    throw err
+  }
 
   let assignments: ParsedScheduleAssignment[] | undefined
   if (Array.isArray(raw['assignments'])) {
@@ -450,11 +468,44 @@ export function importWbsYaml(input: WbsImportInput): ImportSummary {
   }
 
   const importFn = rawSqlite.transaction(() => {
+    // ── 0. projects: status / code を反映 (Task 3.2, Req 4.1, 4.2, 4.5) ────
+    // project_status が指定されていれば UPDATE で適用する。未指定なら DB の既存値
+    // （新規プロジェクトのデフォルトは 'active'）を維持する。
+    // project_code は指定されていれば UPDATE、未指定なら DB の既存値（既定 NULL）を維持。
+    const projectStatus = parsedSchedule.meta.project_status
+    const projectCode = parsedSchedule.meta.project_code
+    if (projectStatus !== undefined || projectCode !== undefined) {
+      const projectUpdate: { status?: string; code?: string | null; updatedAt: Date } = {
+        updatedAt: new Date(),
+      }
+      if (projectStatus !== undefined) projectUpdate.status = projectStatus
+      if (projectCode !== undefined) projectUpdate.code = projectCode
+      dbInstance
+        .update(projects)
+        .set(projectUpdate)
+        .where(eq(projects.id, projectId))
+        .run()
+    }
+
     // ── 1. members upsert (external_id キー) ─────────────────────────────
     // external_id が一致する既存レコードを更新、なければ挿入
     const memberIdMap = new Map<string, number>() // externalId → DB id
 
     for (const m of parsedStaffing.members) {
+      // Task 3.2: initials 補完ロジック (Req 4.4)
+      // - undefined (YAML 未指定) かつ name が非空 → generateInitials(name) で補完
+      // - null (明示的) → null を保存
+      // - 文字列 → そのまま使用
+      let resolvedInitials: string | null | undefined
+      if (m.initials === undefined) {
+        resolvedInitials = m.name.trim().length > 0 ? generateInitials(m.name) : null
+      } else {
+        resolvedInitials = m.initials // string | null
+      }
+
+      // Task 3.2: role はそのまま反映 (Req 4.3)。undefined → null として保存。
+      const resolvedRole: string | null = m.role ?? null
+
       const existing = dbInstance
         .select()
         .from(members)
@@ -469,6 +520,8 @@ export function importWbsYaml(input: WbsImportInput): ImportSummary {
             availabilityRate: m.availability_rate,
             assignmentStart: m.assignment_start ?? null,
             assignmentEnd: m.assignment_end ?? null,
+            role: resolvedRole,
+            initials: resolvedInitials ?? null,
             updatedAt: new Date(),
           })
           .where(eq(members.id, existing.id))
@@ -484,6 +537,8 @@ export function importWbsYaml(input: WbsImportInput): ImportSummary {
             availabilityRate: m.availability_rate,
             assignmentStart: m.assignment_start ?? null,
             assignmentEnd: m.assignment_end ?? null,
+            role: resolvedRole,
+            initials: resolvedInitials ?? null,
           })
           .returning()
           .get()
