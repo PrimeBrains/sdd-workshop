@@ -19,7 +19,7 @@
   - _Boundary: db/migrations_
   - _Depends: 1.1_
 
-- [ ] 1.3 `IMPORT_INVALID_PROJECT_STATUS` エラーコードを `ErrorCode` 定数に追加する
+- [x] 1.3 `IMPORT_INVALID_PROJECT_STATUS` エラーコードを `ErrorCode` 定数に追加する
   - `evm-studio/server/src/errors/codes.ts` の `ErrorCode` オブジェクトに `IMPORT_INVALID_PROJECT_STATUS: 'IMPORT_INVALID_PROJECT_STATUS'` を追加する
   - 観測可能な完了条件: `ErrorCode.IMPORT_INVALID_PROJECT_STATUS` を別ファイルから参照しても TypeScript 型エラーが出ない
   - _Requirements: 4.6_
