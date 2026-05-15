@@ -98,7 +98,7 @@
   - _Depends: 2.1_
 
 - [ ] 6. タスクロールアップとアラート: `evm-tasks.ts`
-- [ ] 6.1 `rollupTasks` を実装する
+- [x] 6.1 `rollupTasks` を実装する
   - `server/src/services/evm-tasks.ts` に `rollupTasks({ project, tasks, members, snapshots, holidays, baseDate })` を実装する
   - 各タスクについて `start = days(plannedStart - project.startDate)`、`end = days(plannedEnd - project.startDate)` を整数で返す
   - 葉タスク（`isLeaf === true`）: 最新スナップショットの `progressPct` を `progress`、`pv > 0` のとき `spi = ev / pv` を、それ以外 `null` を返す
