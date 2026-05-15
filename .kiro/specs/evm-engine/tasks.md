@@ -84,7 +84,7 @@
   - _Depends: 2.1_
 
 - [ ] 5. フィーバーチャート: `evm-fever.ts`
-- [ ] 5.1 (P) `calculateFever` を実装する
+- [x] 5.1 (P) `calculateFever` を実装する
   - `server/src/services/evm-fever.ts` に `calculateFever({ baseDate, tasks, dependencies, snapshots, holidays, trendWindowDays? })` を実装する
   - `critical-path.ts` の `findCriticalChain(tasks, dependencies)` でクリティカルチェーンを特定する
   - バッファタスクがプロジェクトに存在しない場合は `null` を返す
