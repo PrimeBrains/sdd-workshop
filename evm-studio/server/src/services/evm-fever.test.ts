@@ -48,6 +48,7 @@ function makeSnapshot(overrides: Partial<ProgressSnapshot>): ProgressSnapshot {
     pvDays: 0,
     evDays: 0,
     acDays: 0,
+    note: null,
     createdAt: new Date(),
     ...overrides,
   }

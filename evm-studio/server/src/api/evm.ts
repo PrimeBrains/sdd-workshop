@@ -235,6 +235,7 @@ export function createEvmRouter(db: DrizzleDb) {
               pvDays:       progressSnapshots.pvDays,
               evDays:       progressSnapshots.evDays,
               acDays:       progressSnapshots.acDays,
+              note:         progressSnapshots.note,
               createdAt:    progressSnapshots.createdAt,
             })
             .from(progressSnapshots)
