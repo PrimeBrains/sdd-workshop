@@ -124,7 +124,7 @@
 
 ## 6. ステアリング更新
 
-- [ ] 6.1 `.kiro/steering/domain.md` のフィールド対応表とデータモデル概要を更新する
+- [x] 6.1 `.kiro/steering/domain.md` のフィールド対応表とデータモデル概要を更新する
   - 「wbs-YAML ↔ EVM Studio フィールド対応」表に 4 行を追加する: `schedule.meta.project_status` → `Project.status` / `schedule.meta.project_code` → `Project.code` / `staffing.members[].role` → `Member.role` / `staffing.members[].initials` → `Member.initials`
   - 「データモデル概要」セクションの `Project` 行に `status` の有効値リスト（`active` / `paused` / `draft` / `archived`）と `code` を追記する
   - 同セクションの `Member` 行に `role` の参考プリセット（`PM`, `Lead Eng`, `Engineer`, `Designer`, `QA`, `BA`, `Security`, `Analyst`）と `initials` の説明を追記する
