@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import Database from 'better-sqlite3'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
-import { eq } from 'drizzle-orm'
+import { eq, and } from 'drizzle-orm'
 import { parseTasksYaml, parseStaffingYaml, parseScheduleYaml, importWbsYaml } from './wbs-importer.js'
 import { AppError } from '../errors/AppError.js'
 import { ErrorCode } from '../errors/codes.js'
@@ -836,5 +836,150 @@ assignments:
       .from(schema.holidays)
       .where(eq(schema.holidays.projectId, projectId))
     expect(holidayRows).toHaveLength(2) // 重複なし
+  })
+})
+
+// ─── importWbsYaml: 新フィールド (status / code / role / initials) (Req 4.1–4.7, 8.3) ──
+
+describe('importWbsYaml: 新フィールド対応 (Req 4.1–4.7, 8.3)', () => {
+  let db: TestDb
+  let projectId: number
+
+  beforeEach(async () => {
+    db = createTestDb()
+    const [project] = await db
+      .insert(schema.projects)
+      .values({ name: 'テストプロジェクト', startDate: '2026-01-05', endDate: '2026-03-31' })
+      .returning()
+    if (!project) throw new Error('project creation failed')
+    projectId = project.id
+  })
+
+  // ── Req 4.1, 4.2, 4.3, 4.4: 新フィールドあり YAML → DB に反映 ─────────────
+  it('新フィールド付き YAML をインポートすると projects.status / code, members.role / initials が DB に反映される (Req 4.1–4.4)', async () => {
+    const scheduleYamlWithNewFields = `
+meta:
+  schedule_start: "2026-01-05"
+  schedule_end: "2026-03-31"
+  project_status: "paused"
+  project_code: "NXP-002"
+`
+    const staffingYamlWithNewFields = `
+members:
+  - id: "M001"
+    name: "田中 美咲"
+    availability_rate: 0.8
+    assignment_start: "2026-01-01"
+    assignment_end: "2026-03-31"
+    role: "PM"
+    initials: "田美"
+meta:
+  public_holidays:
+    - "2026-01-01"
+`
+    importWbsYaml({
+      db,
+      projectId,
+      tasksYaml: TASKS_YAML_BASIC,
+      staffingYaml: staffingYamlWithNewFields,
+      scheduleYaml: scheduleYamlWithNewFields,
+    })
+
+    // projects.status / projects.code
+    const [proj] = await db
+      .select()
+      .from(schema.projects)
+      .where(eq(schema.projects.id, projectId))
+    expect(proj).toBeDefined()
+    if (!proj) throw new Error('project not found')
+    expect(proj.status).toBe('paused')
+    expect(proj.code).toBe('NXP-002')
+
+    // members.role / members.initials
+    const [member] = await db
+      .select()
+      .from(schema.members)
+      .where(eq(schema.members.externalId, 'M001'))
+    expect(member).toBeDefined()
+    if (!member) throw new Error('member not found')
+    expect(member.role).toBe('PM')
+    expect(member.initials).toBe('田美')
+  })
+
+  // ── Req 4.5, 4.7: 新フィールドなし YAML → 後方互換（既定値・自動生成） ────
+  it('新フィールドを持たない YAML をインポートしても後方互換で既定値が適用される (Req 4.5, 4.7)', async () => {
+    // 新規プロジェクトを作成し直して projects.status のデフォルト ('active') を確認する
+    const [freshProject] = await db
+      .insert(schema.projects)
+      .values({ name: '後方互換プロジェクト', startDate: '2026-01-05', endDate: '2026-03-31' })
+      .returning()
+    if (!freshProject) throw new Error('project creation failed')
+
+    // TASKS_YAML_BASIC / STAFFING_YAML_BASIC / SCHEDULE_YAML_BASIC は
+    // project_status / project_code / role / initials を一切含まない既存形式
+    importWbsYaml({
+      db,
+      projectId: freshProject.id,
+      tasksYaml: TASKS_YAML_BASIC,
+      staffingYaml: STAFFING_YAML_BASIC,
+      scheduleYaml: SCHEDULE_YAML_BASIC,
+    })
+
+    // projects.status は DB の既定値 'active' のまま、code は NULL のまま
+    const [proj] = await db
+      .select()
+      .from(schema.projects)
+      .where(eq(schema.projects.id, freshProject.id))
+    expect(proj).toBeDefined()
+    if (!proj) throw new Error('project not found')
+    expect(proj.status).toBe('active')
+    expect(proj.code).toBeNull()
+
+    // members.role は NULL、initials は generateInitials('田中太郎') により自動生成（'田太'）
+    const [member] = await db
+      .select()
+      .from(schema.members)
+      .where(
+        and(
+          eq(schema.members.projectId, freshProject.id),
+          eq(schema.members.externalId, 'M001'),
+        ),
+      )
+    expect(member).toBeDefined()
+    if (!member) throw new Error('member not found')
+    expect(member.role).toBeNull()
+    // 'M001' = '田中太郎' は空白なしのため、先頭 2 文字 '田中' が initials になる
+    expect(member.initials).toBe('田中')
+  })
+
+  // ── Req 4.6: 無効 project_status → AppError(IMPORT_INVALID_PROJECT_STATUS) ─
+  it('schedule.meta.project_status が enum 範囲外なら AppError(IMPORT_INVALID_PROJECT_STATUS) を throw する (Req 4.6)', () => {
+    const scheduleYamlInvalidStatus = `
+meta:
+  schedule_start: "2026-01-05"
+  schedule_end: "2026-03-31"
+  project_status: "unknown"
+`
+    expect(() =>
+      importWbsYaml({
+        db,
+        projectId,
+        tasksYaml: TASKS_YAML_BASIC,
+        staffingYaml: STAFFING_YAML_BASIC,
+        scheduleYaml: scheduleYamlInvalidStatus,
+      })
+    ).toThrow(AppError)
+
+    expect(() =>
+      importWbsYaml({
+        db,
+        projectId,
+        tasksYaml: TASKS_YAML_BASIC,
+        staffingYaml: STAFFING_YAML_BASIC,
+        scheduleYaml: scheduleYamlInvalidStatus,
+      })
+    ).toThrow(
+      expect.objectContaining({ code: ErrorCode.IMPORT_INVALID_PROJECT_STATUS })
+    )
   })
 })

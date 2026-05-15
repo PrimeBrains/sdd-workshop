@@ -62,7 +62,7 @@
   - _Boundary: services/wbs-importer.ts_
   - _Depends: 2.1, 3.1_
 
-- [ ] 3.3 (P) WBS Importer のテストに新フィールドの取り込み・後方互換・無効 status の 3 ケースを追加する
+- [x] 3.3 (P) WBS Importer のテストに新フィールドの取り込み・後方互換・無効 status の 3 ケースを追加する
   - `evm-studio/server/src/services/wbs-importer.test.ts` に新フィールドあり YAML、新フィールドなし YAML、`project_status: 'unknown'` の YAML の 3 ケースを追加する
   - 観測可能な完了条件: 3 ケースを含む `npm test -- wbs-importer` が全件パスし、無効 status ケースで `IMPORT_INVALID_PROJECT_STATUS` がスローされる
   - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7, 8.3_
