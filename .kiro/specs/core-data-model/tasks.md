@@ -104,7 +104,7 @@
 
 ## 5. シードデータ
 
-- [ ] 5.1 モックアップ準拠のシード定数モジュールを作成する
+- [x] 5.1 モックアップ準拠のシード定数モジュールを作成する
   - `evm-studio/server/seeds/mockup-projects.ts` を新規作成し、`mockup/projects-data.jsx` の 5 プロジェクト分（projects / members / tasks / dependencies / holidays）を TypeScript 定数として転記する
   - `assignee` 文字列を `external_id` ベースで突き合わせられるように事前マップを定義する
   - 観測可能な完了条件: `import { mockupProjects } from './mockup-projects'` がコンパイル通過し、配列長が `5` であることを起動時アサーションで確認できる
