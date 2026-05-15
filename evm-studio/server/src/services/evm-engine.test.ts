@@ -764,6 +764,74 @@ describe('calculateEvmMetrics', () => {
     })
   })
 
+  // ─── 境界値テスト（タスク 2.4: 要件 1.5-1.10, 13.1） ────────────────────────
+  describe('境界値: pv=0 / ac=0 / bac-ac=0 / spi>0', () => {
+    it('境界値 pv=0 → spi=null を返す（要件 1.6）', () => {
+      // baseDate < plannedStart にすることで PV=0 を再現
+      const notStartedTask: Task = {
+        ...baseTask,
+        id: 1,
+        estimateDays: 10,
+        plannedStart: '2026-06-01',
+        plannedEnd: '2026-06-10',
+        isBuffer: false,
+        assigneeId: null,
+      }
+      const result = calculateEvmMetrics(makeEvmInput({
+        tasks: [notStartedTask],
+        baseDate: '2026-05-14',
+      }))
+      expect(result.pv).toBe(0)
+      expect(result.spi).toBeNull()
+    })
+
+    it('境界値 ac=0 → cpi=null を返す（要件 1.8）', () => {
+      // EV>0 でも AC=0 のとき CPI は null
+      const snapshots: ProgressSnapshot[] = [
+        makeSnapshot({ taskId: 1, progressPct: 50, acDays: 0 }),
+      ]
+      const result = calculateEvmMetrics(makeEvmInput({
+        tasks: [evmTask],
+        snapshots,
+        baseDate: '2026-05-14',
+      }))
+      expect(result.ac).toBe(0)
+      expect(result.cpi).toBeNull()
+    })
+
+    it('境界値 bac-ac=0 → tcpi=null を返す（要件 1.10）', () => {
+      // BAC = 10, AC = 10 → bac - ac = 0 → TCPI は null
+      const snapshots: ProgressSnapshot[] = [
+        makeSnapshot({ taskId: 1, progressPct: 50, acDays: 10 }),
+      ]
+      const result = calculateEvmMetrics(makeEvmInput({
+        tasks: [evmTask],
+        snapshots,
+        baseDate: '2026-05-14',
+      }))
+      expect(result.bac).toBe(10)
+      expect(result.ac).toBe(10)
+      expect(result.tcpi).toBeNull()
+    })
+
+    it('境界値 spi !== null かつ spi > 0 → eac = bac / spi（要件 1.9）', () => {
+      // BAC=10, PV=10, EV=5 → SPI=0.5 → EAC = 10/0.5 = 20
+      const snapshots: ProgressSnapshot[] = [
+        makeSnapshot({ taskId: 1, progressPct: 50, acDays: 4 }),
+      ]
+      const result = calculateEvmMetrics(makeEvmInput({
+        tasks: [evmTask],
+        snapshots,
+        baseDate: '2026-05-14',
+      }))
+      expect(result.bac).toBe(10)
+      expect(result.spi).not.toBeNull()
+      expect(result.spi).toBeGreaterThan(0)
+      expect(result.spi).toBeCloseTo(0.5)
+      expect(result.eac).toBeCloseTo(20)
+    })
+  })
+
   describe('taskMetrics', () => {
     it('各タスクに PV/EV/AC/SPI/CPI/alertLevel が含まれる（要件 7.3）', () => {
       const snapshots: ProgressSnapshot[] = [

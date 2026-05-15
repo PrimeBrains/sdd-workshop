@@ -44,7 +44,7 @@
   - _Boundary: EvmEngine_
   - _Depends: 2.1_
 
-- [ ] 2.4 `calculateEvmMetrics` の境界値テストを補強する
+- [x] 2.4 `calculateEvmMetrics` の境界値テストを補強する
   - `pv = 0` → `spi = null`、`ac = 0` → `cpi = null`、`bac - ac = 0` → `tcpi = null`、`spi !== null && spi > 0` のとき `eac = bac / spi` のケースを Vitest に追加する
   - 既存のロジックに修正が必要な場合は 1.10 に従って関数を更新する
   - 4 ケース以上が新規パスすることで完了を確認できる
