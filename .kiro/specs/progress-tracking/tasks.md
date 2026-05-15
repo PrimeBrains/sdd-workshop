@@ -25,7 +25,7 @@
   - _Boundary: ErrorCodes_
 
 - [ ] 2. Core: progress tRPC ルーター再実装
-- [ ] 2.1 recordProgressSchema と record プロシージャを実装する
+- [x] 2.1 recordProgressSchema と record プロシージャを実装する
   - `evm-studio/server/src/api/progress.ts` を再実装する。`recordProgressSchema` を Zod で定義する: `taskId: z.number().int().positive()`, `snapshotDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/)`, `progressPct: z.number().int().min(0).max(100)`, `acDays: z.number().min(0)`, `note: z.string().max(1000).nullable().optional()`
   - `progress.record` プロシージャを実装する:
     - サーバー側 `today = new Date().toISOString().slice(0, 10)` を取得し、`input.snapshotDate > today` の場合 `AppError(ErrorCode.SNAP_FUTURE_DATE, '未来日付は指定できません')` を throw する
@@ -39,7 +39,7 @@
   - _Depends: 1.1, 1.2, 1.3_
   - _Boundary: ProgressRouter_
 
-- [ ] 2.2 (P) getLatest プロシージャを実装する
+- [x] 2.2 (P) getLatest プロシージャを実装する
   - `progress.getLatest({ taskId: z.number().int().positive() })` を実装する
   - `db.select().from(progressSnapshots).where(eq(progressSnapshots.taskId, input.taskId)).orderBy(desc(progressSnapshots.snapshotDate)).limit(1)` でクエリし、結果配列が空なら `null`、1 件なら最初の要素を返す
   - 戻り値型は `ProgressSnapshot | null` として TypeScript で推論されること（クライアント側 `useProgressLatest` の型確認で検証）
@@ -48,7 +48,7 @@
   - _Depends: 2.1_
   - _Boundary: ProgressRouter_
 
-- [ ] 2.3 (P) getByDate プロシージャを実装する
+- [x] 2.3 (P) getByDate プロシージャを実装する
   - `progress.getByDate({ projectId: z.number().int().positive(), snapshotDate: z.string().regex(...) })` を実装する
   - `db.select({...}).from(progressSnapshots).innerJoin(tasks, eq(progressSnapshots.taskId, tasks.id)).where(and(eq(tasks.projectId, input.projectId), eq(progressSnapshots.snapshotDate, input.snapshotDate))).orderBy(asc(progressSnapshots.taskId))` でクエリ
   - select 句で `progressSnapshots` の全カラム（`note` を含む）を返すこと
@@ -57,7 +57,7 @@
   - _Depends: 2.1_
   - _Boundary: ProgressRouter_
 
-- [ ] 2.4 (P) getHistory プロシージャを実装する
+- [x] 2.4 (P) getHistory プロシージャを実装する
   - `progress.getHistory({ taskId: z.number().int().positive() })` を実装する
   - `db.select().from(progressSnapshots).where(eq(progressSnapshots.taskId, input.taskId)).orderBy(asc(progressSnapshots.snapshotDate))` でクエリ
   - 未存在 `taskId` に対して空配列を返すこと（エラーは投げない）を単体テストで確認できること
@@ -65,7 +65,7 @@
   - _Depends: 2.1_
   - _Boundary: ProgressRouter_
 
-- [ ] 2.4b (P) getByDateRange プロシージャを実装する
+- [x] 2.4b (P) getByDateRange プロシージャを実装する
   - `progress.getByDateRange({ projectId: z.number().int().positive(), startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/) })` を実装する
   - クエリ: `db.select({ taskId: progressSnapshots.taskId, snapshotDate: progressSnapshots.snapshotDate, progressPct: progressSnapshots.progressPct, acDays: progressSnapshots.acDays }).from(progressSnapshots).innerJoin(tasks, eq(progressSnapshots.taskId, tasks.id)).where(and(eq(tasks.projectId, input.projectId), gte(progressSnapshots.snapshotDate, input.startDate), lte(progressSnapshots.snapshotDate, input.endDate))).orderBy(asc(progressSnapshots.snapshotDate), asc(progressSnapshots.taskId))`
   - select 句では `note`・`id`・`createdAt`・`updatedAt` を返さず、`{ taskId, snapshotDate, progressPct, acDays }` の 4 フィールドに絞る（ペイロード軽量化）
@@ -76,7 +76,7 @@
   - _Depends: 2.1_
   - _Boundary: ProgressRouter_
 
-- [ ] 2.5 ログ出力を pino で記録する
+- [x] 2.5 ログ出力を pino で記録する
   - `progress.record` の成功時に `logger.info({ taskId, projectId, snapshotDate, progressPct }, 'progress recorded')` を出力する
   - `progress.record` の失敗時に `logger.warn` でエラーコードと taskId を記録する
   - 個人名（`Member.name`）はログに含めないこと
@@ -85,7 +85,7 @@
   - _Depends: 2.1_
   - _Boundary: ProgressRouter_
 
-- [ ] 2.6 progress ルーターを appRouter に再マウントする
+- [x] 2.6 progress ルーターを appRouter に再マウントする
   - `evm-studio/server/src/router.ts` の `appRouter` で `progress: progressRouter` がマウントされていることを確認する（既存マウントを利用、ファイル所有権は core-data-model）
   - tRPC クライアントから `trpc.progress.record` / `getLatest` / `getByDate` / `getByDateRange` / `getHistory` が TypeScript 型補完で見えること
   - _Requirements: 7.*_
