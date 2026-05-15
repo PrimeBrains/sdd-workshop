@@ -110,7 +110,7 @@
   - _Requirements: 8.4, 8.5, 8.6_
   - _Boundary: AcUnit_
 
-- [ ] 3.3 useProgress フックを更新する
+- [x] 3.3 useProgress フックを更新する
   - `evm-studio/client/src/hooks/useProgress.ts` を更新する
   - `useProgressLatest(taskId: number | null)`: `trpc.progress.getLatest.useQuery({ taskId: taskId! }, { enabled: !!taskId })` を返す
   - `useProgressByDate(projectId: number | null, snapshotDate: string | null)`: `trpc.progress.getByDate.useQuery({ projectId: projectId!, snapshotDate: snapshotDate! }, { enabled: !!projectId && !!snapshotDate })` を返す
