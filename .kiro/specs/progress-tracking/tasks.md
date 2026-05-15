@@ -122,7 +122,7 @@
   - _Boundary: useProgress_
 
 - [ ] 4. Validation: 単体テスト実装
-- [ ] 4.1 progress ルーターの Vitest 単体テストを実装する
+- [x] 4.1 progress ルーターの Vitest 単体テストを実装する
   - `evm-studio/server/tests/api/progress.test.ts`（または既存ファイル）を新仕様に書き換える
   - 以下のテストケースを実装する:
     - record 正常系: 新規スナップショットが返却され、入力値を保持していること（要件 2.1, 2.9）
