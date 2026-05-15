@@ -16,7 +16,7 @@
   - _Boundary: DataLayer_
 
 - [ ] 2. コア計算: `evm-engine.ts` の拡張
-- [ ] 2.1 既存の純粋関数を確認しテストファイル骨格を準備する
+- [x] 2.1 既存の純粋関数を確認しテストファイル骨格を準備する
   - `server/src/services/evm-engine.ts` の `countWorkingDays` / `calculateTaskPv` / `calculateProjectPv` / `calculateEvmMetrics` の現状シグネチャを確認する
   - 不足している入力（`Project.startDate` 等）がある場合は `EvmInput` 型を拡張する
   - `server/src/services/evm-engine.test.ts` に `describe('calculateEvmMetrics')` 等の空ブロックを用意する

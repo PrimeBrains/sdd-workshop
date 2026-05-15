@@ -1,4 +1,4 @@
-import type { Holiday, Member, ProgressSnapshot, Task } from '../db/schema.js'
+import type { Holiday, Member, ProgressSnapshot, Project, Task } from '../db/schema.js'
 import { AppError } from '../errors/AppError.js'
 import { ErrorCode } from '../errors/codes.js'
 
@@ -48,6 +48,12 @@ export interface EvmInput {
   holidays: Holiday[]
   snapshots: ProgressSnapshot[]
   baseDate: string
+  /**
+   * プロジェクト基本情報。`spiTrend` / `fever.trail` / `gantt` の計算で
+   * `startDate` / `endDate` を参照するため、後続タスク（4.x / 5.x / 7.x）から利用される。
+   * 既存の純粋関数（`calculateEvmMetrics` 等）はこのフィールドを参照しないため optional のまま。
+   */
+  project?: Pick<Project, 'startDate' | 'endDate'>
 }
 
 // --- ユーティリティ ---
