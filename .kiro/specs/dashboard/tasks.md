@@ -7,7 +7,7 @@
 ## Phase 1: 基盤（tokens + atoms + formatters）
 
 - [ ] 1. 基盤レイヤーを追加
-- [ ] 1.1 デザイントークン `tokens/evm-tokens.ts` を追加 (P)
+- [x] 1.1 デザイントークン `tokens/evm-tokens.ts` を追加 (P)
   - `client/src/tokens/evm-tokens.ts` を新規作成
   - モックアップ `mockup/shared.jsx` 行 24–50 の `EVM` 定数を完全移植
   - `EvmToken` 型をエクスポート
@@ -15,7 +15,7 @@
   - _Requirements: 14.1_
   - _Boundary: tokens/evm-tokens.ts_
 
-- [ ] 1.2 グローバル CSS `styles/workbench.css` を追加 (P)
+- [x] 1.2 グローバル CSS `styles/workbench.css` を追加 (P)
   - `client/src/styles/workbench.css` を新規作成
   - モックアップ `mockup/shared.jsx` 行 8–19 の hover / popover アニメーション CSS を移植
   - `main.tsx` で `import '@/styles/workbench.css'` する
@@ -23,13 +23,13 @@
   - _Requirements: 14.5_
   - _Boundary: styles/workbench.css_
 
-- [ ] 1.3 Google Fonts CDN を `index.html` に追加 (P)
+- [x] 1.3 Google Fonts CDN を `index.html` に追加 (P)
   - `client/index.html` の `<head>` に Cinzel / Source Serif 4 / JetBrains Mono / Inter の `<link rel="preconnect">` + `<link rel="stylesheet">` を追加
   - 4 種類のフォントがネットワークタブで読み込まれる *(observable: DevTools Network タブで woff2 が 200 で返る)*
   - _Requirements: 14.2_
   - _Boundary: index.html_
 
-- [ ] 1.4 フォーマッタ純関数 `lib/formatters.ts` を追加 (P)
+- [x] 1.4 フォーマッタ純関数 `lib/formatters.ts` を追加 (P)
   - `client/src/lib/formatters.ts` を新規作成
   - `fmtMD` / `fmtPct` / `fmtNum` / `fmtSignedMD` / `fmtDeltaIdx` / `fmtDeltaMD` / `fmtDeltaPct` / `deltaTone` / `statusColor` / `spiTone` / `statusJp` / `initialsOf` / `dateOffsetToISO` を実装
   - すべて純関数で副作用なし
@@ -37,7 +37,7 @@
   - _Requirements: 4.7, 6.4, 11.2, 11.3_
   - _Boundary: lib/formatters.ts_
 
-- [ ] 1.5 原子コンポーネント 8 種を追加 (P)
+- [x] 1.5 原子コンポーネント 8 種を追加 (P)
   - `client/src/components/atoms/` を新規作成し、`Card.tsx` / `Pill.tsx` / `Dot.tsx` / `Eyebrow.tsx` / `Avatar.tsx` / `BrandMark.tsx` / `FilterChip.tsx` / `Chevron.tsx` を追加
   - モックアップ `mockup/shared.jsx` 行 157–230 と `variation-a.jsx` 行 1471–1511 から 1:1 で TSX 移植
   - 各コンポーネントの props 型を export

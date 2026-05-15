@@ -1,0 +1,11 @@
+.evm-gantt-row:hover { background: #f3f1e8 !important; }
+.evm-project-btn:hover { background: rgba(155,193,50,0.07) !important; }
+.evm-tab:hover:not(.active) { color: #1c1a16 !important; }
+.evm-btn:hover { background: rgba(155,193,50,0.12) !important; border-color: #9bc132 !important; }
+.evm-icon-btn:hover { background: rgba(0,0,0,0.05) !important; color: #1c1a16 !important; }
+.evm-chip { transition: background .12s, border-color .12s, color .12s; }
+.evm-chip:hover { background: #efebde !important; }
+.evm-chip.active { background: rgba(155,193,50,0.16) !important; border-color: #7ea61f !important; color: #7ea61f !important; }
+.evm-popover { animation: evmPop .12s ease-out; transform-origin: top right; }
+@keyframes evmPop { from { opacity: 0; transform: scale(0.96) translateY(-4px) } to { opacity: 1; transform: none } }
+.evm-assignee-row:hover { background: rgba(155,193,50,0.06) !important; }
