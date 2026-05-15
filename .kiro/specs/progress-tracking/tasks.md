@@ -151,7 +151,7 @@
   - _Depends: 2.1, 2.2, 2.3, 2.4, 2.4b_
   - _Boundary: ProgressRouter_
 
-- [ ] 4.2 (P) planned-comparison 純関数の単体テストを実装する
+- [x] 4.2 (P) planned-comparison 純関数の単体テストを実装する
   - `evm-studio/client/src/services/planned-comparison.test.ts` を新規作成する
   - 以下のテストケースを実装する:
     - タスク開始前: `snapshotDate = taskPlannedStart - 5日` → `0`（要件 8.2）
@@ -164,7 +164,7 @@
   - _Depends: 3.1_
   - _Boundary: PlannedComparison_
 
-- [ ] 4.3 (P) ac-unit 純関数の単体テストを実装する
+- [x] 4.3 (P) ac-unit 純関数の単体テストを実装する
   - `evm-studio/client/src/services/ac-unit.test.ts` を新規作成する
   - 以下のテストケースを実装する:
     - `mdToHours(1) === 8`、`mdToHours(2.5) === 20`、`mdToHours(0) === 0`（要件 8.4）
