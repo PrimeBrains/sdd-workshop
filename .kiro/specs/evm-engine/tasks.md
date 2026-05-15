@@ -161,7 +161,7 @@
   - _Depends: 2.2, 2.3, 3.1, 3.2, 4.1, 5.1, 6.1, 6.2, 6.3, 7.1, 8.1_
 
 - [ ] 9. 統合テストと性能検証
-- [ ] 9.1 `evm.calculate` 統合テストを実装する
+- [x] 9.1 `evm.calculate` 統合テストを実装する
   - `server/src/api/evm.test.ts` を新規作成する
   - モックアップ `mockup/projects-data.jsx` の `PROJECT_DATA[0]`（NXP-002）相当のフィクスチャを `__fixtures__/nxp-002.ts` に配置する（プロジェクト・タスク・メンバー・スナップショット・休日）
   - `evm.calculate({ projectId: 1, baseDate: '2026-05-13' })` の出力に `summary` / `prevDay` / `assignees` / `alerts` / `spiTrend` / `fever` / `tasks` / `gantt` の全キーが含まれることを assert する
