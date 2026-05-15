@@ -71,7 +71,7 @@
 
 ## 4. tRPC ルーター拡張
 
-- [ ] 4.1 (P) `api/projects.ts` の入力 Zod スキーマと出力型を拡張する
+- [x] 4.1 (P) `api/projects.ts` の入力 Zod スキーマと出力型を拡張する
   - `createProjectSchema` / `updateProjectSchema` に `status: z.enum(['active','paused','draft','archived']).default('active')` と `code: z.string().nullable().optional()` を追加する
   - `projects.list` / `projects.getById` のレスポンスが Drizzle 推論型 `Project` のまま `status` / `code` を含むことをコメントで明示する
   - 観測可能な完了条件: `projects.create` で `status='paused'` / `code='NXP-002'` を送信して保存できる

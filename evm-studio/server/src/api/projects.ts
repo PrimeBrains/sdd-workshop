@@ -20,10 +20,15 @@ export const ENABLE_PROJECT_ROUTER = true
 
 // ── Zod Schemas ───────────────────────────────────────────────────────────────
 
+// Task 4.1: status / code を入力スキーマに追加 (Req 1.3, 1.4, 6.3)
+// - status は z.enum で 4 値に制限し、未指定時は 'active' をデフォルト適用する
+// - code は NULL 許容のオプショナル文字列
 export const createProjectSchema = z.object({
   name:      z.string().min(1).max(200),
   startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   endDate:   z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  status:    z.enum(['active', 'paused', 'draft', 'archived']).default('active'),
+  code:      z.string().nullable().optional(),
 })
 
 export const updateProjectSchema = z.object({
@@ -31,6 +36,8 @@ export const updateProjectSchema = z.object({
   name:      z.string().min(1).max(200).optional(),
   startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   endDate:   z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  status:    z.enum(['active', 'paused', 'draft', 'archived']).optional(),
+  code:      z.string().nullable().optional(),
 })
 
 // ── AppError → TRPCError conversion ───────────────────────────────────────────
@@ -67,12 +74,16 @@ export function createProjectsRouter(db: DrizzleDb) {
   const t = initTRPC.create()
 
   return t.router({
-    // ── projects.list (Req 2.2) ──────────────────────────────────────────────
+    // ── projects.list (Req 2.2, 1.5, 6.1) ────────────────────────────────────
+    // 戻り値は Drizzle 推論型 `Project` のまま。schema.ts に `status` / `code`
+    // を追加済みのため、レスポンスにはそれらの新カラムも自動的に含まれる。
     list: t.procedure.query(async (): Promise<Project[]> => {
       return db.select().from(projects)
     }),
 
-    // ── projects.getById (Req 2.3, 2.4) ─────────────────────────────────────
+    // ── projects.getById (Req 2.3, 2.4, 1.5, 6.1) ────────────────────────────
+    // 戻り値は Drizzle 推論型 `Project` のまま。`status` / `code` を含む全カラム
+    // をクライアントに返す。
     getById: t.procedure
       .input(z.object({ id: z.number().int().positive() }))
       .query(async ({ input }): Promise<Project> => {
@@ -86,16 +97,20 @@ export function createProjectsRouter(db: DrizzleDb) {
         return project
       }),
 
-    // ── projects.create (Req 2.1, 2.7) ──────────────────────────────────────
+    // ── projects.create (Req 2.1, 2.7, 1.3, 1.4, 6.3) ───────────────────────
     create: t.procedure
       .input(createProjectSchema)
       .mutation(async ({ input }): Promise<Project> => {
+        // status は Zod の .default('active') により常に値あり。
+        // code は省略時 undefined / null のいずれも DB 上は NULL として保存される。
         const rows = await db
           .insert(projects)
           .values({
             name:      input.name,
             startDate: input.startDate,
             endDate:   input.endDate,
+            status:    input.status,
+            code:      input.code ?? null,
           })
           .returning()
         const project = rows[0]
@@ -105,7 +120,7 @@ export function createProjectsRouter(db: DrizzleDb) {
         return project
       }),
 
-    // ── projects.update (Req 2.5, 2.7) ──────────────────────────────────────
+    // ── projects.update (Req 2.5, 2.7, 1.3, 1.4, 6.3) ───────────────────────
     update: t.procedure
       .input(updateProjectSchema)
       .mutation(async ({ input }): Promise<Project> => {
@@ -117,12 +132,21 @@ export function createProjectsRouter(db: DrizzleDb) {
           )
         }
 
-        const updateData: Partial<{ name: string; startDate: string; endDate: string; updatedAt: Date }> = {
+        const updateData: Partial<{
+          name: string
+          startDate: string
+          endDate: string
+          status: 'active' | 'paused' | 'draft' | 'archived'
+          code: string | null
+          updatedAt: Date
+        }> = {
           updatedAt: new Date(),
         }
         if (input.name !== undefined)      updateData.name      = input.name
         if (input.startDate !== undefined) updateData.startDate = input.startDate
         if (input.endDate !== undefined)   updateData.endDate   = input.endDate
+        if (input.status !== undefined)    updateData.status    = input.status
+        if (input.code !== undefined)      updateData.code      = input.code
 
         const rows = await db
           .update(projects)
