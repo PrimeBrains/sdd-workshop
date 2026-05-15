@@ -484,6 +484,7 @@ export default function WorkbenchPage() {
                     type="button"
                     onClick={handleOpenGanttFull}
                     title="WBSを全画面で表示"
+                    data-testid="gantt-fullscreen-button"
                     className="evm-btn"
                     style={{
                       display: 'inline-flex',
@@ -557,6 +558,7 @@ export default function WorkbenchPage() {
                       type="button"
                       onClick={handleOpenChartTrend}
                       title="全画面で表示"
+                      data-testid="spi-trend-fullscreen-button"
                       className="evm-btn"
                       style={{
                         display: 'inline-flex',
@@ -635,6 +637,7 @@ export default function WorkbenchPage() {
                       type="button"
                       onClick={handleOpenChartFever}
                       title="全画面で表示"
+                      data-testid="fever-fullscreen-button"
                       className="evm-btn"
                       style={{
                         display: 'inline-flex',

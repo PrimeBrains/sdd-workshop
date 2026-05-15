@@ -268,7 +268,7 @@
 ## Phase 8: E2E テスト追加
 
 - [ ] 8. Playwright E2E テストを追加
-- [ ] 8.1 `e2e/workbench.spec.ts` を追加（8 シナリオ）
+- [x] 8.1 `e2e/workbench.spec.ts` を追加（8 シナリオ）
   - シナリオ 1: TopBar プロジェクトピッカーで切替 → SummaryStrip のプロジェクト名が変わる
   - シナリオ 2: 基準日変更 → SummaryStrip の SPI/CPI 数値が変わる
   - シナリオ 3: 前日比トグル ON → SummaryStat 値が delta 表示になる
