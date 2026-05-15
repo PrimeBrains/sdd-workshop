@@ -73,7 +73,7 @@
   - _Depends: 3.1_
 
 - [ ] 4. SPI トレンド: `evm-trend.ts`
-- [ ] 4.1 (P) `buildSpiTrend` を実装する
+- [x] 4.1 (P) `buildSpiTrend` を実装する
   - `server/src/services/evm-trend.ts` に `buildSpiTrend({ baseDate, trendWindowDays?, project, tasks, members, holidays, snapshots })` を実装する
   - スナップショット日付の集合 `D` を `[start, baseDate]` 範囲（`trendWindowDays` 指定時はそれで絞る）で抽出し、昇順に並べる
   - 各 `d ∈ D` で `calculateEvmMetrics({ baseDate: d, ... })` を実行し `{ d: 'MM-DD', spi, cpi }` を生成する
