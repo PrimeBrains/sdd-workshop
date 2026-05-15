@@ -88,7 +88,7 @@
   - _Boundary: api/members.ts_
   - _Depends: 1.1, 2.1_
 
-- [ ] 4.3 (P) Projects tRPC ルーターのテストに `status` / `code` の入出力検証を追加する
+- [x] 4.3 (P) Projects tRPC ルーターのテストに `status` / `code` の入出力検証を追加する
   - `evm-studio/server/src/api/projects.test.ts` に、 `status='invalid'` で Zod バリデーションエラーが返ること、`status='paused'` / `code='NXP-002'` で create が成功し list / getById のレスポンスに新カラムが含まれることを確認するケースを追加する
   - 観測可能な完了条件: `npm test -- projects` が拡張ケースを含めて全件パスする
   - _Requirements: 1.3, 1.4, 1.5, 6.1, 6.3, 8.2_

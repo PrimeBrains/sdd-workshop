@@ -90,6 +90,55 @@ describe('projects.create — Zod validation (Req 2.7)', () => {
   })
 })
 
+// ── Task 4.3: status / code Zod validation (Req 1.3, 1.4, 6.3, 8.2) ──────────
+
+describe('projects.create — status / code validation (Task 4.3, Req 1.3, 1.4, 6.3, 8.2)', () => {
+  it('returns BAD_REQUEST when status is invalid (not in enum)', async () => {
+    const caller = makeCaller(createTestDb())
+
+    await expect(
+      // @ts-expect-error: intentional invalid status to verify Zod rejection
+      caller.create({
+        name:      'Bad Status',
+        startDate: '2026-01-01',
+        endDate:   '2026-12-31',
+        status:    'invalid',
+      }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST' })
+  })
+})
+
+// ── Task 4.3: status='paused' / code persistence (Req 1.3, 1.4, 1.5, 6.1) ────
+
+describe('projects.create — status="paused" / code="NXP-002" persistence (Task 4.3, Req 1.3, 1.4, 1.5, 6.1)', () => {
+  it('persists status="paused" and code="NXP-002" and surfaces them via list / getById', async () => {
+    const caller = makeCaller(createTestDb())
+
+    // create with status='paused' and code='NXP-002'
+    const created = await caller.create({
+      name:      'Paused Project',
+      startDate: '2026-02-01',
+      endDate:   '2026-11-30',
+      status:    'paused',
+      code:      'NXP-002',
+    })
+
+    expect(created.status).toBe('paused')
+    expect(created.code).toBe('NXP-002')
+
+    // list should include the new fields
+    const listed = await caller.list()
+    expect(listed).toHaveLength(1)
+    expect(listed[0]?.status).toBe('paused')
+    expect(listed[0]?.code).toBe('NXP-002')
+
+    // getById should include the new fields
+    const found = await caller.getById({ id: created.id })
+    expect(found.status).toBe('paused')
+    expect(found.code).toBe('NXP-002')
+  })
+})
+
 // ── Requirement 2.2: list → returns all projects ─────────────────────────────
 
 describe('projects.list (Req 2.2)', () => {
