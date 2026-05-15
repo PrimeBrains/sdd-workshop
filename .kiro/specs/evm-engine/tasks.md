@@ -129,7 +129,7 @@
   - _Depends: 6.1_
 
 - [ ] 7. ガントメタデータ: `evm-gantt.ts`
-- [ ] 7.1 (P) `buildGanttMeta` を実装する
+- [x] 7.1 (P) `buildGanttMeta` を実装する
   - `server/src/services/evm-gantt.ts` に `buildGanttMeta({ project, baseDate })` を実装する
   - `totalDays = (endISO - startISO) + 1`（両端含む暦日数）として算出する
   - `baseDay = days(baseDate - startISO)` の整数値を算出し、`baseDate < startISO` のとき `0` に、`baseDate > endISO` のとき `totalDays - 1` にクリップする
