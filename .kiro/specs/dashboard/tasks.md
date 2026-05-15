@@ -126,7 +126,7 @@
 ## Phase 3: ページ統合（hooks/useEvm + WorkbenchPage + App.tsx 差し替え）
 
 - [ ] 3. データフェッチフックとページを統合
-- [ ] 3.1 `hooks/useEvm.ts` を追加
+- [x] 3.1 `hooks/useEvm.ts` を追加
   - `trpc.evm.calculate.useQuery` をラップ
   - 入力 `{ projectId: number | null, baseDate: string }`、`enabled: projectId !== null && validIsoDate(baseDate)`
   - 戻り値 `{ data, isLoading, error, refetch }`
@@ -135,7 +135,7 @@
   - _Requirements: 13.1-13.4_
   - _Boundary: hooks/useEvm.ts_
 
-- [ ] 3.2 `pages/WorkbenchPage.tsx` を追加
+- [x] 3.2 `pages/WorkbenchPage.tsx` を追加
   - 11 個の `useState` で全状態スロットを保持（projectId / baseDate / selectedTaskId / inspectorMode / inspectorMemberId / compareMode / filter / ganttFull / chartFull / datePickerOpen / projectMenuOpen）
   - `useEvm({ projectId, baseDate })` を呼び、`data` を取得
   - 初期値: `projectId=1`, `baseDate=TODAY_ISO`, `selectedTaskId=null`, `inspectorMode='task'`, `inspectorMemberId=null`, `compareMode=false`, `filter='all'`, `ganttFull=false`, `chartFull=null`, `datePickerOpen=false`, `projectMenuOpen=false`
@@ -150,7 +150,7 @@
   - _Boundary: pages/WorkbenchPage.tsx_
   - _Depends: 2.1-2.8, 3.1_
 
-- [ ] 3.3 `App.tsx` のルート `/` を WorkbenchPage に差し替え
+- [x] 3.3 `App.tsx` のルート `/` を WorkbenchPage に差し替え
   - `client/src/App.tsx` の `<Routes>` から `/` → `DashboardPage` を `/` → `WorkbenchPage` に差し替え
   - `/progress` ルートは残したまま（次フェーズで削除）
   - `npm start` で起動すると `/` が WorkbenchPage を表示する *(observable: ブラウザで `localhost:5173` を開くとモックアップ風の画面が表示される)*
