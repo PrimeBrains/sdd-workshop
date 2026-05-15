@@ -225,14 +225,14 @@
 ## Phase 5: 旧画面の削除
 
 - [ ] 5. 旧ページファイルを削除
-- [ ] 5.1 `pages/DashboardPage.tsx` を削除
+- [x] 5.1 `pages/DashboardPage.tsx` を削除
   - 削除前に WorkbenchPage が `/` で動作確認済みであること
   - 削除後 `npm run build` が成功する *(observable: tsc + vite build 成功、未参照ファイル削除によるエラーゼロ)*
   - _Requirements: 16.3, 16.6_
   - _Boundary: pages/DashboardPage.tsx_
   - _Depends: 4.4_
 
-- [ ] 5.2 `pages/ProgressInputPage.tsx` を削除
+- [x] 5.2 `pages/ProgressInputPage.tsx` を削除
   - 削除前に `/progress` ルートが既に App.tsx から削除済みで、`GanttFullscreen` 経由の進捗入力が動作していること
   - _Requirements: 16.4, 16.6_
   - _Boundary: pages/ProgressInputPage.tsx_
@@ -241,7 +241,7 @@
 ## Phase 6: 旧コンポーネントの削除
 
 - [ ] 6. 旧 components/ 直下のレガシーファイルを削除
-- [ ] 6.1 旧コンポーネント 6 ファイルを削除 (P)
+- [x] 6.1 旧コンポーネント 6 ファイルを削除 (P)
   - `client/src/components/AlertBanner.tsx`
   - `client/src/components/AssigneeTable.tsx`
   - `client/src/components/FeverChart.tsx`
@@ -257,7 +257,7 @@
 ## Phase 7: 依存削除
 
 - [ ] 7. recharts 依存をクリーンアップ
-- [ ] 7.1 `package.json` から recharts を削除
+- [x] 7.1 `package.json` から recharts を削除
   - `client/package.json` の `dependencies` から `recharts` を削除
   - `npm install` を実行して `package-lock.json` を更新
   - `npm run build` が成功する *(observable: ビルドが成功し、bundle サイズが減少する)*
