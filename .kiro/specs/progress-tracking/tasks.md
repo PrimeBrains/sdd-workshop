@@ -93,7 +93,7 @@
   - _Boundary: HonoServer, ProgressRouter_
 
 - [ ] 3. Core: クライアント純関数とフック実装
-- [ ] 3.1 (P) calculatePlannedPct 純関数を実装する
+- [x] 3.1 (P) calculatePlannedPct 純関数を実装する
   - `evm-studio/client/src/services/planned-comparison.ts` を新規作成する
   - 関数シグネチャ: `export function calculatePlannedPct(input: { projectStartISO: string; snapshotDate: string; taskPlannedStart: string; taskPlannedEnd: string }): number`
   - ISO-8601 日付文字列を `Date` に変換 → ミリ秒差分を 86400000 で割って日数オフセット算出 → `Math.round((snapshotOffset - taskStartOffset) / Math.max(1, taskDuration) * 100)` を `Math.min(100, Math.max(0, ...))` でクランプ
@@ -102,7 +102,7 @@
   - _Requirements: 8.1, 8.2, 8.3_
   - _Boundary: PlannedComparison_
 
-- [ ] 3.2 (P) mdToHours / hoursToMd 純関数を実装する
+- [x] 3.2 (P) mdToHours / hoursToMd 純関数を実装する
   - `evm-studio/client/src/services/ac-unit.ts` を新規作成する
   - `export function mdToHours(md: number): number { return md * 8 }`
   - `export function hoursToMd(h: number): number { return h / 8 }`
