@@ -332,3 +332,218 @@ describe('members.delete (Req 4.4)', () => {
     expect(updatedTask2[0]!.assigneeId).toBeNull()
   })
 })
+
+// ── Task 4.4: role / initials handling (Req 2.3, 2.4, 2.5, 2.6, 2.7, 6.2, 6.4, 8.1)
+
+describe('members.create — initials Zod validation (Req 2.5, 6.4)', () => {
+  it('returns BAD_REQUEST when initials length exceeds 4 (e.g. "12345")', async () => {
+    const db = createTestDb()
+    const caller = makeCaller(db)
+    const projectId = await createProject(db)
+
+    await expect(
+      caller.create({
+        projectId,
+        name: 'Long Initials',
+        availabilityRate: 1.0,
+        initials: '12345',
+      }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST' })
+  })
+})
+
+describe('members.create — initials auto-generation (Req 2.6, 2.7)', () => {
+  it('auto-generates initials from name when initials is omitted (Japanese full name with space)', async () => {
+    const db = createTestDb()
+    const caller = makeCaller(db)
+    const projectId = await createProject(db)
+
+    // initials を渡さない (undefined) ので name から自動生成される
+    const result = await caller.create({
+      projectId,
+      name: '田中 美咲',
+      availabilityRate: 1.0,
+    })
+
+    // 戻り値だけでなく DB に保存された値も検証する (Req 8.1: DB 書き込み/読み出し)
+    expect(result.initials).toBe('田美')
+
+    const rows = await db.select().from(schema.members).where(eq(schema.members.id, result.id))
+    expect(rows[0]!.initials).toBe('田美')
+  })
+
+  it('auto-generates initials from name without space using leading 2 characters (Req 2.7)', async () => {
+    const db = createTestDb()
+    const caller = makeCaller(db)
+    const projectId = await createProject(db)
+
+    const result = await caller.create({
+      projectId,
+      name: '伊藤健太',
+      availabilityRate: 1.0,
+    })
+
+    expect(result.initials).toBe('伊藤')
+  })
+
+  it('stores NULL when initials is explicitly null (Req 6.4 — nullable)', async () => {
+    const db = createTestDb()
+    const caller = makeCaller(db)
+    const projectId = await createProject(db)
+
+    const result = await caller.create({
+      projectId,
+      name: '佐藤 太郎',
+      availabilityRate: 1.0,
+      initials: null,
+    })
+
+    expect(result.initials).toBeNull()
+
+    const rows = await db.select().from(schema.members).where(eq(schema.members.id, result.id))
+    expect(rows[0]!.initials).toBeNull()
+  })
+})
+
+describe('members role/initials in create + listByProject (Req 2.3, 2.4, 6.2)', () => {
+  it('accepts arbitrary role string in create and reflects it in listByProject', async () => {
+    const db = createTestDb()
+    const caller = makeCaller(db)
+    const projectId = await createProject(db)
+
+    // 任意文字列の role を受け入れる (Req 2.4: プリセット外でも OK)
+    const created = await caller.create({
+      projectId,
+      name: 'Custom Role Member',
+      availabilityRate: 1.0,
+      role: 'Chief Vibe Officer',
+      initials: 'CV',
+    })
+
+    expect(created.role).toBe('Chief Vibe Officer')
+    expect(created.initials).toBe('CV')
+
+    // listByProject のレスポンスにも反映される (Req 2.3)
+    const list = await caller.listByProject({ projectId })
+    expect(list).toHaveLength(1)
+    expect(list[0]!.role).toBe('Chief Vibe Officer')
+    expect(list[0]!.initials).toBe('CV')
+  })
+
+  it('accepts preset role values (e.g. "PM", "Engineer") via create', async () => {
+    const db = createTestDb()
+    const caller = makeCaller(db)
+    const projectId = await createProject(db)
+
+    await caller.create({ projectId, name: 'PM Member', availabilityRate: 1.0, role: 'PM' })
+    await caller.create({ projectId, name: 'Eng Member', availabilityRate: 0.8, role: 'Engineer' })
+
+    const list = await caller.listByProject({ projectId })
+    const roles = list.map((m) => m.role).sort()
+    expect(roles).toEqual(['Engineer', 'PM'])
+  })
+
+  it('stores NULL role when role is omitted on create', async () => {
+    const db = createTestDb()
+    const caller = makeCaller(db)
+    const projectId = await createProject(db)
+
+    const created = await caller.create({
+      projectId,
+      name: 'No Role',
+      availabilityRate: 1.0,
+    })
+
+    expect(created.role).toBeNull()
+  })
+})
+
+describe('members.update — role / initials wiring (Req 2.3, 2.4, 2.5, 6.4)', () => {
+  it('updates role and initials and persists the new values', async () => {
+    const db = createTestDb()
+    const caller = makeCaller(db)
+    const projectId = await createProject(db)
+
+    const created = await caller.create({
+      projectId,
+      name: 'Updatable',
+      availabilityRate: 1.0,
+      role: 'Engineer',
+      initials: 'UP',
+    })
+
+    const updated = await caller.update({
+      id: created.id,
+      role: 'Lead Eng',
+      initials: 'LE',
+    })
+
+    expect(updated.role).toBe('Lead Eng')
+    expect(updated.initials).toBe('LE')
+
+    // DB レベルでも検証
+    const rows = await db.select().from(schema.members).where(eq(schema.members.id, created.id))
+    expect(rows[0]!.role).toBe('Lead Eng')
+    expect(rows[0]!.initials).toBe('LE')
+  })
+
+  it('overwrites role and initials to NULL when explicitly null on update (Req 6.4)', async () => {
+    const db = createTestDb()
+    const caller = makeCaller(db)
+    const projectId = await createProject(db)
+
+    const created = await caller.create({
+      projectId,
+      name: 'Nullable',
+      availabilityRate: 1.0,
+      role: 'QA',
+      initials: 'NU',
+    })
+
+    const updated = await caller.update({
+      id: created.id,
+      role: null,
+      initials: null,
+    })
+
+    expect(updated.role).toBeNull()
+    expect(updated.initials).toBeNull()
+
+    const rows = await db.select().from(schema.members).where(eq(schema.members.id, created.id))
+    expect(rows[0]!.role).toBeNull()
+    expect(rows[0]!.initials).toBeNull()
+  })
+
+  it('returns BAD_REQUEST when initials length exceeds 4 on update', async () => {
+    const db = createTestDb()
+    const caller = makeCaller(db)
+    const projectId = await createProject(db)
+
+    const created = await caller.create({ projectId, name: 'Member', availabilityRate: 1.0 })
+
+    await expect(
+      caller.update({ id: created.id, initials: 'TOOLONG' }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST' })
+  })
+
+  it('preserves existing role / initials when those fields are omitted on update', async () => {
+    const db = createTestDb()
+    const caller = makeCaller(db)
+    const projectId = await createProject(db)
+
+    const created = await caller.create({
+      projectId,
+      name: 'Preserve',
+      availabilityRate: 1.0,
+      role: 'Designer',
+      initials: 'PR',
+    })
+
+    // role / initials を渡さずに別のフィールドだけ更新
+    const updated = await caller.update({ id: created.id, name: 'Preserve Renamed' })
+
+    expect(updated.name).toBe('Preserve Renamed')
+    expect(updated.role).toBe('Designer')
+    expect(updated.initials).toBe('PR')
+  })
+})

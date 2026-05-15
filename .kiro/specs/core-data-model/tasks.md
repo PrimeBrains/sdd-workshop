@@ -95,7 +95,7 @@
   - _Boundary: api/projects.test.ts_
   - _Depends: 4.1_
 
-- [ ] 4.4 (P) Members tRPC ルーターのテストに `role` / `initials` の入出力検証を追加する
+- [x] 4.4 (P) Members tRPC ルーターのテストに `role` / `initials` の入出力検証を追加する
   - `evm-studio/server/src/api/members.test.ts` に、`initials='12345'` で Zod バリデーションエラーが返ること、`initials` 未指定で create を呼ぶと自動生成された値が保存されること、`role` の任意文字列が保存・取得できることを確認するケースを追加する
   - 観測可能な完了条件: `npm test -- members` が拡張ケースを含めて全件パスする
   - _Requirements: 2.3, 2.4, 2.5, 2.6, 2.7, 6.2, 6.4, 8.1_
