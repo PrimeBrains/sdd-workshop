@@ -1,12 +1,14 @@
 /**
- * Task 3.1 (App.tsx), 4.3: QueryClientProvider + tRPC プロバイダー + ルート追加
- * Requirements: 5.1
+ * Task 3.1 (App.tsx), 4.5: QueryClientProvider + tRPC プロバイダー + ルート定義
+ * Requirements: 1.5, 5.1, 16.2
+ *
+ * `/progress` ルートは Phase 4.5 で削除済み。進捗入力は GanttFullscreen 内に
+ * ホストされる ProgressInputPanel から行う。
  */
 
 import { httpBatchLink } from '@trpc/client'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { trpc, queryClient } from './lib/trpc'
-import ProgressInputPage from './pages/ProgressInputPage'
 import WorkbenchPage from './pages/WorkbenchPage'
 
 const trpcClient = trpc.createClient({
@@ -18,14 +20,7 @@ const trpcClient = trpc.createClient({
 })
 
 function Router() {
-  const path = window.location.pathname
-
-  // `/progress` は次フェーズ (Phase 4.5) で削除予定。それまでは互換のため残す。
-  if (path === '/progress') {
-    return <ProgressInputPage />
-  }
-
-  // ルート `/` は WorkbenchPage を表示する (要件 1.1, 1.5, 16.1, 16.2)
+  // 単一画面: 常に WorkbenchPage を表示する (要件 1.1, 1.5, 16.1, 16.2)
   return <WorkbenchPage />
 }
 

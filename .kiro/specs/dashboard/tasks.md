@@ -161,7 +161,7 @@
 ## Phase 4: モーダル統合（GanttFullscreen + ChartFullscreen + ProgressInputPanel ホスト）
 
 - [ ] 4. モーダル群を統合
-- [ ] 4.1 `components/charts/ChartFullscreen.tsx` を追加 (P)
+- [x] 4.1 `components/charts/ChartFullscreen.tsx` を追加 (P)
   - `ReactDOM.createPortal` で `document.body` 直下にマウント
   - props: `type` (`'trend' | 'fever'`), `project`, `onClose`
   - `type` に応じて `SpiTrendChart` または `FeverChart` を可変サイズで描画
@@ -171,7 +171,7 @@
   - _Boundary: components/charts/ChartFullscreen.tsx_
   - _Depends: 2.6_
 
-- [ ] 4.2 `components/gantt/GanttFullscreen.tsx` を追加
+- [x] 4.2 `components/gantt/GanttFullscreen.tsx` を追加
   - `ReactDOM.createPortal` で body 直下マウント
   - props: `project`, `tasks`, `assignees`, `selectedTaskId`, `filter`, `baseDate`, `onSelectTask`, `onFilterChange`, `onClose`
   - ヘッダー: ブランド + 基準日 + 担当者 `<select>` + 検索 + フィルターチップ + 閉じるボタン
@@ -185,7 +185,7 @@
   - _Boundary: components/gantt/GanttFullscreen.tsx_
   - _Depends: 2.5_
 
-- [ ] 4.2a `lib/task-tree.ts` に `deriveAncestors` ユーティリティを追加 (P)
+- [x] 4.2a `lib/task-tree.ts` に `deriveAncestors` ユーティリティを追加 (P)
   - `client/src/lib/task-tree.ts` を新規作成
   - シグネチャ: `deriveAncestors(task: TaskEvm, allTasks: ReadonlyArray<TaskEvm>): Array<{ id: number; name: string }>`
   - アルゴリズム: `task.code` を `'.'` で分割し、自身を除く各プレフィックス（例 `'1.2.3'` → `['1', '1.2']`）について `allTasks` から `code` が完全一致するタスクを探し、`{ id, name }` をルート → 親の順に積む
@@ -195,7 +195,7 @@
   - _Boundary: lib/task-tree.ts_
   - _Depends: なし（純関数）_
 
-- [ ] 4.3 `GanttFullscreen` 内に `ProgressInputPanel` をホスト
+- [x] 4.3 `GanttFullscreen` 内に `ProgressInputPanel` をホスト
   - `progressTask !== null` のとき右側 440px に `ProgressInputPanel`（`progress-tracking` 提供）をマウント
   - props マッピング: `task` を `ProgressInputTask` 形に変換（`dateOffsetToISO` を使って `plannedStart` / `plannedEnd` を ISO 化、`ancestors` は `lib/task-tree.ts` の `deriveAncestors(t, evm.tasks)` を `useMemo` でラップして算出）
   - `onSnapshotDateChange` で `snapshotDate` 更新、`onClose` で `progressTask=null`
@@ -206,7 +206,7 @@
   - _Boundary: components/gantt/GanttFullscreen.tsx_
   - _Depends: 4.2, 4.2a_
 
-- [ ] 4.4 `WorkbenchPage` から `GanttFullscreen` / `ChartFullscreen` をマウント
+- [x] 4.4 `WorkbenchPage` から `GanttFullscreen` / `ChartFullscreen` をマウント
   - `WorkbenchPage` 末尾で `ganttFull === true` のとき `<GanttFullscreen ... />`、`chartFull !== null` のとき `<ChartFullscreen type={chartFull} ... />` を条件付きレンダリング
   - 各モーダルへ必要な props を渡す
   - GanttChart / SpiTrendChart カード / FeverChart カードの「全画面で見る」ボタン押下で `setGanttFull(true)` / `setChartFull('trend' | 'fever')` を呼ぶ
@@ -215,7 +215,7 @@
   - _Boundary: pages/WorkbenchPage.tsx_
   - _Depends: 3.2, 4.1, 4.2, 4.3_
 
-- [ ] 4.5 `App.tsx` から `/progress` ルートを削除
+- [x] 4.5 `App.tsx` から `/progress` ルートを削除
   - `client/src/App.tsx` の `<Routes>` から `/progress` を削除
   - 旧 `/progress` URL は 404（または `/` リダイレクト）になる *(observable: ブラウザで `/progress` にアクセスすると React Router の NotFound か `/` に飛ぶ)*
   - _Requirements: 1.5, 16.2_

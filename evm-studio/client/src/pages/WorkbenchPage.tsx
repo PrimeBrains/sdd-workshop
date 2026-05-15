@@ -17,8 +17,10 @@ import { Inspector } from '@/components/shell/Inspector'
 import { SummaryStrip } from '@/components/summary/SummaryStrip'
 import { AlertStrip } from '@/components/alerts/AlertStrip'
 import { GanttChart } from '@/components/gantt/GanttChart'
+import { GanttFullscreen, type GanttFullscreenFilter } from '@/components/gantt/GanttFullscreen'
 import { SpiTrendChart } from '@/components/charts/SpiTrendChart'
 import { FeverChart } from '@/components/charts/FeverChart'
+import { ChartFullscreen } from '@/components/charts/ChartFullscreen'
 import { Eyebrow } from '@/components/atoms/Eyebrow'
 import { Pill } from '@/components/atoms/Pill'
 import { Dot } from '@/components/atoms/Dot'
@@ -285,6 +287,23 @@ export default function WorkbenchPage() {
 
   const handleOpenChartFever = useCallback(() => {
     setChartFull('fever')
+  }, [])
+
+  const handleCloseGanttFull = useCallback(() => {
+    setGanttFull(false)
+  }, [])
+
+  const handleCloseChartFull = useCallback(() => {
+    setChartFull(null)
+  }, [])
+
+  const handleGanttFullSelectTask = useCallback((taskId: number) => {
+    setSelectedTaskId(taskId)
+    setInspectorMode('task')
+  }, [])
+
+  const handleGanttFullFilterChange = useCallback((next: GanttFullscreenFilter) => {
+    setFilter(next)
   }, [])
 
   // ── レンダリング ─────────────────────────────────────────────────────────
@@ -695,13 +714,30 @@ export default function WorkbenchPage() {
         )}
       </div>
 
-      {/*
-        Phase 4 で実装するモーダル類はここにマウントされる:
-          {ganttFull && <GanttFullscreen ... />}
-          {chartFull && <ChartFullscreen ... />}
-        本フェーズでは状態スロット (ganttFull / chartFull / filter) と
-        その setter のみを準備しており、モーダル本体は次フェーズで実装する。
-      */}
+      {/* Modals (Phase 4) */}
+      {ganttFull && data && activeProject && (
+        <GanttFullscreen
+          project={activeProject}
+          tasks={tasks}
+          assignees={assignees}
+          gantt={data.gantt}
+          selectedTaskId={selectedTaskId}
+          filter={filter}
+          baseDate={baseDate}
+          onSelectTask={handleGanttFullSelectTask}
+          onFilterChange={handleGanttFullFilterChange}
+          onClose={handleCloseGanttFull}
+        />
+      )}
+      {chartFull !== null && data && activeProject && (
+        <ChartFullscreen
+          type={chartFull}
+          project={activeProject}
+          spiTrend={data.spiTrend}
+          fever={data.fever}
+          onClose={handleCloseChartFull}
+        />
+      )}
     </div>
   )
 }
