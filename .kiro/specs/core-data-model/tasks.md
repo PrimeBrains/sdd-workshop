@@ -10,7 +10,7 @@
   - _Requirements: 1.1, 1.2, 2.1, 2.2_
   - _Boundary: db/schema.ts_
 
-- [ ] 1.2 マイグレーション `0001_add_status_code_role_initials.sql` を生成し、既存データを保持する形式に手動調整する
+- [x] 1.2 マイグレーション `0001_add_status_code_role_initials.sql` を生成し、既存データを保持する形式に手動調整する
   - `drizzle-kit generate` で差分 SQL を出力し、`evm-studio/server/src/db/migrations/0001_add_status_code_role_initials.sql` として保存する
   - SQL が `ALTER TABLE ADD COLUMN` 形式になっているかを確認し、テーブル再作成方式が選ばれていたら 4 行の `ALTER TABLE ADD COLUMN` 文に書き換える
   - drizzle-kit のメタディレクトリ (`migrations/meta`) を更新内容に合わせて整合させる
