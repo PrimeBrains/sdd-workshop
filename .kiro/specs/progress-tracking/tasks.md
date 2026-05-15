@@ -251,7 +251,7 @@
   - _Boundary: ProgressInputPanel_
 
 - [ ] 6. 統合確認
-- [ ] 6.1 progress-tracking スペックの全体動作を検証する
+- [x] 6.1 progress-tracking スペックの全体動作を検証する
   - `npm test`（サーバー単体テスト）を実行し、`progress.test.ts` / `planned-comparison.test.ts` / `ac-unit.test.ts` の全テストが PASS することを確認する
   - `npm start` でサーバー + クライアントを起動し、`evm-studio/server/seeds/seed.ts` 等で投入したテストプロジェクトに対し、ブラウザの DevTools で `trpc.progress.record.useMutation` を直接呼び出して正常応答を確認する（または既存ページから一時的に `ProgressInputPanel` をマウントする検証コードで動作確認）
   - 注: 本スペックでは `GanttFullscreen` への正式マウントは行わないため、本タスクの動作確認は手動で限定的に行う。完全な E2E は `dashboard` スペックの GanttFullscreen フローテストで担保する
