@@ -53,7 +53,7 @@
   - _Depends: 2.1_
 
 - [ ] 3. 担当者別集計: `evm-assignees.ts`
-- [ ] 3.1 (P) `aggregateAssignees` を実装する
+- [x] 3.1 (P) `aggregateAssignees` を実装する
   - `server/src/services/evm-assignees.ts` に `aggregateAssignees({ baseDate, members, tasks, snapshots, holidays })` を実装する
   - メンバーごとに担当タスクをグループ化し、`bac` / `ev` / `pv`（`calculateTaskPv` を再利用）/ `ac` を合計する
   - `pv > 0 && ac > 0` のとき `spi = ev / pv`、`cpi = ev / ac`、それ以外は対応値を `null` にする
