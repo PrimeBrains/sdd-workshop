@@ -97,11 +97,11 @@ describe('projects.create — status / code validation (Task 4.3, Req 1.3, 1.4, 
     const caller = makeCaller(createTestDb())
 
     await expect(
-      // @ts-expect-error: intentional invalid status to verify Zod rejection
       caller.create({
         name:      'Bad Status',
         startDate: '2026-01-01',
         endDate:   '2026-12-31',
+        // @ts-expect-error: intentional invalid status to verify Zod rejection
         status:    'invalid',
       }),
     ).rejects.toMatchObject({ code: 'BAD_REQUEST' })
