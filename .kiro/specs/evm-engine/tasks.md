@@ -148,7 +148,7 @@
   - _Boundary: EvmRouter_
   - _Depends: 1.1_
 
-- [ ] 8.2 `evm.calculate` を集約レスポンス対応に書き換える
+- [x] 8.2 `evm.calculate` を集約レスポンス対応に書き換える
   - tRPC `evm.calculate` の `query` ハンドラ内で 1 度に DB I/O を実行する: project / tasks / task_dependencies / members / holidays / progress_snapshots（範囲: `project.startDate ～ baseDate`）
   - `progress-tracking` の `progress.getByDateRange({ projectId, startDate: project.startDate, endDate: baseDate })` 範囲取得 API を利用し、戻り値 `Array<{taskId, snapshotDate, progressPct, acDays}>` を取得する（未実装の場合は Drizzle で `between(snapshotDate, project.startDate, baseDate)` を直接実行）
   - 取得結果を `evm-engine` / `evm-assignees` / `evm-trend` / `evm-fever` / `evm-tasks` / `evm-gantt` に渡し、`EvmCalculateOutput` を組み立てる

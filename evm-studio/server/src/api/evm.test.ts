@@ -1,12 +1,14 @@
 /**
  * Task 6.1: evm.calculate tRPC router unit tests (Vitest)
- * Requirements: dashboard feature
+ * Task 8.2: 集約レスポンス対応への書き換えに合わせて出力 shape を更新
+ *
+ * Requirements: 9.1-9.4, 9.6, 11.5, 13.x
  *
  * Test cases:
  * 1. 正常系（全フィールド返却）
  * 2. プロジェクト未存在 → NOT_FOUND
  * 3. baseDate フォーマット不正 → BAD_REQUEST
- * 4. バッファなし → feverChart null
+ * 4. バッファなし → fever null
  * 5. SPI < 0.8 → critical アラートが生成される
  * 6. 0.8 ≤ SPI < 0.9 → warning アラートが生成される
  */
@@ -121,21 +123,25 @@ describe('evm.calculate — 正常系（全フィールド返却）', () => {
       baseDate:  '2020-06-01',
     })
 
+    // 新 shape: summary / prevDay / assignees / alerts / spiTrend / fever / tasks / gantt
     expect(result).toHaveProperty('summary')
+    expect(result).toHaveProperty('prevDay')
     expect(result).toHaveProperty('tasks')
     expect(result).toHaveProperty('assignees')
     expect(result).toHaveProperty('alerts')
-    expect(result).toHaveProperty('feverChart')
+    expect(result).toHaveProperty('fever')
     expect(result).toHaveProperty('spiTrend')
     expect(result).toHaveProperty('gantt')
 
-    // summary にも必要なフィールドが存在する
+    // summary にも必要なフィールドが存在する（spiDelta / cpiDelta を含む）
     expect(result.summary).toHaveProperty('bac')
     expect(result.summary).toHaveProperty('pv')
     expect(result.summary).toHaveProperty('ev')
     expect(result.summary).toHaveProperty('ac')
     expect(result.summary).toHaveProperty('spi')
     expect(result.summary).toHaveProperty('cpi')
+    expect(result.summary).toHaveProperty('spiDelta')
+    expect(result.summary).toHaveProperty('cpiDelta')
   })
 })
 
@@ -201,10 +207,10 @@ describe('evm.calculate — baseDate フォーマット不正', () => {
   })
 })
 
-// ── Test 4: バッファなし → feverChart null ─────────────────────────────────────
+// ── Test 4: バッファなし → fever null ─────────────────────────────────────────
 
-describe('evm.calculate — バッファなし → feverChart null', () => {
-  it('is_buffer=true のタスクが存在しないとき feverChart が null になる', async () => {
+describe('evm.calculate — バッファなし → fever null', () => {
+  it('is_buffer=true のタスクが存在しないとき fever が null になる', async () => {
     const db     = createTestDb()
     const caller = makeCaller(db)
 
@@ -221,7 +227,7 @@ describe('evm.calculate — バッファなし → feverChart null', () => {
       baseDate:  '2020-06-01',
     })
 
-    expect(result.feverChart).toBeNull()
+    expect(result.fever).toBeNull()
   })
 })
 
