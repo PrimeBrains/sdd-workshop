@@ -1,9 +1,9 @@
 {
   "feature_name": "core-data-model",
   "created_at": "2026-05-12T00:00:00.000Z",
-  "updated_at": "2026-05-14T21:45:00.000Z",
+  "updated_at": "2026-05-15T00:00:00.000Z",
   "language": "ja",
-  "phase": "implemented",
+  "phase": "tasks-generated",
   "approvals": {
     "requirements": {
       "generated": true,

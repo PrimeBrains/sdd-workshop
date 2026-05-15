@@ -1,203 +1,210 @@
-# 要件定義書: evm-engine
+# 要件定義書
+
+## Introduction
 
-## はじめに
+EVM Studio の計算コアとして、純粋関数群（`server/src/services/evm-engine.ts`・`server/src/services/evm-assignees.ts` 等）と統合 tRPC エンドポイント `evm.calculate` を提供する。dashboard の `WorkbenchPage`（モックアップ `mockup/variation-a.jsx`）が「サマリーストリップ（前日比トグル）／アラートストリップ／ガント／SPI トレンド／フィーバーチャート／Inspector（Task・Member・Team）」を一括で描画できるように、単一基準日と前日（または任意の参照日）の EVM データを 1 レスポンスで返却する。
+
+既存実装は基本 EVM メトリクス（PV/EV/AC/SPI/CPI/EAC）と一部チャートデータを返すが、モックアップ `mockup/projects-data.jsx` の `PROJECT_DATA` が必要とする `summary` / `prevDay` / `assignees` / `alerts` / `spiTrend` / `fever` / `tasks` / `gantt` を**一括返却できていない**。本スペックはこのギャップを解消し、`evm-engine.ts` を純粋関数のまま保ちつつ、DB I/O 担当の上位レイヤー（tRPC ルーター）からの呼び出しに耐える集約 API に再定義する。
+
+## Boundary Context
+
+- **In scope**:
+  - PV / EV / AC / BAC / SPI / CPI / EAC / VAC / ETC / TCPI の決定論的計算（純粋関数）
+  - 前日（または任意 `prevDate`）スナップショットから算出する `prevDay`（summary / assignees / tasks）と差分メトリクス（`spiDelta` / `cpiDelta`）
+  - 担当者別 EVM 集計（`assignees`: bac / ev / pv / ac / spi / cpi / status）
+  - SPI 閾値（< 0.8 critical / < 0.9 warning）ベースのアラート判定
+  - SPI/CPI 時系列（`spiTrend`）の集計
+  - CCPM フィーバーチャートデータ（`fever`: bufferConsumption / criticalChainCompletion / zone / trail）
+  - WBS ツリーを含むタスク別 EVM データ（`tasks`: code / name / level / progress / spi / bac / assignee / leaf / buffer）
+  - ガント表示用の日付軸メタデータ（`gantt`: startISO / endISO / totalDays / baseDay / months）
+  - tRPC `evm.calculate(projectId, baseDate, options?)` の入力スキーマと出力型の確定
+  - Vitest 4 による境界値・エラーケースの単体テスト
+- **Out of scope**:
+  - SQLite スキーマ・Drizzle テーブル定義（→ `core-data-model`）
+  - `ProgressSnapshot` の書き込み・スナップショット日付の解決 UI（→ `progress-tracking`）
+  - WBS YAML インポートロジック（→ `core-data-model`）
+  - ダッシュボード UI コンポーネント・Inspector・GanttChart・SVG 描画（→ `dashboard`）
+  - 認証・認可・マルチユーザー対応（ローカル前提のためプロダクト方針で対象外）
+- **Adjacent expectations**:
+  - `core-data-model` は `projects` / `tasks` / `task_dependencies` / `members` / `holidays` のスキーマと CRUD を提供し、`Member.availabilityRate`、`Task.estimateDays / plannedStart / plannedEnd / parentId / isBuffer / isLeaf / assigneeId`、`Holiday.date` を本スペックが読み取り専用で参照する前提
+  - `progress-tracking` は `ProgressSnapshot(taskId, snapshotDate, progressPct, acDays)` を当日分・前日分の双方で取得可能にする前提。`evm.calculate` 呼び出し時に必要な範囲スナップショットを 1 クエリで取得できるレンジ API を提供する
+  - `dashboard` は `evm.calculate` のレスポンスをそのまま消費し、モックアップ `mockup/projects-data.jsx` と同じ `PROJECT_DATA` 構造を期待する
+  - `wbs-*` スキルは EVM 計算に直接関与しないが、生成された `task.estimate_days` / `planned_start` / `planned_end` / `depends_on` の品質が計算結果の妥当性に影響する
 
-EVM Studio は WBS YAML を取り込み、プロジェクトの進捗を EVM（Earned Value Management）メトリクスで管理するローカルファースト Web アプリである。現状、core-data-model によりデータは SQLite に格納されているが、EVM 計算を担うサービス層が存在しない。そのため、計算の境界条件（PV=0、稼働率考慮、休日除外等）でバグが発生するリスクを抱えたまま実装が進む状況になっている。
+## Requirements
 
-本フィーチャーは、プロジェクト管理者が基準日時点の PV/EV/AC/SPI/CPI/EAC/VAC/ETC/TCPI を正確に把握し、クリティカルパスと CCPM バッファ消費率を可視化できるよう、副作用なしの純粋関数群として EVM 計算エンジンを提供する。
+### Requirement 1: コア EVM メトリクスの集約計算
 
-## 境界コンテキスト
+**Objective:** プロジェクトマネージャー として、基準日時点のプロジェクト全体の EVM メトリクスを 1 回の API 呼び出しで取得したい、そうすることでサマリーストリップに必要な数値をクライアント側で再計算する必要がない。
 
-- **スコープ内**: PV/EV/AC/SPI/CPI/EAC/VAC/ETC/TCPI 計算、日次 PV 配賦（稼働率×休日考慮）、クリティカルパス特定、CCPM バッファ消費率・フィーバーチャートゾーン判定、アラート閾値評価、単体テスト
-- **スコープ外**: DB アクセス・データ永続化（progress-tracking が担う）、tRPC ルーター・API エンドポイント（dashboard/reporting が担う）、グラフ描画・UI 表示（dashboard が担う）、朝報フォーマット（reporting が担う）
-- **隣接期待値**: core-data-model が提供する `Task`・`Member`・`Holiday`・`ProgressSnapshot` 型を入力として受け取る。dashboard と reporting は本エンジンの出力型（`EvmMetrics`・`CriticalPath`・`FeverChartData`）に依存するため、型定義の変更は両スペックへの再確認が必要となる
+#### Acceptance Criteria
 
----
+1. When `evm.calculate(projectId, baseDate)` が呼ばれる、 the EVM Engine shall `summary.bac` をプロジェクト配下の非バッファタスクの `estimateDays` 合計として算出する。
+2. When `evm.calculate(projectId, baseDate)` が呼ばれる、 the EVM Engine shall `summary.pv` を WBS-CMN-013 の fill-to-capacity モデル（`min(N * availabilityRate, estimateDays)`、`N` は `plannedStart` から `baseDate` までの稼働日数）で算出する。
+3. When `evm.calculate(projectId, baseDate)` が呼ばれる、 the EVM Engine shall `summary.ev` を各タスクの `estimateDays * (progressPct / 100)` の合計として算出する（バッファタスクを除外する）。
+4. When `evm.calculate(projectId, baseDate)` が呼ばれる、 the EVM Engine shall `summary.ac` を当該基準日以前の `ProgressSnapshot.acDays` の合計として算出する。
+5. When `summary.pv` が `0` より大きい、 the EVM Engine shall `summary.spi` を `ev / pv` として算出する。
+6. If `summary.pv` が `0` である、 the EVM Engine shall `summary.spi` を `null` として返却する。
+7. When `summary.ac` が `0` より大きい、 the EVM Engine shall `summary.cpi` を `ev / ac` として算出する。
+8. If `summary.ac` が `0` である、 the EVM Engine shall `summary.cpi` を `null` として返却する。
+9. When `summary.spi` が `null` でなくかつ `0` より大きい、 the EVM Engine shall `summary.eac` を `bac / spi` として算出する。
+10. The EVM Engine shall `summary.vac` を `bac - eac`、 `summary.etc` を `eac - ac`、 `summary.tcpi` を `(bac - ev) / (bac - ac)` として算出する（分母 `0` のときは対応する値を `null` とする）。
 
-## 要件
+### Requirement 2: 前日比 (prevDay) 計算
 
-### 要件 1: PV 計算（fill-to-capacity モデル）
+**Objective:** プロジェクトマネージャー として、基準日と前営業日（または任意の参照日）の差分を一括で取得したい、そうすることでサマリーストリップの「前日比トグル」と Inspector の Team モードで差分を即時表示できる。
 
-**目的**: プロジェクト管理者として、WBS-CMN-013 の fill-to-capacity モデルに基づいた正確な PV（Planned Value）を基準日時点で取得したい。これにより、按分方式では生じる過少評価を回避し、実態に即したスケジュール評価が可能になる。
+#### Acceptance Criteria
 
-#### 受け入れ基準
+1. When `evm.calculate(projectId, baseDate)` が呼ばれる、 the EVM Engine shall `baseDate` の直前の営業日（土日と Holiday を除外した直近の日付）を `prevDate` として決定する。
+2. When `options.prevDate` が呼び出しで明示的に渡される、 the EVM Engine shall その日付を `prevDate` として優先採用する（"yesterday" 限定ではなく任意の `baseDate - n` を許容する）。
+3. The EVM Engine shall `prevDay.summary` を `prevDate` 時点で再計算した `{ pv, ev, ac, spi, cpi, eac, vac, etc, tcpi }` として返却する。
+4. The EVM Engine shall `prevDay.assignees` を `prevDate` 時点で担当者別に集計した `{ id, ev, pv, ac, spi, cpi }` 配列として返却する。
+5. The EVM Engine shall `prevDay.tasks` を `prevDate` 時点で差分のあるタスクのみ `{ id, progress, spi }` として返却する。
+6. The EVM Engine shall `summary.spiDelta` を `summary.spi - prevDay.summary.spi`、 `summary.cpiDelta` を `summary.cpi - prevDay.summary.cpi` として算出する（いずれかが `null` の場合は対応する Delta を `0` とする）。
+7. If `prevDate` 時点のスナップショットが存在しない、 the EVM Engine shall `prevDay` を `null` とし `spiDelta` / `cpiDelta` を `0` として返却する。
+8. While `prevDate` が `Project.startDate` 以前である、 the EVM Engine shall `prevDay.summary.pv` を `0` として扱い、 `prevDay.summary.spi` を `null` として返却する。
 
-1. When the base date is earlier than a task's `planned_start`, the EVM engine shall return `0` as the PV for that task.
-   *基準日がタスクの `planned_start` より前である場合、EVM エンジンはそのタスクの PV として `0` を返す。*
+### Requirement 3: 担当者別 EVM 集計 (assignees)
 
-2. When the base date is on or after a task's `planned_end`, the EVM engine shall return `estimate_days` (the task BAC) as the PV for that task.
-   *基準日がタスクの `planned_end` 以降である場合、EVM エンジンはそのタスクの PV として `estimate_days`（タスク BAC）を返す。*
+**Objective:** リーダー として、担当者ごとの EVM 状況と前日比を 1 リクエストで取得したい、そうすることで Inspector の Member / Team モードで担当者一覧を即時表示できる。
 
-3. When the base date is on or after `planned_start` and before `planned_end`, the EVM engine shall calculate the number of working days N from `planned_start` to the base date (excluding weekends and holidays) and return `min(N × availability_rate, estimate_days)` as the task PV.
-   *基準日が `planned_start` 以上かつ `planned_end` 未満である場合、EVM エンジンは `planned_start` から基準日までの稼働日数（土日および祝日を除外）N を算出し、`min(N × availability_rate, estimate_days)` をタスク PV として返す。*
+#### Acceptance Criteria
 
-4. When a holiday list is provided, the EVM engine shall exclude those dates from the working-day count.
-   *祝日リストが与えられる場合、EVM エンジンは当該日付を稼働日数の計算から除外する。*
+1. The EVM Engine shall `assignees` を当該プロジェクトに紐づく `Member` 全件分の `{ id, name, bac, ev, pv, ac, spi, cpi, status }` 配列として返却する。
+2. When `assignees[].bac` を算出する、 the EVM Engine shall 当該メンバーが `assigneeId` を持つ非バッファタスクの `estimateDays` 合計とする。
+3. When `assignees[].pv` を算出する、 the EVM Engine shall そのメンバーの担当タスクの `calculateTaskPv` 合計とする（メンバーの `availabilityRate` を採用する）。
+4. When `assignees[].ev` を算出する、 the EVM Engine shall そのメンバーの担当タスクの `estimateDays * progressPct / 100` の合計とする。
+5. When `assignees[].ac` を算出する、 the EVM Engine shall そのメンバーの担当タスクに紐づく `ProgressSnapshot.acDays` 合計とする。
+6. When `assignees[].pv > 0` かつ `assignees[].ac > 0`、 the EVM Engine shall `spi = ev / pv`、 `cpi = ev / ac` を算出する。
+7. If `assignees[].pv === 0` または `assignees[].ac === 0`、 the EVM Engine shall 対応する `spi` / `cpi` を `null` として返却する。
+8. When `assignees[].spi !== null`、 the EVM Engine shall `status` を SPI 閾値（`< 0.8` → `'critical'`、 `< 0.9` → `'warning'`、 `>= 0.9` → `'normal'`）で決定する。
+9. If `assignees[].spi === null`、 the EVM Engine shall `status` を `'normal'` として返却する。
+10. The EVM Engine shall N+1 クエリを避けるため、メンバー・タスク・スナップショットを 1 回の範囲取得で集約し、担当者集計を純粋関数で行う。
 
-5. When a task has `is_buffer = true`, the EVM engine shall exclude that task from the cumulative PV calculation.
-   *`is_buffer = true` のタスクが含まれる場合、EVM エンジンはそのタスクを PV 累積の計算から除外する。*
+### Requirement 4: アラート判定 (alerts)
 
-6. The EVM engine shall return the project-wide cumulative PV as the sum of the individual PV values of all tasks.
-   *EVM エンジンはプロジェクト全体の累積 PV を全タスクの個別 PV の合計として返す。*
+**Objective:** プロジェクトマネージャー として、SPI が閾値を下回るタスクをアラートとして受け取りたい、そうすることでアラートストリップで遅延タスクを即時把握できる。
 
-### 要件 2: EV・AC 計算
+#### Acceptance Criteria
 
-**目的**: プロジェクト管理者として、基準日時点の EV（Earned Value）および AC（Actual Cost）を取得したい。これにより、実際の進捗とコスト投入量を定量的に把握できる。
+1. The EVM Engine shall `alerts` を `{ taskId, taskName, assigneeName, spi, level }` 配列として返却する。
+2. When 葉タスク（`isLeaf === true`）かつ `task.spi !== null`、 the EVM Engine shall `task.spi < 0.8` の場合 `level: 'critical'` のアラートを追加する。
+3. When 葉タスクかつ `task.spi !== null`、 the EVM Engine shall `0.8 <= task.spi < 0.9` の場合 `level: 'warning'` のアラートを追加する。
+4. If `task.spi >= 0.9` または `task.spi === null`、 the EVM Engine shall そのタスクに対するアラートを追加しない。
+5. The EVM Engine shall アラートが 0 件の場合に空配列 `[]` を返却する（クライアント側が "HEALTHY" バナーを判断できるようにする）。
+6. The EVM Engine shall アラートを `spi` 昇順（重大度高い順）でソートして返却する。
 
-#### 受け入れ基準
+### Requirement 5: SPI/CPI 時系列 (spiTrend)
 
-1. When a task's `progress_pct` is provided, the EVM engine shall return `estimate_days × (progress_pct / 100)` as the EV for that task.
-   *タスクの `progress_pct` が与えられる場合、EVM エンジンは `estimate_days × (progress_pct / 100)` をそのタスクの EV として返す。*
+**Objective:** プロジェクトマネージャー として、過去 N 日分の SPI/CPI 推移を取得したい、そうすることで SpiTrendChart に折れ線として描画できる。
 
-2. The EVM engine shall return the project-wide cumulative EV as the sum of the individual EV values of all tasks.
-   *EVM エンジンはプロジェクト全体の累積 EV を全タスクの個別 EV の合計として返す。*
+#### Acceptance Criteria
 
-3. When a task has `is_buffer = true`, the EVM engine shall exclude that task from the cumulative EV calculation.
-   *`is_buffer = true` のタスクが含まれる場合、EVM エンジンはそのタスクを EV 累積の計算から除外する。*
+1. The EVM Engine shall `spiTrend` を `{ d: 'MM-DD', spi: number, cpi: number }` 配列として返却する。
+2. When `options.trendWindowDays` が指定される、 the EVM Engine shall `baseDate - trendWindowDays + 1` から `baseDate` までの範囲を対象とする。
+3. If `options.trendWindowDays` が未指定、 the EVM Engine shall プロジェクト開始日から `baseDate` までの全範囲を対象とする。
+4. The EVM Engine shall 入力されたスナップショット日付一覧を昇順に並べ、各スナップショット日付時点の SPI/CPI を再計算してポイントを生成する。
+5. When スナップショット日付のうち SPI/CPI が `null` の点、 the EVM Engine shall 当該点を `spi: null` / `cpi: null` のまま含める（クライアント側で線分を欠損として扱えるようにする）。
+6. The EVM Engine shall ポイント数が 0 件の場合に `spiTrend: []` を返却する。
 
-4. The EVM engine shall return the sum of `ProgressSnapshot.ac_days` as the project-wide AC.
-   *EVM エンジンは `ProgressSnapshot.ac_days` の合計値をプロジェクト全体の AC として返す。*
+### Requirement 6: CCPM フィーバーチャート (fever)
 
-### 要件 3: EVM 派生メトリクス計算
+**Objective:** プロジェクトマネージャー として、クリティカルチェーンのバッファ消費とプロジェクト完了率の関係を 1 セットで取得したい、そうすることでフィーバーチャートのゾーンと推移トレイルを描画できる。
 
-**目的**: プロジェクト管理者として、SPI/CPI/EAC/VAC/ETC/TCPI の各派生メトリクスを取得したい。これにより、スケジュール・コストの健全性をリアルタイムに評価できる。
+#### Acceptance Criteria
 
-#### 受け入れ基準
+1. When プロジェクトがバッファタスク（`isBuffer === true`）を持つ、 the EVM Engine shall `fever.bufferConsumption` を「クリティカルチェーン累積遅延日数 / バッファ総日数」として算出する。
+2. The EVM Engine shall `fever.criticalChainCompletion` を「クリティカルチェーン上の完了 EV / クリティカルチェーン BAC」として算出する。
+3. The EVM Engine shall `fever.zone` を以下のルールで判定する: `bufferConsumption < criticalChainCompletion * 0.67` → `'GREEN'`、 `< criticalChainCompletion * 1.0` → `'YELLOW'`、 それ以上 → `'RED'`。
+4. The EVM Engine shall `fever.trail` を過去 N スナップショット時点での `{ x: criticalChainCompletion, y: bufferConsumption }` 配列として返却する（時系列順）。
+5. If プロジェクトがバッファタスクを持たない、 the EVM Engine shall `fever` を `null` として返却する。
+6. If `バッファ総日数 === 0` または `クリティカルチェーン BAC === 0`、 the EVM Engine shall ゼロ除算を回避するため `bufferConsumption` / `criticalChainCompletion` を `0` として扱う。
 
-1. When PV is greater than 0, the EVM engine shall return `EV / PV` as SPI.
-   *PV が 0 より大きい場合、EVM エンジンは `EV / PV` を SPI として返す。*
+### Requirement 7: タスク別 EVM データ (tasks)
 
-2. When PV is 0, the EVM engine shall return `null` as SPI to indicate that the value cannot be calculated.
-   *PV が 0 である場合、EVM エンジンは SPI として `null` を返す（算出不能を示す）。*
+**Objective:** プロジェクトマネージャー として、WBS ツリーを保ったままタスク別の EVM 数値を取得したい、そうすることでガントとガントフルスクリーン両方で行ごとの進捗・SPI を描画できる。
 
-3. When AC is greater than 0, the EVM engine shall return `EV / AC` as CPI.
-   *AC が 0 より大きい場合、EVM エンジンは `EV / AC` を CPI として返す。*
+#### Acceptance Criteria
 
-4. When AC is 0, the EVM engine shall return `null` as CPI to indicate that the value cannot be calculated.
-   *AC が 0 である場合、EVM エンジンは CPI として `null` を返す（算出不能を示す）。*
+1. The EVM Engine shall `tasks` を `{ id, code, name, level, start, end, progress, spi, assignee, leaf, buffer, bac }` 配列として返却する。
+2. The EVM Engine shall `start` / `end` をプロジェクト開始日（`startISO`）からの相対日数（整数）として返却する。
+3. When タスクが `isLeaf === true`、 the EVM Engine shall `leaf: true` を、 `isBuffer === true` の場合は `buffer: true` を返却する。
+4. When タスクが葉タスクかつ進捗スナップショットが存在する、 the EVM Engine shall `progress` を最新スナップショットの `progressPct`、 `spi` を `ev / pv`（`pv > 0` 時のみ、それ以外は `null`）として返却する。
+5. When タスクが葉タスクではない（親タスク）、 the EVM Engine shall `progress` を子葉タスクの BAC 加重平均、 `spi` を子葉タスクの `ev` 合計 / `pv` 合計として返却する。
+6. The EVM Engine shall `assignee` を当該タスクの `Member.name`（バッファや未割当の場合は `null`）として返却する。
+7. The EVM Engine shall タスクを WBS 表示順（`code` の階層辞書順）で安定ソートして返却する。
 
-5. When SPI is not null, the EVM engine shall return `BAC / SPI` as EAC (the CPI-based EAC of `AC + (BAC - EV)` is also available).
-   *SPI が null でない場合、EVM エンジンは `BAC / SPI` を EAC として返す（CPI ベース EAC は `AC + (BAC - EV)` でも算出可能）。*
+### Requirement 8: ガントメタデータ (gantt)
 
-6. The EVM engine shall return `BAC - EAC` as VAC.
-   *EVM エンジンは `BAC - EAC` を VAC として返す。*
+**Objective:** プロジェクトマネージャー として、ガント描画に必要な日付軸情報を 1 オブジェクトで取得したい、そうすることでクライアント側で開始日や月境界を再計算せずに描画できる。
 
-7. The EVM engine shall return `EAC - AC` as ETC.
-   *EVM エンジンは `EAC - AC` を ETC として返す。*
+#### Acceptance Criteria
 
-8. When `BAC - AC` is not 0, the EVM engine shall return `(BAC - EV) / (BAC - AC)` as TCPI.
-   *`BAC - AC` が 0 でない場合、EVM エンジンは `(BAC - EV) / (BAC - AC)` を TCPI として返す。*
+1. The EVM Engine shall `gantt.startISO` を `Project.startDate`、 `gantt.endISO` を `Project.endDate` として返却する。
+2. The EVM Engine shall `gantt.totalDays` を `startISO` から `endISO` までの暦日数（両端含む）として返却する。
+3. The EVM Engine shall `gantt.baseDay` を `startISO` から `baseDate` までの相対日数（整数）として返却する。
+4. The EVM Engine shall `gantt.months` を `{ d: number, l: string }` 配列とし、`startISO` から `endISO` の範囲に含まれる各月初の相対日数 `d` と日本語月ラベル `l`（例: `'5月'`）を返却する。
+5. If `baseDate < startISO`、 the EVM Engine shall `baseDay = 0` を返却する。
+6. If `baseDate > endISO`、 the EVM Engine shall `baseDay = totalDays - 1` を返却する。
 
-9. When `BAC - AC` is 0, the EVM engine shall return `null` as TCPI.
-   *`BAC - AC` が 0 である場合、EVM エンジンは TCPI として `null` を返す。*
+### Requirement 9: tRPC 入出力契約 (evm.calculate)
 
-### 要件 4: アラート評価
+**Objective:** クライアント開発者 として、`evm.calculate` の入出力型をエンドツーエンドで型安全に扱いたい、そうすることで dashboard 側で型補完を効かせながら実装できる。
 
-**目的**: プロジェクト管理者として、タスク・プロジェクトのスケジュール遅延状況をアラートレベル（critical/warning/normal/overdue）として取得したい。これにより、要対応タスクを即座に特定できる。
+#### Acceptance Criteria
 
-#### 受け入れ基準
+1. The EVM tRPC Router shall 入力スキーマを `{ projectId: number, baseDate: 'YYYY-MM-DD', options?: { prevDate?: 'YYYY-MM-DD', trendWindowDays?: number } }` の Zod スキーマとして公開する。
+2. When `projectId` が DB に存在しない、 the EVM tRPC Router shall `PROJ_NOT_FOUND` エラーコードを伴う `TRPCError(NOT_FOUND)` をスローする。
+3. If `baseDate` が `YYYY-MM-DD` 形式でない、 the EVM tRPC Router shall `EVM_INVALID_BASE_DATE` エラーコードを伴う `TRPCError(BAD_REQUEST)` をスローする。
+4. The EVM tRPC Router shall 出力を `{ summary, prevDay, assignees, alerts, spiTrend, fever, tasks, gantt }` の単一オブジェクトとして返却する（モックアップ `mockup/projects-data.jsx` の `PROJECT_DATA` 1 件分と同等の形状）。
+5. The EVM tRPC Router shall Drizzle 推論型 `Project` / `Task` / `Member` を経由した型安全な内部参照を維持し、レスポンス型を `EvmCalculateOutput` として再エクスポートする。
+6. While `evm.calculate` の処理中、 the EVM tRPC Router shall DB I/O を 1 度（プロジェクト・タスク・メンバー・休日・範囲スナップショットの取得）に集約し、純粋関数群を呼び出して計算する。
 
-1. When SPI is less than 0.8 or the delay in days exceeds 5, the EVM engine shall return `CRITICAL_DELAY` as the alert level.
-   *SPI が 0.8 未満または遅延日数が 5 日を超える場合、EVM エンジンはアラートレベルとして `CRITICAL_DELAY` を返す。*
+### Requirement 10: 純粋性と決定論性
 
-2. When SPI is at least 0.8 and less than 0.9, or the delay in days is between 1 and 5 inclusive, the EVM engine shall return `WARNING_DELAY` as the alert level.
-   *SPI が 0.8 以上 0.9 未満または遅延日数が 1 日以上 5 日以内である場合、EVM エンジンはアラートレベルとして `WARNING_DELAY` を返す。*
+**Objective:** EVM Studio 開発者 として、`services/evm-engine.ts` 配下の関数を副作用なし・決定論的に保ちたい、そうすることで単体テストと将来のリプレイ可能性を保証できる。
 
-3. When SPI is at least 0.9, the EVM engine shall return `NORMAL` as the alert level.
-   *SPI が 0.9 以上である場合、EVM エンジンはアラートレベルとして `NORMAL` を返す。*
+#### Acceptance Criteria
 
-4. When the base date exceeds `planned_end` and the task is incomplete (`progress_pct < 100`), the EVM engine shall return `OVERDUE` as the alert level.
-   *基準日が `planned_end` を超過し、かつタスクが未完了（`progress_pct < 100`）である場合、EVM エンジンはアラートレベルとして `OVERDUE` を返す。*
+1. The EVM Engine shall `services/evm-engine.ts` および `services/evm-assignees.ts`（または同等の集約モジュール）の関数を DB アクセスを持たない純粋関数として実装する。
+2. While 関数が同一入力で繰り返し呼ばれる、 the EVM Engine shall 常に同一出力を返す（決定論性）。
+3. The EVM Engine shall 入力データ（タスク・メンバー・スナップショット・休日）を引数として受け取り、グローバル変数・ファイル I/O・ネットワーク I/O を一切持たない。
+4. If 入力データに `any` 型が混入する、 the TypeScript Compiler shall コンパイルエラーで弾く（`tsc --strict` 通過必須）。
+5. The EVM Engine shall `Date` オブジェクトの可変メソッド呼び出し（`setDate`, `setMonth` 等）を入力配列の要素に対して行わず、新しい `Date` インスタンスを生成して計算する。
 
-5. When SPI is null (i.e., PV = 0), the EVM engine shall return `NA` as the alert level.
-   *SPI が null（PV = 0）である場合、EVM エンジンはアラートレベルとして `NA` を返す。*
+### Requirement 11: エラー処理とエラーコード
 
-### 要件 5: クリティカルパス算出
+**Objective:** EVM Studio 開発者 として、計算層のエラーをエラーコード経由で一意に識別したい、そうすることで tRPC 層・クライアント層で適切なエラーメッセージを表示できる。
 
-**目的**: プロジェクト管理者として、タスク依存グラフから最長経路（クリティカルパス）を特定したい。これにより、プロジェクトの遅延リスクが最も高いタスク連鎖を把握できる。
+#### Acceptance Criteria
 
-#### 受け入れ基準
+1. If `baseDate` が `YYYY-MM-DD` 形式でないまたは無効な日付、 the EVM Engine shall `AppError` を `ErrorCode.EVM_INVALID_BASE_DATE` でスローする。
+2. If `Member.availabilityRate` が `[0, 1]` の範囲外、 the EVM Engine shall `AppError` を `ErrorCode.EVM_INVALID_AVAILABILITY_RATE` でスローする。
+3. If クリティカルパス計算で循環依存が検出される、 the EVM Engine shall `AppError` を `ErrorCode.EVM_CIRCULAR_DEPENDENCY` でスローする。
+4. The Error Codes Module shall `errors/codes.ts` に `EVM_INVALID_BASE_DATE` / `EVM_INVALID_AVAILABILITY_RATE` / `EVM_CIRCULAR_DEPENDENCY` を定数として定義する。
+5. The EVM tRPC Router shall 内部の `AppError` を `TRPCError` に変換し、`code` プロパティをクライアントへ伝搬する。
 
-1. When a task list and dependency list are provided, the EVM engine shall identify the task with the latest `planned_end` as the terminal node.
-   *タスクリストと依存関係リストが与えられる場合、EVM エンジンは `planned_end` が最も遅いタスクを終端ノードとして特定する。*
+### Requirement 12: パフォーマンス
 
-2. When traversing `depends_on` in reverse from the terminal node, the EVM engine shall select the predecessor task with the latest `planned_end` at each step.
-   *終端ノードから `depends_on` を逆方向にたどる場合、EVM エンジンは各ステップで `planned_end` が最も遅い先行タスクを選択する。*
+**Objective:** プロジェクトマネージャー として、100 タスク規模のプロジェクトでも `evm.calculate` を 200ms 以内に取得したい、そうすることで基準日切り替え時の UI 反応が遅延しない。
 
-3. The EVM engine shall trace back until `depends_on` is empty and return the critical path as a list of task IDs.
-   *EVM エンジンは `depends_on` が空になるまで遡り、タスク ID のリストとしてクリティカルパスを返す。*
+#### Acceptance Criteria
 
-4. When a task has `is_buffer = true`, the EVM engine shall exclude that task from the critical path search.
-   *`is_buffer = true` のタスクが含まれる場合、EVM エンジンはそのタスクをクリティカルパス探索から除外する。*
+1. While プロジェクトのタスク数が 100 件以下、 the EVM Engine shall `evm.calculate` のサーバーサイド合計処理時間（DB I/O + 計算）を 200ms 以内に収める。
+2. The EVM Engine shall 担当者別集計・前日比・SPI トレンドを単一の範囲スナップショット取得で完結させ、N+1 クエリを発生させない。
+3. The EVM Engine shall 同一基準日に対する複数呼び出しでも同一結果を得るため、計算過程で乱数・現在時刻を一切使用しない。
 
-5. When a circular dependency is detected, the EVM engine shall throw an error (`EVM_CIRCULAR_DEPENDENCY`).
-   *循環依存が検出された場合、EVM エンジンはエラー（`EVM_CIRCULAR_DEPENDENCY`）を throw する。*
+### Requirement 13: テストカバレッジ
 
-### 要件 6: CCPM バッファ消費率・フィーバーチャート
+**Objective:** EVM Studio 開発者 として、計算エンジンの正しさをユニットテストで保証したい、そうすることでリファクタリングとリグレッションを安全に行える。
 
-**目的**: プロジェクト管理者として、CCPM のフィーバーチャート用のバッファ消費率とクリティカルチェーン完了率を取得したい。これにより、バッファ管理の状況を可視化するための座標データが得られる。
+#### Acceptance Criteria
 
-#### 受け入れ基準
-
-1. When the cumulative delay days on the critical chain and the total buffer days are provided, the EVM engine shall return `cumulative delay days / total buffer days` as the buffer consumption rate.
-   *クリティカルチェーン上の累積遅延日数とバッファ総日数が与えられる場合、EVM エンジンは `累積遅延日数 / バッファ総日数` をバッファ消費率として返す。*
-
-2. When the completed EV on the critical chain and the chain BAC are provided, the EVM engine shall return `completed EV / chain BAC` as the critical chain completion rate.
-   *クリティカルチェーン上の完了 EV とチェーン BAC が与えられる場合、EVM エンジンは `完了EV / チェーンBAC` をクリティカルチェーン完了率として返す。*
-
-3. When the buffer consumption rate is less than `completion rate × 0.67`, the EVM engine shall return `GREEN` as the fever chart zone.
-   *バッファ消費率が `完了率 × 0.67` 未満である場合、EVM エンジンはフィーバーチャートゾーンとして `GREEN` を返す。*
-
-4. When the buffer consumption rate is at least `completion rate × 0.67` and less than `completion rate × 1.0`, the EVM engine shall return `YELLOW` as the fever chart zone.
-   *バッファ消費率が `完了率 × 0.67` 以上かつ `完了率 × 1.0` 未満である場合、EVM エンジンはフィーバーチャートゾーンとして `YELLOW` を返す。*
-
-5. When the buffer consumption rate is at least `completion rate × 1.0`, the EVM engine shall return `RED` as the fever chart zone.
-   *バッファ消費率が `完了率 × 1.0` 以上である場合、EVM エンジンはフィーバーチャートゾーンとして `RED` を返す。*
-
-6. When tasks with `is_buffer = true` are present, the EVM engine shall exclude those tasks from the EVM calculation and use them only for buffer management calculation.
-   *`is_buffer = true` のタスクが含まれる場合、EVM エンジンはそれらのタスクを EVM 計算から除外し、バッファ管理計算にのみ使用する。*
-
-### 要件 7: 純粋関数設計と型安全性
-
-**目的**: 開発者として、副作用なし・DB アクセスなしの純粋関数群として EVM エンジンを利用したい。これにより、単体テストが容易になり、計算の再現性が保証される。
-
-#### 受け入れ基準
-
-1. The EVM engine shall perform no database access, file I/O, or external API calls, using only the snapshot data passed as arguments.
-   *EVM エンジンは DB アクセス・ファイル I/O・外部 API 呼び出しを一切行わず、引数のスナップショットデータのみを使用する。*
-
-2. The EVM engine shall accept the `Task`, `Member`, `Holiday`, and `ProgressSnapshot` types defined by core-data-model as inputs.
-   *EVM エンジンは core-data-model が定義する `Task`・`Member`・`Holiday`・`ProgressSnapshot` 型を入力として受け取る。*
-
-3. The EVM engine shall conform to TypeScript strict mode and shall not use the `any` type.
-   *EVM エンジンは TypeScript strict モードに準拠し、`any` 型を使用しない。*
-
-4. The EVM engine shall throw calculation errors (division by zero, circular dependency, invalid base date) as `AppError` with `EVM_*` error codes.
-   *EVM エンジンは計算エラー（ゼロ除算・循環依存・無効な基準日）を `AppError`（`EVM_*` エラーコード）として throw する。*
-
-5. The EVM engine shall reference error codes from the `ErrorCode` constants and shall not hard-code string literals.
-   *EVM エンジンはエラーコードを `ErrorCode` 定数から参照し、文字列リテラルの直書きを行わない。*
-
-### 要件 8: 単体テスト
-
-**目的**: 開発者として、EVM エンジンの全計算関数が境界値・エラーケースで正しく動作することを自動テストで検証したい。これにより、将来の変更でのリグレッションを防止できる。
-
-#### 受け入れ基準
-
-1. The EVM engine shall test PV calculation boundary values (base date < start date, base date = start date, base date >= end date) using Vitest.
-   *EVM エンジンは PV 計算の境界値（基準日＜開始日、基準日＝開始日、基準日≥終了日）を Vitest でテストする。*
-
-2. The EVM engine shall test that SPI and CPI return null when PV = 0 and AC = 0 respectively, using Vitest.
-   *EVM エンジンは SPI・CPI の PV=0・AC=0 時の null 返却を Vitest でテストする。*
-
-3. The EVM engine shall test the normal critical path case and the circular-dependency error case using Vitest.
-   *EVM エンジンはクリティカルパスの正常系・循環依存エラーを Vitest でテストする。*
-
-4. The EVM engine shall test fever chart Green/Yellow/Red zone determination using Vitest.
-   *EVM エンジンはフィーバーチャートの Green/Yellow/Red ゾーン判定を Vitest でテストする。*
-
-5. The EVM engine shall test all alert level branches (CRITICAL_DELAY/WARNING_DELAY/NORMAL/OVERDUE/NA) using Vitest.
-   *EVM エンジンはアラートレベルの全分岐（CRITICAL_DELAY/WARNING_DELAY/NORMAL/OVERDUE/NA）を Vitest でテストする。*
-
-6. The EVM engine shall test the difference in PV calculation with and without holidays using Vitest.
-   *EVM エンジンは祝日を含む PV 計算と祝日なし PV 計算の差異を Vitest でテストする。*
+1. The Test Suite shall PV / EV / AC / SPI / CPI / EAC / VAC / ETC / TCPI それぞれについて少なくとも 1 件の境界値テスト（ゼロ除算ケースを含む）を含める。
+2. The Test Suite shall `prevDay` 計算について「前営業日が存在するケース」「前営業日が休日のみで存在しないケース」「前営業日がプロジェクト開始日より前のケース」の 3 ケースを含める。
+3. The Test Suite shall `assignees` 集計について「複数タスクを持つメンバー」「タスク未割当メンバー」「`availabilityRate` 別」のケースを含める。
+4. The Test Suite shall `alerts` 判定について `spi` が 0.79 / 0.80 / 0.89 / 0.90 / 1.00 / null の 6 境界点を含める。
+5. The Test Suite shall `fever` ゾーン判定について GREEN / YELLOW / RED 各境界点を含める。
+6. The Test Suite shall モックアップ `mockup/projects-data.jsx` の `PROJECT_DATA[0]`（NXP-002）に近い入力で `evm.calculate` を呼び出し、`summary` / `prevDay` / `assignees` / `alerts` / `fever` / `tasks` / `gantt` のキーが全て揃うことを確認する E2E 風の統合テストを含める。
+7. When `npm test` を実行する、 the Vitest Runner shall 上記すべてのテストがパスする。

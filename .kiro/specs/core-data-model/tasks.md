@@ -1,204 +1,151 @@
 # 実装計画
 
-## タスク一覧
+## 1. 基盤整備（スキーマと共通定数）
 
----
+- [ ] 1.1 Drizzle スキーマに `projects.status` / `projects.code` / `members.role` / `members.initials` の 4 カラムを追加する
+  - `evm-studio/server/src/db/schema.ts` の `projects` テーブル定義に `status: text('status').notNull().default('active')` と `code: text('code')` を追記する
+  - 同ファイルの `members` テーブル定義に `role: text('role')` と `initials: text('initials')` を追記する
+  - Drizzle の型推論経由で `Project` / `Member` の型に新カラムが現れることを `tsc --noEmit` で確認する
+  - 観測可能な完了条件: `pnpm tsc --noEmit`（または `npx tsc --noEmit`）が成功し、`Project` / `Member` 型に新カラムが含まれることを `import type` で別ファイルから参照しても通る
+  - _Requirements: 1.1, 1.2, 2.1, 2.2_
+  - _Boundary: db/schema.ts_
 
-- [ ] 1. 基盤: エラーレイヤーとプロジェクトスキャフォールド
-- [x] 1.1 サーバーの依存パッケージをインストールしてプロジェクト構造を確立する
-  - `evm-studio/server/` に `package.json`、`tsconfig.json`、`vitest.config.ts` を配置する
-  - `better-sqlite3`、`drizzle-orm`、`@trpc/server`、`hono`、`zod`、`js-yaml`、`pino`、`drizzle-kit` を依存として追加する
-  - `npm install` が完了し、`server/src/` ディレクトリ構造（`db/`、`services/`、`api/`、`errors/`）が存在すること
-  - _Requirements: 7.1, 7.2, 7.3_
+- [ ] 1.2 マイグレーション `0001_add_status_code_role_initials.sql` を生成し、既存データを保持する形式に手動調整する
+  - `drizzle-kit generate` で差分 SQL を出力し、`evm-studio/server/src/db/migrations/0001_add_status_code_role_initials.sql` として保存する
+  - SQL が `ALTER TABLE ADD COLUMN` 形式になっているかを確認し、テーブル再作成方式が選ばれていたら 4 行の `ALTER TABLE ADD COLUMN` 文に書き換える
+  - drizzle-kit のメタディレクトリ (`migrations/meta`) を更新内容に合わせて整合させる
+  - 観測可能な完了条件: クリーンな DB に `drizzle-kit migrate` を実行すると `0000_*` → `0001_*` の順で適用が成功し、`PRAGMA table_info(projects)` / `PRAGMA table_info(members)` の出力に新 4 カラムが現れる
+  - _Requirements: 1.6, 2.8, 3.1, 3.2_
+  - _Boundary: db/migrations_
+  - _Depends: 1.1_
 
-- [x] 1.2 ErrorCode 定数と AppError クラスを実装する
-  - `server/src/errors/codes.ts` に `PROJ_NOT_FOUND`、`TASK_NOT_FOUND`、`MEMBER_NOT_FOUND`、`MEMBER_INVALID_RATE`、`IMPORT_INVALID_YAML`、`IMPORT_PARSE_ERROR`、`IMPORT_MISSING_FIELD` を定義する
-  - `server/src/errors/AppError.ts` に `AppError extends Error` クラスを実装し、`code: ErrorCode` プロパティを持たせる
-  - 全エラーコードが `codes.ts` に定義されており、文字列リテラルを直書きせずに参照できること
-  - _Requirements: 7.1, 7.2_
+- [ ] 1.3 `IMPORT_INVALID_PROJECT_STATUS` エラーコードを `ErrorCode` 定数に追加する
+  - `evm-studio/server/src/errors/codes.ts` の `ErrorCode` オブジェクトに `IMPORT_INVALID_PROJECT_STATUS: 'IMPORT_INVALID_PROJECT_STATUS'` を追加する
+  - 観測可能な完了条件: `ErrorCode.IMPORT_INVALID_PROJECT_STATUS` を別ファイルから参照しても TypeScript 型エラーが出ない
+  - _Requirements: 4.6_
+  - _Boundary: errors/codes.ts_
 
----
+## 2. ドメインサービス（イニシャル自動生成）
 
-- [ ] 2. データベース: Drizzle スキーマとマイグレーション
-- [x] 2.1 全エンティティの Drizzle スキーマを定義する
-  - `server/src/db/schema.ts` に `projects`、`tasks`、`members`、`holidays`、`task_dependencies`、`progress_snapshots` の 6 テーブルを定義する
-  - カラム名は snake_case（DB）、TypeScript プロパティは camelCase にマッピングする（例: `plannedStart: text('planned_start')`）
-  - `is_buffer`・`is_leaf` は `{ mode: 'boolean' }` で整数保存、日付は TEXT（`YYYY-MM-DD`）、タイムスタンプは `{ mode: 'timestamp' }` で保存する
-  - `tasks.parentId` は `() => tasks.id` で自己参照する遅延評価で定義する
-  - `Project`、`Task`、`Member`、`Holiday`、`TaskDependency`、`ProgressSnapshot` および `New*` 型が Drizzle inference からエクスポートされること
-  - `ProgressSnapshot` 型に `pvDays`・`evDays` フィールドが含まれていること（リスケ・再見積後も過去スナップショットの PV/EV が正確に参照できるよう記録時点の値を保存）
-  - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 7.3, 7.4_
+- [ ] 2.1 (P) `services/members-service.ts` にイニシャル自動生成関数 `generateInitials` を実装する
+  - `evm-studio/server/src/services/members-service.ts` を新規作成する
+  - 半角空白 / 全角空白で `name` を分割し、2 トークン以上なら姓 + 名の先頭 1 文字ずつを連結して返す
+  - 分割できない場合は `Array.from(name).slice(0, 2).join('')` を返す
+  - サロゲートペア・絵文字を考慮し、コード単位ではなく文字単位で扱う
+  - 観測可能な完了条件: `generateInitials('田中 美咲') === '田美'`、`generateInitials('田中　美咲') === '田美'`、`generateInitials('伊藤健太') === '伊藤'` が成立する
+  - _Requirements: 2.6, 2.7_
+  - _Boundary: services/members-service.ts_
 
-- [x] 2.2 DB 接続の初期化とマイグレーション実行を実装する
-  - `server/src/db/index.ts` に `better-sqlite3` 接続と `drizzle()` ラッパーをシングルトンとして実装する
-  - 接続後即時に `sqlite.pragma('foreign_keys = ON')` を実行する
-  - `runMigrations()` 関数を実装し、アプリ起動時に `migrate()` で最新スキーマを適用する
-  - `server/src/drizzle.config.ts` を作成し `drizzle-kit generate` が実行できる状態にする
-  - `drizzle-kit generate` を実行してマイグレーションファイルが `server/src/db/migrations/` に生成されること
-  - _Requirements: 1.7, 1.8_
+- [ ] 2.2 (P) `services/members-service.test.ts` を追加し、`generateInitials` の単体テストを実装する
+  - Vitest 4 を用いて、半角空白 / 全角空白 / 空白なし / サロゲートペア（絵文字を含む名前）の 4 ケースをテストする
+  - 観測可能な完了条件: `npm test -- members-service` で 4 ケースがすべてパスする
+  - _Requirements: 2.6, 2.7, 8.4_
+  - _Boundary: services/members-service.test.ts_
 
----
+## 3. データアクセスとインポーター拡張
 
-- [ ] 3. CRUD API: Project・Task・Member・Holiday ルーター（並列実装可）
-- [x] 3.1 (P) Project CRUD tRPC ルーターを実装する
-  - `server/src/api/projects.ts` に `projects.list`、`projects.getById`、`projects.create`、`projects.update`、`projects.delete` プロシージャを実装する
-  - `createProjectSchema`（name/startDate/endDate を Zod で検証）と `updateProjectSchema` を定義する
-  - `projects.getById` で存在しない id を渡すと `AppError(PROJ_NOT_FOUND)` が throw され、tRPC `NOT_FOUND` に変換されること
-  - `projects.delete` が対応する tasks・members・holidays を CASCADE で削除すること（要件 2.6 の検証）
-  - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7_
-  - _Boundary: ProjectsRouter_
+- [ ] 3.1 WBS Importer の Zod スキーマに新オプショナルフィールドを追加する
+  - `evm-studio/server/src/services/wbs-importer.ts` の `schedule.meta` 用 Zod スキーマに `project_status: z.enum(['active','paused','draft','archived']).optional()` と `project_code: z.string().optional()` を追加する
+  - `staffing.members[]` 用 Zod スキーマに `role: z.string().nullable().optional()` と `initials: z.string().min(1).max(4).nullable().optional()` を追加する
+  - 既存の `meta` / `members` 構造は維持し、新フィールド以外の検証ルールを変えない
+  - 観測可能な完了条件: 新フィールドを含む YAML テキストを Zod 経由でパースした結果に、`project_status` / `project_code` / `role` / `initials` が含まれる（または `undefined`）になる
+  - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.7_
+  - _Boundary: services/wbs-importer.ts_
+  - _Depends: 1.1, 1.3_
 
-- [x] 3.2 (P) Task CRUD tRPC ルーターを実装する
-  - `server/src/api/tasks.ts` に `tasks.listByProject`、`tasks.getById`、`tasks.create`、`tasks.update`、`tasks.delete` プロシージャを実装する
-  - `createTaskSchema` に `estimateDays`（非負実数）、`plannedStart`/`plannedEnd`（YYYY-MM-DD regex）、`isBuffer`（boolean）、`isLeaf`（boolean）を含める
-  - `tasks.listByProject` が `sort_order` 昇順で結果を返すこと
-  - `tasks.getById` で存在しない id を渡すと `AppError(TASK_NOT_FOUND)` が throw されること
-  - `tasks.delete` が関連する `task_dependencies` と `progress_snapshots` を削除すること
-  - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7, 3.8, 3.9_
-  - _Boundary: TasksRouter_
-
-- [x] 3.3 (P) Member CRUD tRPC ルーターを実装する
-  - `server/src/api/members.ts` に `members.listByProject`、`members.create`、`members.update`、`members.delete` プロシージャを実装する
-  - `createMemberSchema` で `availabilityRate` を `z.number().min(0).max(1)` で検証する
-  - `members.delete` 実行後、そのメンバーを参照していた `tasks.assignee_id` が NULL になること
-  - `availabilityRate` が 0〜1 範囲外の値で `BAD_REQUEST` エラーが返ること
+- [ ] 3.2 WBS Importer の DB 書き込み処理に新フィールドの反映と `IMPORT_INVALID_PROJECT_STATUS` ハンドリングを追加する
+  - パース後の `project_status` が enum 範囲外と判定された場合は `AppError` を `ErrorCode.IMPORT_INVALID_PROJECT_STATUS` でスローする（Zod が enum 違反を捕捉する場合は `ZodError` を `IMPORT_INVALID_PROJECT_STATUS` に変換する）
+  - `projects.upsert` 時に `project_status` が指定されていればそれを、未指定なら DB のデフォルト `'active'` を採用する
+  - `members.upsert` 時に `role` / `initials` を反映し、`initials` が省略 (`undefined`) かつ `name` から自動生成可能な場合は `generateInitials(name)` で補完する。`null` が明示されている場合は `null` のまま保存する
+  - 観測可能な完了条件: 新フィールド付き YAML を import すると DB の `projects.status` / `projects.code` / `members.role` / `members.initials` に値が反映される
   - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 4.6_
-  - _Boundary: MembersRouter_
+  - _Boundary: services/wbs-importer.ts_
+  - _Depends: 2.1, 3.1_
 
-- [x] 3.4 (P) Holiday CRUD tRPC ルーターを実装する
-  - `server/src/api/holidays.ts` に `holidays.listByProject`、`holidays.create`、`holidays.delete` プロシージャを実装する
-  - `holidays.listByProject` が date 昇順で結果を返すこと
-  - 不正な日付形式（YYYY-MM-DD 以外）で `BAD_REQUEST` エラーが返ること
-  - _Requirements: 5.1, 5.2, 5.3, 5.4_
-  - _Boundary: HolidaysRouter_
+- [ ] 3.3 (P) WBS Importer のテストに新フィールドの取り込み・後方互換・無効 status の 3 ケースを追加する
+  - `evm-studio/server/src/services/wbs-importer.test.ts` に新フィールドあり YAML、新フィールドなし YAML、`project_status: 'unknown'` の YAML の 3 ケースを追加する
+  - 観測可能な完了条件: 3 ケースを含む `npm test -- wbs-importer` が全件パスし、無効 status ケースで `IMPORT_INVALID_PROJECT_STATUS` がスローされる
+  - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7, 8.3_
+  - _Boundary: services/wbs-importer.test.ts_
+  - _Depends: 3.2_
 
----
+## 4. tRPC ルーター拡張
 
-- [ ] 4. サービス: WBS YAML インポートロジック
-- [x] 4.1 WBS YAML パーサーと構造バリデーションを実装する
-  - `server/src/services/wbs-importer.ts` に `tasks.yaml`・`staffing.yaml`・`schedule.yaml` を `js-yaml.load()` の SAFE_LOAD オプションでパースする処理を実装する
-  - 必須フィールドが欠落している場合は `AppError(IMPORT_MISSING_FIELD)` を、YAML パース自体が失敗した場合は `AppError(IMPORT_PARSE_ERROR)` を throw する
-  - 正常な YAML が渡されたとき、各エンティティデータを構造化オブジェクトとして保持できること
-  - _Requirements: 6.7, 6.10_
-  - _Boundary: WbsImporter_
+- [ ] 4.1 (P) `api/projects.ts` の入力 Zod スキーマと出力型を拡張する
+  - `createProjectSchema` / `updateProjectSchema` に `status: z.enum(['active','paused','draft','archived']).default('active')` と `code: z.string().nullable().optional()` を追加する
+  - `projects.list` / `projects.getById` のレスポンスが Drizzle 推論型 `Project` のまま `status` / `code` を含むことをコメントで明示する
+  - 観測可能な完了条件: `projects.create` で `status='paused'` / `code='NXP-002'` を送信して保存できる
+  - _Requirements: 1.3, 1.4, 1.5, 6.1, 6.3, 6.5_
+  - _Boundary: api/projects.ts_
+  - _Depends: 1.1_
 
-- [x] 4.2 アトミックインポートトランザクション（upsert・ID 解決・スナップショット）を実装する
-  - `better-sqlite3` の `db.transaction()` を使用して全 upsert をひとつのトランザクションで実行する
-  - `external_id` をキーとして members・tasks・holidays を upsert し、再インポート時に重複が生じないようにする
-  - `tasks.yaml` の `parent_id`（external_id 形式）を DB の内部 `id` に解決して `Task.parent_id` を設定する
-  - `tasks.yaml` の `depends_on[]` を `task_dependencies` テーブルにインサートし、external_id から DB id に解決する
-  - `tasks.yaml` の `assignee`（external_id 形式）を DB の内部 `id` に解決して `Task.assignee_id` を設定する
-  - `progress_pct` が指定されたタスクに対してインポート日付を `snapshot_date` とする初回 `ProgressSnapshot` を作成する
-  - 初回スナップショット作成時に `ev_days = estimate_days × (progress_pct / 100)` および `pv_days = 稼働日数ベースの計算値`（インポート日と planned_start/end の関係に基づく）を算出して格納する
-  - `staffing.meta.public_holidays[]` を `holidays` テーブルに upsert する
-  - トランザクション内でエラーが発生した場合、部分書き込みなしでロールバックされること（アトミック性の確認）
-  - `ImportSummary`（tasks・members・holidays・dependencies・snapshots のカウント）を返すこと
-  - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5, 6.6, 6.7, 6.8, 6.9_
-  - _Boundary: WbsImporter_
+- [ ] 4.2 (P) `api/members.ts` の入力 Zod スキーマと出力型を拡張し、`initials` 自動生成を統合する
+  - `createMemberSchema` / `updateMemberSchema` に `role: z.string().nullable().optional()` と `initials: z.string().min(1).max(4).nullable().optional()` を追加する
+  - `members.create` ハンドラ内で `initials === undefined` かつ `name` が非空の場合に `generateInitials(name)` で補完する。`initials === null` のときは `null` を保存する
+  - `members.listByProject` / `members.getById` のレスポンスが Drizzle 推論型 `Member` のまま `role` / `initials` を含むことを確認する
+  - 観測可能な完了条件: `members.create` を `initials` 未指定で呼ぶと DB 上で `'田美'` 等が保存され、`role` の任意文字列も受け入れられる
+  - _Requirements: 2.3, 2.4, 2.5, 6.2, 6.4, 6.5_
+  - _Boundary: api/members.ts_
+  - _Depends: 1.1, 2.1_
+
+- [ ] 4.3 (P) Projects tRPC ルーターのテストに `status` / `code` の入出力検証を追加する
+  - `evm-studio/server/src/api/projects.test.ts` に、 `status='invalid'` で Zod バリデーションエラーが返ること、`status='paused'` / `code='NXP-002'` で create が成功し list / getById のレスポンスに新カラムが含まれることを確認するケースを追加する
+  - 観測可能な完了条件: `npm test -- projects` が拡張ケースを含めて全件パスする
+  - _Requirements: 1.3, 1.4, 1.5, 6.1, 6.3, 8.2_
+  - _Boundary: api/projects.test.ts_
   - _Depends: 4.1_
 
----
-
-- [ ] 5. API: Import tRPC ルーターと Hono サーバー統合
-- [x] 5.1 Import tRPC ルーターを実装する
-  - `server/src/api/import.ts` に `import.wbsYaml` プロシージャを実装する
-  - `importWbsYamlSchema`（projectId・tasksYaml・staffingYaml・scheduleYaml）で Zod バリデーションを行う
-  - `WbsImporter.importWbsYaml()` を呼び出し、`ImportSummary` を返す
-  - AppError を TRPCError に変換するヘルパー（`toTRPCError`）を適用する
-  - 有効な 3 ファイルを渡すと `ImportSummary` が返ること
-  - _Requirements: 6.1, 6.7, 6.9, 6.10, 7.2_
-  - _Boundary: ImportRouter_
+- [ ] 4.4 (P) Members tRPC ルーターのテストに `role` / `initials` の入出力検証を追加する
+  - `evm-studio/server/src/api/members.test.ts` に、`initials='12345'` で Zod バリデーションエラーが返ること、`initials` 未指定で create を呼ぶと自動生成された値が保存されること、`role` の任意文字列が保存・取得できることを確認するケースを追加する
+  - 観測可能な完了条件: `npm test -- members` が拡張ケースを含めて全件パスする
+  - _Requirements: 2.3, 2.4, 2.5, 2.6, 2.7, 6.2, 6.4, 8.1_
+  - _Boundary: api/members.test.ts_
   - _Depends: 4.2_
 
-- [x] 5.2 tRPC appRouter と Hono サーバーエントリーポイントを実装する
-  - `server/src/router.ts` に全ルーター（projects・tasks・members・holidays・import）を `createTRPCRouter` でマウントする
-  - `server/src/index.ts` に Hono アプリを作成し、CORS（localhost のみ）、`hono/logger` ミドルウェア、tRPC ハンドラーを設定する
-  - `runMigrations()` をサーバー起動前に呼び出す
-  - `npm run dev:server` でサーバーが起動し、tRPC エンドポイントにアクセスできること
-  - _Requirements: 1.7, 1.8, 7.1, 7.2, 7.5_
-  - _Boundary: HonoApp, Router_
-  - _Depends: 3.1, 3.2, 3.3, 3.4, 5.1_
+## 5. シードデータ
 
----
+- [ ] 5.1 モックアップ準拠のシード定数モジュールを作成する
+  - `evm-studio/server/seeds/mockup-projects.ts` を新規作成し、`mockup/projects-data.jsx` の 5 プロジェクト分（projects / members / tasks / dependencies / holidays）を TypeScript 定数として転記する
+  - `assignee` 文字列を `external_id` ベースで突き合わせられるように事前マップを定義する
+  - 観測可能な完了条件: `import { mockupProjects } from './mockup-projects'` がコンパイル通過し、配列長が `5` であることを起動時アサーションで確認できる
+  - _Requirements: 5.1, 5.3_
+  - _Boundary: seeds/mockup-projects.ts_
 
-- [ ] 6. テスト: サーバー単体テストと E2E テスト
-- [x] 6.1 WBS インポートサービスの単体テストを実装する
-  - `server/src/services/wbs-importer.test.ts` に以下のテストケースを実装する：正常インポート（3 YAML → DB）、parent_id の external_id 解決、depends_on の task_dependencies 挿入、不正 YAML でのアトミックロールバック、再インポート（upsert）での重複なし
-  - インメモリ SQLite（`:memory:`）または一時ファイルを使ってテスト間の独立性を確保する
-  - `npm test` を実行してすべてのテストがパスすること
-  - _Requirements: 6.1, 6.2, 6.3, 6.7, 6.8_
-  - _Boundary: WbsImporter_
+- [ ] 5.2 シードスクリプト `seeds/seed.ts` と `npm run seed` を実装する
+  - `evm-studio/server/seeds/seed.ts` を新規作成し、better-sqlite3 / Drizzle 経由で `projects` → `members` → `tasks` → `task_dependencies` → `holidays` の順で投入する
+  - `--reset` フラグで既存テーブルを `DELETE FROM` してから投入する。フラグなしでも安全側に倒し、デフォルトで初期化挙動を取る
+  - 投入はトランザクション内で実行し、失敗時はロールバック + `process.exit(1)`
+  - 完了時に件数を `console.log` で表示する
+  - `evm-studio/package.json` の `scripts` に `"seed": "tsx server/seeds/seed.ts"` を追加する
+  - 観測可能な完了条件: `npm run seed` 実行後に `projects: 5 / members: N / tasks: N / dependencies: N / holidays: N` が標準出力に表示され、SQLite を直接読むと各テーブルにデータが入っている
+  - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5, 5.6_
+  - _Boundary: seeds/seed.ts, package.json_
+  - _Depends: 1.2, 5.1_
 
-- [x] 6.2 Project・Member ルーターのエラーケース単体テストを実装する
-  - `server/src/api/projects.test.ts` に `projects.getById` で存在しない id を渡したとき `PROJ_NOT_FOUND` が返るテストを実装する
-  - `server/src/api/members.test.ts` に `availabilityRate` が 0〜1 範囲外のとき `BAD_REQUEST` が返るテストを実装する
-  - `npm test` を実行してすべてのテストがパスすること
-  - _Requirements: 2.4, 4.5_
-  - _Boundary: ProjectsRouter, MembersRouter_
+## 6. ステアリング更新
 
-- [x] 6.3* WBS インポート → タスク一覧確認の E2E テストを実装する
-  - `e2e/import.spec.ts` に 3 YAML ファイルをインポートしてタスク一覧が正しく返ることを検証する Playwright テストを実装する
-  - `npm run test:e2e` を実行してテストがパスすること
-  - _Requirements: 6.1, 6.9_
-  - _Boundary: ImportRouter, TasksRouter_
-  - _Depends: 5.2_
+- [ ] 6.1 `.kiro/steering/domain.md` のフィールド対応表とデータモデル概要を更新する
+  - 「wbs-YAML ↔ EVM Studio フィールド対応」表に 4 行を追加する: `schedule.meta.project_status` → `Project.status` / `schedule.meta.project_code` → `Project.code` / `staffing.members[].role` → `Member.role` / `staffing.members[].initials` → `Member.initials`
+  - 「データモデル概要」セクションの `Project` 行に `status` の有効値リスト（`active` / `paused` / `draft` / `archived`）と `code` を追記する
+  - 同セクションの `Member` 行に `role` の参考プリセット（`PM`, `Lead Eng`, `Engineer`, `Designer`, `QA`, `BA`, `Security`, `Analyst`）と `initials` の説明を追記する
+  - 観測可能な完了条件: `domain.md` を grep して `project_status` と `Member.role` が記載されていることを確認できる
+  - _Requirements: 7.1, 7.2_
+  - _Boundary: .kiro/steering/domain.md_
 
----
+## 7. 統合検証
 
-- [ ] 7. WBS YAML スケジュール分離型対応
-- [x] 7.1 tasks.yaml の null フィールド許容パーサーを実装する
-  - `server/src/services/wbs-importer.ts` の `parseTasksYaml` で `estimate_days`・`planned_start`・`planned_end` が null または欠落の場合にエラーを throw せず、それぞれ `0`・`null`・`null` として取り込む
-  - `ParsedTask` 型の `planned_start`・`planned_end` を `string | null` に更新する
-  - `calcPvDays` 関数が null の planned 日付を受け付け、null の場合は 0 を返すようにする
-  - `estimate_days` が null の YAML タスクと `planned_start`/`planned_end` がすべて null の YAML タスクで `parseTasksYaml` を呼び出してもエラーが発生しないこと
-  - `npm test` がパスすること（既存テスト含む）
-  - _Requirements: 6.11_
-  - _Boundary: WbsImporter_
+- [ ] 7.1 マイグレーション後方互換の統合テストを追加する
+  - `evm-studio/server/src/db/db.test.ts` に、既存 `0000_*.sql` 適用済みの SQLite に `0001_*.sql` を追加適用するシナリオを書き、`projects` / `members` / `tasks` / `progress_snapshots` / `task_dependencies` / `holidays` が全件保持されており、新カラムが `status='active'` / NULL になっていることを確認する
+  - エラー注入テスト（不正 SQL を渡す等）でロールバックが効くことも 1 ケース追加する
+  - 観測可能な完了条件: `npm test -- db` が新規ケースを含めて全件パスする
+  - _Requirements: 3.1, 3.2, 3.3, 3.4_
+  - _Boundary: db/db.test.ts_
+  - _Depends: 1.2, 4.1, 4.2_
 
-- [x] 7.2 schedule.yaml の assignments[] パーサーを実装する
-  - `server/src/services/wbs-importer.ts` の `parseScheduleYaml` を拡張し、`assignments[]` フィールドが存在する場合に `{ task_id: string; planned_start: string; planned_end: string }` の配列として返す
-  - `ParsedScheduleYaml` 型に `assignments?: Array<{ task_id: string; planned_start: string; planned_end: string }>` を追加する
-  - `assignments[]` を持たない schedule YAML でも正常にパースできること（後方互換）
-  - `npm test` がパスすること
-  - _Requirements: 6.12_
-  - _Boundary: WbsImporter_
-  - _Depends: 7.1_
-
-- [x] 7.3 importWbsYaml に schedule assignments → task planned 日付マッピングを追加する
-  - `server/src/services/wbs-importer.ts` の `importWbsYaml` トランザクション内に第3パスを追加し、`schedule.assignments[]` の `task_id`（external_id 形式）に対応するタスクの `planned_start`/`planned_end` を DB に更新する（parent_id 解決の後、task_dependencies 挿入の前）
-  - 対応タスクが見つからない assignment は無視する
-  - `planned_start` または `planned_end` が null のままタスクの ProgressSnapshot を作成する場合は `pv_days = 0` とする
-  - reschedule 形式の schedule YAML（T-prefix task_id + planned_start/end）をインポートした後、対応タスクの `planned_start` が null でないこと
-  - `npm test` がパスすること
-  - _Requirements: 6.12, 6.13_
-  - _Boundary: WbsImporter_
-  - _Depends: 7.2_
-
-- [x] 7.4 (P) null フィールドと assignments マッピングの単体テストを追加する
-  - `server/src/services/wbs-importer.test.ts` に以下のテストケースを追加する：
-    - `estimate_days` が null のタスクが `estimateDays=0` でインポートされること
-    - `planned_start`/`planned_end` が null のタスクが DB に null で保存されること
-    - `assignments[]` を含む schedule YAML をインポートした後、対応タスクの `planned_start`/`planned_end` が設定されること
-    - `planned_start`/`planned_end` が null のタスクの ProgressSnapshot で `pvDays = 0` となること
-  - `npm test` を実行してすべてのテストがパスすること
-  - _Requirements: 6.11, 6.12, 6.13_
-  - _Boundary: WbsImporter_
-  - _Depends: 7.3_
-
-- [x] 7.5 (P) 実プロジェクト YAML を使用した E2E テストを追加する
-  - `e2e/import.spec.ts` に以下の E2E テストを追加する：
-    - tasks.yaml（84 タスク）+ staffing.yaml + reschedule-2026-05-14.yaml を `fs.readFileSync` で読み込み `import.wbsYaml` でインポートする
-    - インポート後のタスク件数が 84 件であること
-    - assignments で planned 日付が設定されたタスク（T002a 等）の `plannedStart` が null でないこと
-    - 再インポートしてもタスク件数が 84 件のまま（重複なし）であること
-  - `npm run test:e2e` を実行してテストがパスすること
-  - _Requirements: 6.11, 6.12, 6.8_
-  - _Boundary: ImportRouter, TasksRouter_
-  - _Depends: 7.3_
-
-## Implementation Notes
-
-- js-yaml 4 では `yaml.DEFAULT_SAFE_SCHEMA` は存在しない（v3 のみ）。`yaml.DEFAULT_SCHEMA` を使用すること
-- better-sqlite3 の raw インスタンスは `(db as unknown as { $client: Database }).$client` でアクセスする
-- Vitest は v2.1.9 を使用（Node v21.7.3 は vitest v4 の engine 要件 `^20.0.0 || ^22.0.0 || >=24.0.0` を満たさないため）
-- E2E テストの tRPC 呼び出しは POST `/trpc/{procedure}` に plain JSON body を送信し、レスポンスの `result.data` を参照する
+- [ ] 7.2 `npm test` のフルラン + シード投入で受け入れ条件を最終確認する
+  - `npm test` を実行し、全テスト（schema / members-service / wbs-importer / projects / members / db）がパスすることを確認する
+  - クリーンな DB に `drizzle-kit migrate` + `npm run seed` を順に実行し、SQLite クライアントで 5 プロジェクト分のデータと新カラムが入っていることを目視確認する
+  - 観測可能な完了条件: `npm test` が green、`npm run seed` 後の DB に `projects.code='NXP-002'` 等が存在することを `SELECT` 文で確認できる
+  - _Requirements: 8.5_
+  - _Boundary: 統合検証_
+  - _Depends: 2.2, 3.3, 4.3, 4.4, 5.2, 7.1_

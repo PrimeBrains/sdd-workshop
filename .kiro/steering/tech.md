@@ -12,6 +12,13 @@
 - **Database**: SQLite（better-sqlite3 12）+ Drizzle ORM 0.45
 - **Runtime**: Node.js 22 LTS
 
+## UI 実装方針（mockup 由来）
+
+- **チャートは SVG 直書きを基本とする**。モックアップ `mockup/shared.jsx` の `SpiTrendChart` / `FeverChart` / `Sparkline` / `Gantt` はすべて素の SVG で実装されており、ホバートグル・ツールチップ・雷線進捗ラインなどの細かい挙動が織り込まれている。Recharts 等の汎用ライブラリで再現コストが高いため、モックアップを TSX へ移植する形を採る
+- **スタイリング**: モックアップは `style={{}}` プロップとデザイントークン `EVM` 定数で書かれている。実装側では `tokens/evm-tokens.ts` にトークンを集約し、Tailwind のテーマ拡張 or CSS-in-JS で参照する
+- **モーダル**: `ReactDOM.createPortal` で body 直下にレンダリングし、Esc キーで閉じる。背景はぼかし（backdrop-filter blur）+ 半透明黒
+- **アイコン**: SVG をインラインコンポーネント化（モックアップの `BellIcon` / `ExpandIcon` / `Chevron` を踏襲）
+
 ## Key Libraries
 
 - **tRPC 11**: サーバー型定義がクライアントに自動で流れるエンドツーエンド型安全 API（REST ではなく tRPC を使う）

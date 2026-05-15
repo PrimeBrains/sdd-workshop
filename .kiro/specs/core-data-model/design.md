@@ -1,847 +1,679 @@
 # 設計書: core-data-model
 
-## 概要
+## Overview
 
-本スペックは EVM Studio の基盤データレイヤーを確立する。Drizzle ORM による SQLite スキーマ定義・マイグレーション、tRPC ルーターを通じた Project / Task / Member / Holiday の CRUD エンドポイント、wbs-YAML（tasks.yaml / staffing.yaml / schedule.yaml）の一括インポート機能を提供する。
+**Purpose**: モックアップ `mockup/variation-a.jsx` のワークベンチ UI（左レール・TopBar・Inspector）を支えるために、SQLite スキーマに 4 カラム（`projects.status` / `projects.code` / `members.role` / `members.initials`）を追加し、WBS YAML インポーター・tRPC レスポンス型・シードデータを整合的に拡張する。
 
-**目的**: 下流スペック（evm-engine / progress-tracking / dashboard / reporting）すべてが依存する共通エンティティ型と永続化基盤を確定する。
+**Users**: ダッシュボード／EVM エンジン／進捗トラッキング各スペックの実装者・WBS 作成者・EVM Studio 利用者が、本データモデルを上流とした実装を行う。
 
-**ユーザー**: プロジェクト管理者が tRPC 経由でプロジェクトデータを作成・管理し、WBS YAML をインポートしてデータを初期化する。
+**Impact**: 既存スキーマ（`projects` / `members`）に対し非破壊的に `ALTER TABLE ADD COLUMN` 形式でカラムを追加する。既存レコードは保持され、`Project.status` のみ `'active'` で埋められる。WBS YAML フィールドは後方互換で追加される。
 
-**影響**: 現在は空のスキャフォールドのみ存在する `evm-studio/server/src/` に DB 層・サービス層・API 層を新規追加する。型定義は下流スペックが参照するため、変更時は全スペックへの影響を確認する。
+### Goals
 
-### 目標
+- `projects.status` / `projects.code` / `members.role` / `members.initials` の 4 カラムを追加し、tRPC を経由してクライアントから型安全に参照できるようにする。
+- WBS YAML インポーターを後方互換に保ちながら新フィールドに対応させる。
+- モックアップと同等の 5 プロジェクト分のシードデータを `npm run seed` で投入できるようにする。
+- 既存の SQLite データベースを破壊せずにマイグレーションが完了する。
 
-- Project / Task / Member / Holiday / TaskDependency / ProgressSnapshot の SQLite スキーマを Drizzle ORM で定義する
-- tRPC 経由の CRUD エンドポイントを各エンティティに提供する
-- wbs-YAML 3 ファイルのアトミックなインポートを単一エンドポイントで提供する
-- Drizzle 推論型を外部エクスポートし、downstream スペックが安全に参照できるようにする
+### Non-Goals
 
-### 非目標
+- `progress_snapshots.note` カラム追加（→ `progress-tracking` spec の責務）。
+- EVM 計算ロジック・PV/EV/AC 算出（→ `evm-engine` spec の責務）。
+- ダッシュボード UI 表示・Inspector / Avatar / Dot コンポーネントの実装（→ `dashboard` spec の責務）。
+- 認証・認可・マルチユーザー対応（プロダクト方針によりローカル限定のため対象外）。
+- `Project.code` の重複検証・unique 制約（運用判断によりスキーマ制約は付けない）。
 
-- EVM メトリクス計算（PV/EV/SPI/CPI/EAC）は evm-engine スペックが担う
-- 進捗スナップショットの日次更新は progress-tracking スペックが担う
-- 画面コンポーネント・チャートは dashboard / reporting スペックが担う
-- xlsm インポートは将来対応
+## Boundary Commitments
 
----
+### This Spec Owns
 
-## 境界コミットメント
+- `projects` テーブルの `status` / `code` カラム（スキーマ定義・既定値・型・許容値）。
+- `members` テーブルの `role` / `initials` カラム（スキーマ定義・既定値・型・自動生成ロジック）。
+- 新カラム追加のマイグレーション SQL（`0001_*.sql`）。
+- `wbs-importer.ts` の YAML パース・Zod スキーマ・DB 書き込みロジックの新フィールド対応。
+- `projects.ts` / `members.ts` tRPC ルーターの入力 Zod スキーマと出力型。
+- `members-service.ts`（新規追加）の `initials` 自動生成純粋関数。
+- `evm-studio/server/seeds/` 配下のシードスクリプトとシードデータ。
+- `.kiro/steering/domain.md` のフィールド対応表追記。
 
-### このスペックが所有するもの
+### Out of Boundary
 
-- `server/src/db/schema.ts` — Drizzle スキーマ（6 テーブル全定義）とエンティティ型エクスポート
-- `server/src/db/index.ts` — DB 接続・マイグレーション実行・`db` インスタンスのエクスポート
-- `server/src/db/migrations/` — Drizzle Kit 生成マイグレーションファイル
-- `server/src/services/wbs-importer.ts` — YAML → DB 変換ロジック（アトミックトランザクション）
-- `server/src/api/projects.ts` — projects tRPC ルーター
-- `server/src/api/tasks.ts` — tasks tRPC ルーター
-- `server/src/api/members.ts` — members tRPC ルーター
-- `server/src/api/holidays.ts` — holidays tRPC ルーター
-- `server/src/api/import.ts` — import tRPC ルーター
-- `server/src/errors/codes.ts` — 全 ErrorCode 定数（`PROJ_*`, `TASK_*`, `MEMBER_*`, `IMPORT_*`）
-- `server/src/errors/AppError.ts` — AppError クラス定義
-- `server/src/router.ts` — tRPC appRouter 統合（本スペックの全ルーターをマウント）
-- `server/src/index.ts` — Hono サーバーのエントリーポイント（tRPC ハンドラーのマウント）
+- `tasks` / `progress_snapshots` / `task_dependencies` / `holidays` テーブルへのカラム追加（本スペックでは行わない。`progress-tracking` 等の下流が必要に応じて追加する）。
+- `Project.status` を Dot 色分けに変換するロジック・UI 表現（→ `dashboard` spec）。
+- `Member.role` をプリセット選択 UI に変換する処理（→ `dashboard` spec）。
+- WBS YAML の生成（→ `wbs-*` スキル）。
+- マイグレーション自動適用のオーケストレーション変更（既存 `drizzle-kit migrate` の仕組みを使う）。
 
-### 境界外（所有しない）
+### Allowed Dependencies
 
-- EVM 計算ロジック（evm-engine が担う）
-- ProgressSnapshot の日次 CRUD（progress-tracking が担う。本スペックではインポート時の初回作成のみ担当）
-- フロントエンドコンポーネント・フック（dashboard / reporting が担う）
-- 認証・認可（スコープ外）
+- Drizzle ORM 0.45（スキーマ定義・型推論）。
+- better-sqlite3 12（DB ドライバ）。
+- drizzle-kit（マイグレーション生成・適用）。
+- Zod 4（tRPC 入力バリデーション）。
+- js-yaml 4（WBS YAML パース）。
+- 既存の `errors/codes.ts`（`ErrorCode` 定数の追加先）。
+- 既存の `db/schema.ts`（カラム追加先）。
+- 既存の `services/wbs-importer.ts`（拡張先）。
+- 既存の `api/projects.ts` / `api/members.ts`（tRPC ルーター拡張先）。
 
-### 許可された依存関係
+### Revalidation Triggers
 
-- `drizzle-orm` / `better-sqlite3` — DB 層
-- `@trpc/server` — tRPC ルーター
-- `zod` — 入力バリデーション
-- `js-yaml` — YAML パース（SAFE_LOAD のみ）
-- `pino` — 構造化ログ（ビジネスロジック層）
-- Node.js 組み込みモジュール（`path`, `fs`）
+- `Project.status` の有効値リストが変わった場合 → `dashboard` の Dot 色分けと Zod enum を更新する必要あり。
+- `Member.role` の参考プリセットが変わった場合 → `dashboard` の Members リスト UI を再確認。
+- `projects.code` に unique 制約を後付けする判断が出た場合 → 既存シードデータ・WBS YAML の重複チェックを再検証する必要あり。
+- WBS YAML のフィールド名（`project_status` / `project_code` / `role` / `initials`）を変更した場合 → `wbs-*` スキル側のテンプレート更新と既存サンプル YAML 修正が必要。
+- `Member.initials` 自動生成アルゴリズムを変更した場合 → 既存テストおよび `dashboard` の Avatar 表示期待値の再検証が必要。
 
-### 再検証トリガー
+## Architecture
 
-以下の変更が発生した場合、downstream スペック（evm-engine / progress-tracking / dashboard / reporting）は統合確認を実施すること:
+### Existing Architecture Analysis
 
-- `Task` エンティティのカラム追加・型変更・削除
-- `TaskDependency` テーブルの構造変更
-- `ProgressSnapshot` テーブルのカラム変更
-- エクスポートされる TypeScript 型定義の変更
-- tRPC プロシージャ名の変更または入出力スキーマの変更
+EVM Studio は次の構造を持つ既存実装が稼働している。
 
----
+- `evm-studio/server/src/db/schema.ts` に Drizzle スキーマが定義され、`projects` / `members` / `tasks` / `holidays` / `task_dependencies` / `progress_snapshots` の 6 テーブルが存在する。
+- `evm-studio/server/src/db/migrations/0000_real_gorilla_man.sql` が初期マイグレーションとして適用済み。
+- `evm-studio/server/src/services/wbs-importer.ts` が YAML を Zod でバリデートし、`projects.upsert` / `members.upsert` / `tasks.upsert` / `holidays.insert` の順で DB に書き込む。トランザクションで囲まれている。
+- `evm-studio/server/src/api/projects.ts` / `members.ts` が tRPC ルーターとして CRUD を提供している。出力は Drizzle 推論型をそのまま流す。
+- `evm-studio/server/src/errors/codes.ts` に `ErrorCode` 定数が集約されている。
+- `evm-studio/server/seeds/` ディレクトリは未作成。
 
-## アーキテクチャ
+本スペックは既存のレイヤー責務（`api/` がルーティング、`services/` がビジネスロジック、`db/` がスキーマ）を保持し、各層に対して新カラムと新ロジックを追加する。
 
-### アーキテクチャパターンとバウンダリマップ
+### Architecture Pattern & Boundary Map
 
 ```mermaid
-graph TB
-    subgraph Client
-        ReactApp[React SPA]
-    end
-    subgraph HonoServer
-        HonoApp[Hono App]
-        TRPCHandler[tRPC Handler]
-        subgraph Router
-            ProjectsRouter[projects router]
-            TasksRouter[tasks router]
-            MembersRouter[members router]
-            HolidaysRouter[holidays router]
-            ImportRouter[import router]
-        end
-        subgraph Services
-            WbsImporter[wbs-importer service]
-        end
-        subgraph DB
-            DrizzleSchema[Drizzle Schema]
-            DrizzleClient[DB Client]
-            SQLiteFile[SQLite File]
-        end
-        subgraph Errors
-            AppErrorClass[AppError]
-            ErrorCodes[codes.ts]
-        end
-    end
-    ReactApp -->|HTTP/tRPC| HonoApp
-    HonoApp --> TRPCHandler
-    TRPCHandler --> ProjectsRouter
-    TRPCHandler --> TasksRouter
-    TRPCHandler --> MembersRouter
-    TRPCHandler --> HolidaysRouter
-    TRPCHandler --> ImportRouter
-    ImportRouter --> WbsImporter
-    ProjectsRouter --> DrizzleClient
-    TasksRouter --> DrizzleClient
-    MembersRouter --> DrizzleClient
-    HolidaysRouter --> DrizzleClient
-    WbsImporter --> DrizzleClient
-    DrizzleClient --> SQLiteFile
-    DrizzleClient --> DrizzleSchema
-    ProjectsRouter --> AppErrorClass
-    TasksRouter --> AppErrorClass
-    MembersRouter --> AppErrorClass
-    HolidaysRouter --> AppErrorClass
-    ImportRouter --> AppErrorClass
-    AppErrorClass --> ErrorCodes
+flowchart LR
+  subgraph Server [evm-studio/server]
+    Migration[0001 マイグレーション\nALTER TABLE で 4 カラム追加]
+    Schema[db/schema.ts\nDrizzle 型定義拡張]
+    Importer[services/wbs-importer.ts\nYAML→DB 変換拡張]
+    MemberSvc[services/members-service.ts\nイニシャル自動生成]
+    ProjAPI[api/projects.ts\nZod 拡張・型エクスポート]
+    MemAPI[api/members.ts\nZod 拡張・型エクスポート]
+    Seeds[seeds/seed.ts\n5 プロジェクト投入]
+    Errors[errors/codes.ts\nIMPORT_INVALID_PROJECT_STATUS 追加]
+  end
+
+  Migration --> Schema
+  Schema --> Importer
+  Schema --> ProjAPI
+  Schema --> MemAPI
+  Schema --> Seeds
+  MemberSvc --> Importer
+  MemberSvc --> MemAPI
+  Errors --> Importer
+
+  subgraph Steering [.kiro/steering]
+    Domain[domain.md\nフィールド対応表追記]
+  end
+
+  subgraph Downstream [Downstream specs]
+    Dashboard[dashboard\nstatus/code/role/initials を表示]
+    EvmEngine[evm-engine\n既存カラムのみ参照]
+    Progress[progress-tracking\nProgressSnapshot 拡張]
+  end
+
+  Schema -.参照.-> Dashboard
+  Schema -.参照.-> Progress
+  Domain -.参照.-> Dashboard
 ```
 
-依存関係の方向: `errors/codes.ts` → `errors/AppError.ts` → `db/schema.ts` → `db/index.ts` → `services/` → `api/` → `router.ts` → `index.ts`
+**Architecture Integration**:
+- **Selected pattern**: 既存の 3 層構造（`api/` ルーティング → `services/` ビジネスロジック → `db/` スキーマ）を維持し、純粋関数 `members-service.ts` を新設して `initials` 自動生成ロジックを単独テスト可能にする。
+- **Domain/feature boundaries**: スキーマ層・サービス層・API 層・シードスクリプトを明確に分離。マイグレーション SQL は手書き（drizzle-kit `generate` で生成後に確認・調整）。
+- **Existing patterns preserved**: Drizzle 推論型 → tRPC 出力型の流し方、`ErrorCode` 定数経由のエラーコード管理、`services/` 純粋関数原則。
+- **New components rationale**: `members-service.ts` を新設するのは、`initials` 自動生成を WBS Importer と `members.create` の両方から再利用するため。シード用スクリプトは `seeds/seed.ts` として独立配置。
+- **Steering compliance**: TypeScript strict・`any` 禁止・Drizzle 推論型優先・Zod による入力バリデーションを徹底。
 
-各レイヤーは左方向にのみ import する。API 層は DB 層・サービス層に依存するが、逆方向の依存は禁止。
+### Technology Stack
 
-### テクノロジースタック
+| Layer | Choice / Version | Role in Feature | Notes |
+|-------|------------------|-----------------|-------|
+| Frontend / CLI | — | 本スペックでは UI 変更なし | クライアント型推論のみ提供 |
+| Backend / Services | Hono 4.12 + tRPC 11 + Zod 4 | スキーマバリデーションと CRUD 配線 | 既存ルーターを拡張 |
+| Data / Storage | SQLite (better-sqlite3 12) + Drizzle ORM 0.45 | 4 カラム追加と既存データ保持 | `ALTER TABLE ADD COLUMN` で非破壊適用 |
+| Messaging / Events | — | 不使用 | — |
+| Infrastructure / Runtime | Node.js 22 LTS + drizzle-kit | マイグレーション生成・適用 | `drizzle-kit migrate` で `0001_*.sql` を適用 |
 
-| レイヤー | 選択 / バージョン | 役割 |
-|---------|-----------------|------|
-| Backend | Hono 4.12 + Node.js 22 | HTTP サーバー・CORS・ロギングミドルウェア |
-| API | tRPC 11 | 型安全 CRUD エンドポイント・入力バリデーション |
-| ORM | Drizzle ORM 0.45 | スキーマ定義・型推論・マイグレーション |
-| DB | better-sqlite3 12 | SQLite ドライバー（同期 API） |
-| バリデーション | Zod 4 | tRPC 入力スキーマ定義 |
-| YAML パース | js-yaml 4 | WBS YAML の SAFE_LOAD |
-| ロギング | pino 10 | サービス層の構造化ログ |
+## File Structure Plan
 
----
-
-## ファイル構成計画
-
-### ディレクトリ構造
+### Directory Structure
 
 ```
 evm-studio/
 ├── server/
-│   └── src/
-│       ├── index.ts                    # Hono エントリーポイント（tRPC マウント）
-│       ├── router.ts                   # appRouter（全ルーターをマウント）
-│       ├── errors/
-│       │   ├── codes.ts                # ErrorCode 定数（唯一の定義場所）
-│       │   └── AppError.ts             # AppError クラス
-│       ├── db/
-│       │   ├── schema.ts               # Drizzle スキーマ（全テーブル・型エクスポート）
-│       │   ├── index.ts                # DB 接続・マイグレーション実行・db エクスポート
-│       │   └── migrations/             # drizzle-kit 生成ファイル（変更禁止）
-│       ├── services/
-│       │   └── wbs-importer.ts         # YAML → DB 変換（アトミックトランザクション）
-│       ├── api/
-│       │   ├── projects.ts             # projects tRPC ルーター
-│       │   ├── tasks.ts                # tasks tRPC ルーター
-│       │   ├── members.ts              # members tRPC ルーター
-│       │   ├── holidays.ts             # holidays tRPC ルーター
-│       │   └── import.ts               # import tRPC ルーター
-│       └── drizzle.config.ts           # drizzle-kit 設定
-├── client/
-│   └── src/                            # 本スペックでは変更なし
-└── e2e/
-    └── import.spec.ts                  # WBS インポート E2E テスト（本スペックで追加）
+│   ├── src/
+│   │   ├── db/
+│   │   │   ├── schema.ts                          # 修正: projects/members に 4 カラム追加
+│   │   │   └── migrations/
+│   │   │       └── 0001_add_status_code_role_initials.sql  # 新規: ALTER TABLE
+│   │   ├── services/
+│   │   │   ├── members-service.ts                 # 新規: initials 自動生成純粋関数
+│   │   │   ├── members-service.test.ts            # 新規: 自動生成ロジックの単体テスト
+│   │   │   └── wbs-importer.ts                    # 修正: 新 YAML フィールド対応
+│   │   ├── api/
+│   │   │   ├── projects.ts                        # 修正: Zod スキーマ拡張・出力型拡張
+│   │   │   └── members.ts                         # 修正: Zod スキーマ拡張・出力型拡張
+│   │   └── errors/
+│   │       └── codes.ts                           # 修正: IMPORT_INVALID_PROJECT_STATUS 追加
+│   └── seeds/
+│       ├── seed.ts                                # 新規: 5 プロジェクト投入スクリプト
+│       └── mockup-projects.ts                     # 新規: モックアップ準拠の定数データ
+├── package.json                                   # 修正: npm run seed スクリプト追加
+└── ...
+
+.kiro/steering/
+└── domain.md                                      # 修正: フィールド対応表追記
 ```
 
-### 変更ファイル
+### Modified Files
 
-- `evm-studio/server/src/index.ts` — 新規作成（Hono + tRPC 統合エントリーポイント）
-- `evm-studio/server/src/router.ts` — 新規作成（appRouter 定義）
+- `evm-studio/server/src/db/schema.ts` — `projects` に `status` / `code`、`members` に `role` / `initials` を追加。
+- `evm-studio/server/src/services/wbs-importer.ts` — YAML パース時に新フィールドを Zod で受け入れ、DB 書き込み時に反映。
+- `evm-studio/server/src/api/projects.ts` — `createProjectSchema` / `updateProjectSchema` に `status` / `code` を追加。
+- `evm-studio/server/src/api/members.ts` — `createMemberSchema` / `updateMemberSchema` に `role` / `initials` を追加し、`initials` 省略時は `members-service.ts` の自動生成を呼び出す。
+- `evm-studio/server/src/errors/codes.ts` — `IMPORT_INVALID_PROJECT_STATUS` を追加。
+- `evm-studio/package.json` — `scripts` に `"seed": "tsx server/seeds/seed.ts"` を追加。
+- `.kiro/steering/domain.md` — フィールド対応表と「データモデル概要」セクションを更新。
 
----
+## System Flows
 
-## システムフロー
-
-### WBS YAML インポートフロー
+### マイグレーション適用フロー
 
 ```mermaid
 sequenceDiagram
-    participant Client
-    participant ImportRouter
-    participant WbsImporter
-    participant DB
-
-    Client->>ImportRouter: import.wbsYaml(projectId, tasksYaml, staffingYaml, scheduleYaml)
-    ImportRouter->>ImportRouter: Zod バリデーション
-    ImportRouter->>WbsImporter: importWbsYaml(projectId, parsedData)
-    WbsImporter->>WbsImporter: js-yaml SAFE_LOAD (3ファイル)
-    WbsImporter->>WbsImporter: 構造バリデーション
-    WbsImporter->>DB: BEGIN TRANSACTION
-    WbsImporter->>DB: upsert members (external_id キー)
-    WbsImporter->>DB: upsert tasks 第1パス (external_id キー, planned 日付は null 許容)
-    WbsImporter->>DB: tasks 第2パス: parent_id 解決
-    WbsImporter->>DB: tasks 第3パス: schedule assignments → planned_start/end 上書き
-    WbsImporter->>DB: upsert task_dependencies
-    WbsImporter->>DB: upsert holidays
-    WbsImporter->>DB: insert progress_snapshots (初回のみ, planned null → pv_days=0)
-    WbsImporter->>DB: COMMIT
-    WbsImporter-->>ImportRouter: ImportSummary
-    ImportRouter-->>Client: ImportSummary
+  participant Dev as 開発者
+  participant Kit as drizzle-kit
+  participant DB as SQLite
+  Dev->>Kit: drizzle-kit generate
+  Kit->>Kit: schema.ts と既存 0000_*.sql の差分を計算
+  Kit-->>Dev: 0001_add_status_code_role_initials.sql を生成
+  Dev->>Dev: SQL を確認・手動調整（status のデフォルト値）
+  Dev->>Kit: drizzle-kit migrate
+  Kit->>DB: BEGIN
+  Kit->>DB: ALTER TABLE projects ADD COLUMN status TEXT NOT NULL DEFAULT 'active'
+  Kit->>DB: ALTER TABLE projects ADD COLUMN code TEXT
+  Kit->>DB: ALTER TABLE members ADD COLUMN role TEXT
+  Kit->>DB: ALTER TABLE members ADD COLUMN initials TEXT
+  Kit->>DB: COMMIT
+  Kit-->>Dev: 適用完了
 ```
 
----
-
-## 要件トレーサビリティ
-
-| 要件 | 概要 | コンポーネント | インターフェース | フロー |
-|------|------|---------------|----------------|--------|
-| 1.1–1.8 | SQLite スキーマ定義 | DrizzleSchema, DBClient | schema.ts エクスポート型 | — |
-| 2.1–2.7 | Project CRUD | ProjectsRouter | projects tRPC | — |
-| 3.1–3.9 | Task CRUD | TasksRouter | tasks tRPC | — |
-| 4.1–4.6 | Member CRUD | MembersRouter | members tRPC | — |
-| 5.1–5.4 | Holiday CRUD | HolidaysRouter | holidays tRPC | — |
-| 6.1–6.13 | WBS YAML インポート | ImportRouter, WbsImporter | import tRPC | インポートフロー |
-| 7.1–7.5 | エラーハンドリング・型安全 | AppError, ErrorCodes, 全ルーター | AppError, ErrorCode | — |
-
----
-
-## コンポーネントとインターフェース
-
-### コンポーネントサマリー
-
-| コンポーネント | レイヤー | 目的 | 要件カバレッジ | 主要依存 |
-|--------------|---------|------|--------------|---------|
-| DrizzleSchema | DB | 全テーブル定義・型エクスポート | 1.1–1.8 | drizzle-orm, better-sqlite3 |
-| DBClient | DB | DB 接続・マイグレーション | 1.7, 1.8 | DrizzleSchema, better-sqlite3 |
-| ProjectsRouter | API | Project CRUD tRPC | 2.1–2.7 | DBClient, AppError |
-| TasksRouter | API | Task CRUD tRPC | 3.1–3.9 | DBClient, AppError |
-| MembersRouter | API | Member CRUD tRPC | 4.1–4.6 | DBClient, AppError |
-| HolidaysRouter | API | Holiday CRUD tRPC | 5.1–5.4 | DBClient, AppError |
-| ImportRouter | API | WBS YAML インポート tRPC | 6.1–6.10 | WbsImporter, AppError |
-| WbsImporter | Service | YAML → DB 変換（アトミック） | 6.1–6.10 | DBClient, js-yaml |
-| AppError | Error | ドメイン例外 | 7.1–7.2 | ErrorCodes |
-| ErrorCodes | Error | 全エラーコード定数 | 7.1 | — |
-
----
-
-### DB レイヤー
-
-#### DrizzleSchema
-
-| フィールド | 詳細 |
-|-----------|------|
-| Intent | 全エンティティの Drizzle スキーマ定義と TypeScript 型のエクスポート |
-| Requirements | 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 7.3, 7.4 |
-
-**責任と制約**
-
-- 6 テーブル（projects / tasks / members / holidays / task_dependencies / progress_snapshots）の Drizzle スキーマ定義
-- Drizzle 推論型（`Project`, `Task`, `Member`, `Holiday`, `TaskDependency`, `ProgressSnapshot`, `NewProject`, `NewTask` 等）をエクスポート
-- DB カラム名は snake_case、TypeScript プロパティ名は camelCase にマッピング
-- `is_buffer` / `is_leaf` は SQLite INTEGER として保存（0/1）
-
-**依存関係**
-
-- External: `drizzle-orm/sqlite-core` — スキーマ DSL (P0)
-
-**コントラクト**: Service [x]
-
-##### サービスインターフェース（スキーマ型エクスポート）
-
-```typescript
-// server/src/db/schema.ts
-
-// --- projects ---
-export const projects = sqliteTable('projects', {
-  id:        integer('id').primaryKey({ autoIncrement: true }),
-  name:      text('name').notNull(),
-  startDate: text('start_date').notNull(),
-  endDate:   text('end_date').notNull(),
-  createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
-  updatedAt: integer('updated_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
-})
-export type Project    = typeof projects.$inferSelect
-export type NewProject = typeof projects.$inferInsert
-
-// --- tasks ---
-export const tasks = sqliteTable('tasks', {
-  id:          integer('id').primaryKey({ autoIncrement: true }),
-  projectId:   integer('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
-  externalId:  text('external_id'),                // wbs-YAML の "T001" 形式
-  name:        text('name').notNull(),
-  estimateDays:real('estimate_days').notNull().default(0),
-  plannedStart:text('planned_start'),
-  plannedEnd:  text('planned_end'),
-  actualStart: text('actual_start'),
-  actualEnd:   text('actual_end'),
-  parentId:    integer('parent_id').references((): AnySQLiteColumn => tasks.id),
-  assigneeId:  integer('assignee_id').references(() => members.id, { onDelete: 'set null' }),
-  level:       integer('level').notNull().default(1),
-  sortOrder:   integer('sort_order').notNull().default(0),
-  isBuffer:    integer('is_buffer', { mode: 'boolean' }).notNull().default(false),
-  isLeaf:      integer('is_leaf',   { mode: 'boolean' }).notNull().default(true),
-  remarks:     text('remarks'),
-  createdAt:   integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
-  updatedAt:   integer('updated_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
-})
-export type Task    = typeof tasks.$inferSelect
-export type NewTask = typeof tasks.$inferInsert
-
-// --- members ---
-export const members = sqliteTable('members', {
-  id:               integer('id').primaryKey({ autoIncrement: true }),
-  projectId:        integer('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
-  externalId:       text('external_id'),
-  name:             text('name').notNull(),
-  availabilityRate: real('availability_rate').notNull().default(1.0),
-  assignmentStart:  text('assignment_start'),
-  assignmentEnd:    text('assignment_end'),
-  createdAt:        integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
-  updatedAt:        integer('updated_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
-})
-export type Member    = typeof members.$inferSelect
-export type NewMember = typeof members.$inferInsert
-
-// --- holidays ---
-export const holidays = sqliteTable('holidays', {
-  id:        integer('id').primaryKey({ autoIncrement: true }),
-  projectId: integer('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
-  date:      text('date').notNull(),
-})
-export type Holiday    = typeof holidays.$inferSelect
-export type NewHoliday = typeof holidays.$inferInsert
-
-// --- task_dependencies ---
-export const taskDependencies = sqliteTable('task_dependencies', {
-  id:              integer('id').primaryKey({ autoIncrement: true }),
-  taskId:          integer('task_id').notNull().references(() => tasks.id, { onDelete: 'cascade' }),
-  dependsOnTaskId: integer('depends_on_task_id').notNull().references(() => tasks.id, { onDelete: 'cascade' }),
-})
-export type TaskDependency    = typeof taskDependencies.$inferSelect
-export type NewTaskDependency = typeof taskDependencies.$inferInsert
-
-// --- progress_snapshots ---
-export const progressSnapshots = sqliteTable('progress_snapshots', {
-  id:           integer('id').primaryKey({ autoIncrement: true }),
-  taskId:       integer('task_id').notNull().references(() => tasks.id, { onDelete: 'cascade' }),
-  snapshotDate: text('snapshot_date').notNull(),
-  progressPct:  real('progress_pct').notNull().default(0),
-  pvDays:       real('pv_days').notNull().default(0),   // リスケ保全用: 記録時点の PV を保存
-  evDays:       real('ev_days').notNull().default(0),   // 再見積保全用: 記録時点の EV を保存
-  acDays:       real('ac_days').notNull().default(0),
-  createdAt:    integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
-}, (progressSnapshots) => ({
-  taskDateUniq: uniqueIndex('idx_progress_snapshots_task_date').on(progressSnapshots.taskId, progressSnapshots.snapshotDate),
-}))
-export type ProgressSnapshot    = typeof progressSnapshots.$inferSelect
-export type NewProgressSnapshot = typeof progressSnapshots.$inferInsert
-```
-
-**実装ノート**
-
-- `tasks.parentId` の自己参照は `() => tasks.id` の遅延評価で対応
-- `PRAGMA foreign_keys = ON` は `db/index.ts` の DB 初期化時に実行する（要件 1.8）
-- Drizzle Kit で `drizzle-kit generate` を実行してマイグレーションファイルを生成する
-
----
-
-#### DBClient
-
-| フィールド | 詳細 |
-|-----------|------|
-| Intent | better-sqlite3 接続の初期化、マイグレーション実行、db インスタンスのシングルトン提供 |
-| Requirements | 1.7, 1.8 |
-
-**責任と制約**
-
-- アプリ起動時に `migrate(db, { migrationsFolder })` を実行して最新スキーマを適用（要件 1.7）
-- `PRAGMA foreign_keys = ON` を接続後即時実行（要件 1.8）
-- `db` インスタンスをモジュールレベルのシングルトンとしてエクスポート
-
-**コントラクト**: Service [x]
-
-##### サービスインターフェース
-
-```typescript
-// server/src/db/index.ts
-import Database from 'better-sqlite3'
-import { drizzle } from 'drizzle-orm/better-sqlite3'
-import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
-import * as schema from './schema'
-
-const DB_PATH = process.env.DB_PATH ?? './evm-studio.db'
-const sqlite = new Database(DB_PATH)
-sqlite.pragma('foreign_keys = ON')
-export const db = drizzle(sqlite, { schema })
-
-export function runMigrations(): void {
-  migrate(db, { migrationsFolder: './src/db/migrations' })
-}
-```
-
----
-
-### エラーレイヤー
-
-#### ErrorCodes
-
-| フィールド | 詳細 |
-|-----------|------|
-| Intent | 全ドメインエラーコードの唯一の定義場所 |
-| Requirements | 7.1 |
-
-**コントラクト**: Service [x]
-
-##### サービスインターフェース
-
-```typescript
-// server/src/errors/codes.ts
-export const ErrorCode = {
-  // Project
-  PROJ_NOT_FOUND:          'PROJ_NOT_FOUND',
-  // Task
-  TASK_NOT_FOUND:          'TASK_NOT_FOUND',
-  // Member
-  MEMBER_NOT_FOUND:        'MEMBER_NOT_FOUND',
-  MEMBER_INVALID_RATE:     'MEMBER_INVALID_RATE',
-  // Import
-  IMPORT_INVALID_YAML:     'IMPORT_INVALID_YAML',
-  IMPORT_PARSE_ERROR:      'IMPORT_PARSE_ERROR',
-  IMPORT_MISSING_FIELD:    'IMPORT_MISSING_FIELD',
-} as const
-export type ErrorCode = typeof ErrorCode[keyof typeof ErrorCode]
-```
-
-#### AppError
-
-| フィールド | 詳細 |
-|-----------|------|
-| Intent | ドメイン例外クラス（コードとメッセージを持つ） |
-| Requirements | 7.1, 7.2 |
-
-**コントラクト**: Service [x]
-
-##### サービスインターフェース
-
-```typescript
-// server/src/errors/AppError.ts
-import { type ErrorCode } from './codes'
-
-export class AppError extends Error {
-  constructor(
-    public readonly code: ErrorCode,
-    message: string,
-  ) {
-    super(message)
-    this.name = 'AppError'
-  }
-}
-```
-
-tRPC ルーターでの変換パターン:
-
-```typescript
-import { TRPCError } from '@trpc/server'
-import { AppError } from '../errors/AppError'
-
-function toTRPCError(e: AppError): TRPCError {
-  const codeMap: Record<string, TRPCError['code']> = {
-    PROJ_NOT_FOUND:   'NOT_FOUND',
-    TASK_NOT_FOUND:   'NOT_FOUND',
-    MEMBER_NOT_FOUND: 'NOT_FOUND',
-    IMPORT_INVALID_YAML: 'BAD_REQUEST',
-    IMPORT_PARSE_ERROR:  'BAD_REQUEST',
-    IMPORT_MISSING_FIELD:'BAD_REQUEST',
-    MEMBER_INVALID_RATE: 'BAD_REQUEST',
-  }
-  return new TRPCError({
-    code: codeMap[e.code] ?? 'INTERNAL_SERVER_ERROR',
-    message: e.message,
-    cause: e,
-  })
-}
-```
-
----
-
-### API レイヤー
-
-#### ProjectsRouter
-
-| フィールド | 詳細 |
-|-----------|------|
-| Intent | Project の CRUD tRPC プロシージャを提供する |
-| Requirements | 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7 |
-
-**コントラクト**: API [x]
-
-##### API コントラクト
-
-| プロシージャ | 入力スキーマ（Zod） | 戻り値 | エラー |
-|------------|-------------------|--------|--------|
-| `projects.list` | なし | `Project[]` | — |
-| `projects.getById` | `{ id: z.number().int().positive() }` | `Project` | PROJ_NOT_FOUND |
-| `projects.create` | `createProjectSchema` | `Project` | BAD_REQUEST |
-| `projects.update` | `updateProjectSchema` | `Project` | PROJ_NOT_FOUND, BAD_REQUEST |
-| `projects.delete` | `{ id: z.number().int().positive() }` | `{ success: true }` | PROJ_NOT_FOUND |
-
-```typescript
-// Zod スキーマ（概略）
-const createProjectSchema = z.object({
-  name:      z.string().min(1).max(200),
-  startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  endDate:   z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-})
-const updateProjectSchema = z.object({
-  id:        z.number().int().positive(),
-  name:      z.string().min(1).max(200).optional(),
-  startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-  endDate:   z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-})
-```
-
-#### TasksRouter
-
-| フィールド | 詳細 |
-|-----------|------|
-| Intent | Task の CRUD tRPC プロシージャを提供する |
-| Requirements | 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7, 3.8, 3.9 |
-
-**コントラクト**: API [x]
-
-##### API コントラクト
-
-| プロシージャ | 入力スキーマ | 戻り値 | エラー |
-|------------|------------|--------|--------|
-| `tasks.listByProject` | `{ projectId: z.number() }` | `Task[]` (sort_order 昇順) | — |
-| `tasks.getById` | `{ id: z.number() }` | `Task` | TASK_NOT_FOUND |
-| `tasks.create` | `createTaskSchema` | `Task` | BAD_REQUEST |
-| `tasks.update` | `updateTaskSchema` | `Task` | TASK_NOT_FOUND, BAD_REQUEST |
-| `tasks.delete` | `{ id: z.number() }` | `{ success: true }` | TASK_NOT_FOUND |
-
-```typescript
-const createTaskSchema = z.object({
-  projectId:    z.number().int().positive(),
-  name:         z.string().min(1).max(500),
-  estimateDays: z.number().nonnegative(),
-  plannedStart: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-  plannedEnd:   z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-  parentId:     z.number().int().positive().optional(),
-  assigneeId:   z.number().int().positive().optional(),
-  level:        z.number().int().nonnegative().default(1),
-  sortOrder:    z.number().int().nonnegative().default(0),
-  isBuffer:     z.boolean().default(false),
-  isLeaf:       z.boolean().default(true),
-  remarks:      z.string().optional(),
-})
-```
-
-#### MembersRouter
-
-| フィールド | 詳細 |
-|-----------|------|
-| Intent | Member の CRUD tRPC プロシージャを提供する |
-| Requirements | 4.1, 4.2, 4.3, 4.4, 4.5, 4.6 |
-
-**コントラクト**: API [x]
-
-##### API コントラクト
-
-| プロシージャ | 入力スキーマ | 戻り値 | エラー |
-|------------|------------|--------|--------|
-| `members.listByProject` | `{ projectId: z.number() }` | `Member[]` | — |
-| `members.create` | `createMemberSchema` | `Member` | BAD_REQUEST |
-| `members.update` | `updateMemberSchema` | `Member` | MEMBER_NOT_FOUND, BAD_REQUEST |
-| `members.delete` | `{ id: z.number() }` | `{ success: true }` | MEMBER_NOT_FOUND |
-
-```typescript
-const createMemberSchema = z.object({
-  projectId:        z.number().int().positive(),
-  name:             z.string().min(1).max(200),
-  availabilityRate: z.number().min(0).max(1),
-  assignmentStart:  z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-  assignmentEnd:    z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-  externalId:       z.string().optional(),
-})
-```
-
-#### HolidaysRouter
-
-| フィールド | 詳細 |
-|-----------|------|
-| Intent | Holiday の CRUD tRPC プロシージャを提供する |
-| Requirements | 5.1, 5.2, 5.3, 5.4 |
-
-**コントラクト**: API [x]
-
-##### API コントラクト
-
-| プロシージャ | 入力スキーマ | 戻り値 | エラー |
-|------------|------------|--------|--------|
-| `holidays.listByProject` | `{ projectId: z.number() }` | `Holiday[]` (date 昇順) | — |
-| `holidays.create` | `{ projectId: z.number(), date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/) }` | `Holiday` | BAD_REQUEST |
-| `holidays.delete` | `{ id: z.number() }` | `{ success: true }` | — |
-
-#### ImportRouter
-
-| フィールド | 詳細 |
-|-----------|------|
-| Intent | WBS YAML 3 ファイルの一括インポートエンドポイントを提供する |
-| Requirements | 6.1, 6.2, 6.3, 6.4, 6.5, 6.6, 6.7, 6.8, 6.9, 6.10, 6.11, 6.12, 6.13 |
-
-**コントラクト**: API [x]
-
-##### API コントラクト
-
-| プロシージャ | 入力スキーマ | 戻り値 | エラー |
-|------------|------------|--------|--------|
-| `import.wbsYaml` | `importWbsYamlSchema` | `ImportSummary` | IMPORT_PARSE_ERROR, IMPORT_INVALID_YAML |
-
-```typescript
-const importWbsYamlSchema = z.object({
-  projectId:    z.number().int().positive(),
-  tasksYaml:    z.string().min(1),
-  staffingYaml: z.string().min(1),
-  scheduleYaml: z.string().min(1),
-})
-
-interface ImportSummary {
-  projects:     number
-  tasks:        number
-  members:      number
-  holidays:     number
-  dependencies: number
-  snapshots:    number
-}
-```
-
----
-
-### サービスレイヤー
-
-#### WbsImporter
-
-| フィールド | 詳細 |
-|-----------|------|
-| Intent | WBS YAML を解析し DB にアトミックにインポートするビジネスロジック |
-| Requirements | 6.1, 6.2, 6.3, 6.4, 6.5, 6.6, 6.7, 6.8, 6.9, 6.10, 6.11, 6.12, 6.13 |
-
-**責任と制約**
-
-- `js-yaml.load()` の SAFE_LOAD オプションで 3 ファイルをパース（要件 6.10）
-- 必須フィールドの構造バリデーション（不足時は `IMPORT_MISSING_FIELD` で throw）
-- SQLite トランザクション内で全 upsert を実行（アトミック性、要件 6.7）
-- `external_id` をキーとして upsert（再インポート対応、要件 6.8）
-- parent_id・assignee_id の external_id → DB id 解決（要件 6.2, 6.4）
-- 初回 ProgressSnapshot の insert（要件 6.5）
-- pino でインポートログを出力（task_id のみ、個人名はログに含めない）
-
-**コントラクト**: Service [x]
-
-##### サービスインターフェース
-
-```typescript
-// server/src/services/wbs-importer.ts
-interface WbsImportInput {
-  projectId:    number
-  tasksYaml:    string
-  staffingYaml: string
-  scheduleYaml: string
-}
-
-interface ImportSummary {
-  projects:     number
-  tasks:        number
-  members:      number
-  holidays:     number
-  dependencies: number
-  snapshots:    number
-}
-
-export function importWbsYaml(input: WbsImportInput): ImportSummary
-```
-
-- 事前条件: `projectId` が DB に存在すること（存在しない場合は `PROJ_NOT_FOUND` で throw）
-- 事後条件: 全エンティティが DB に upsert され、ImportSummary が返る
-- 不変条件: トランザクション内で実行されるため、部分的な書き込みは発生しない
-
-**実装ノート**
-
-- `tasks.yaml` の YAML 構造: `tasks: [{ id, title, estimate_days?, planned_start?, planned_end?, parent_id?, depends_on[]?, assignee?, actual_start?, actual_end?, progress_pct?, is_buffer? }]`
-  - `estimate_days` が null/欠落の場合は 0 として扱う（要件 6.11）
-  - `planned_start` / `planned_end` が null/欠落の場合は null として保存する（要件 6.11）。これは wbs-* スキルがスケジュール情報を schedule.yaml 側の assignments に分離して出力するため（スケジュール分離型 YAML パターン）
-- `staffing.yaml` の YAML 構造: `members: [{ id, name, availability_rate, assignment_start?, assignment_end? }]`, `meta.public_holidays: [string]`
-- `schedule.yaml` の YAML 構造: `meta.schedule_start`, `meta.schedule_end` および オプション `assignments: [{ task_id, assignee_id?, planned_start, planned_end, ... }]`
-  - `assignments[]` が存在する場合、各エントリの `task_id`（external_id 形式）に対応するタスクの `planned_start` / `planned_end` を更新する（要件 6.12）
-  - 対応タスクが見つからない assignment は無視する（要件 6.12）
-- better-sqlite3 の同期 API を使用してトランザクションを管理する: `db.transaction(() => { ... })()`
-- トランザクション内の実行順序:
-  1. members upsert (external_id キー)
-  2. tasks upsert 第1パス（planned_start/planned_end は tasks.yaml の値 or null）
-  3. parent_id 解決（第2パス）
-  4. schedule assignments 適用（第3パス）— `planned_start` / `planned_end` を schedule.yaml の値で上書き（要件 6.12）
-  5. task_dependencies 挿入
-  6. holidays upsert
-  7. ProgressSnapshot 作成（progress_pct 指定タスクのみ）
-- 初回 ProgressSnapshot 作成時の `pv_days` / `ev_days` 計算:
-  - `ev_days = estimate_days × (progress_pct / 100)`（tasks.yaml の progress_pct を使用）
-  - `pv_days`: `planned_start` または `planned_end` が null の場合は 0（要件 6.13）。両方存在する場合は、インポート日が `planned_start` 以前なら 0、`planned_end` 以降なら `estimate_days`、期間内なら `min(稼働日数比率 × estimate_days × availability_rate, estimate_days)` で計算（assignee 未指定時は availability_rate = 1.0）
-
----
-
-## データモデル
-
-### ドメインモデル
+### WBS YAML インポートフロー（拡張部分のみ）
 
 ```mermaid
-erDiagram
-    Project {
-        int id PK
-        string name
-        string start_date
-        string end_date
-    }
-    Task {
-        int id PK
-        int project_id FK
-        string external_id
-        string name
-        real estimate_days
-        string planned_start
-        string planned_end
-        string actual_start
-        string actual_end
-        int parent_id FK
-        int assignee_id FK
-        int level
-        int sort_order
-        bool is_buffer
-        bool is_leaf
-        string remarks
-    }
-    Member {
-        int id PK
-        int project_id FK
-        string external_id
-        string name
-        real availability_rate
-        string assignment_start
-        string assignment_end
-    }
-    Holiday {
-        int id PK
-        int project_id FK
-        string date
-    }
-    TaskDependency {
-        int id PK
-        int task_id FK
-        int depends_on_task_id FK
-    }
-    ProgressSnapshot {
-        int id PK
-        int task_id FK
-        string snapshot_date
-        real progress_pct
-        real ac_days
-    }
-
-    Project ||--o{ Task : "has"
-    Project ||--o{ Member : "has"
-    Project ||--o{ Holiday : "has"
-    Task ||--o{ Task : "parent_id"
-    Task ||--o{ TaskDependency : "task_id"
-    Task ||--o{ TaskDependency : "depends_on_task_id"
-    Task ||--o{ ProgressSnapshot : "has"
-    Member ||--o{ Task : "assignee_id"
+flowchart TD
+  Start[YAML 読み込み] --> Parse[js-yaml safeLoad]
+  Parse --> Zod[Zod スキーマで構造検証]
+  Zod -->|schedule.meta.project_status 不正| Err[IMPORT_INVALID_PROJECT_STATUS エラー]
+  Zod -->|OK| Begin[トランザクション開始]
+  Begin --> UpsertProj[projects.upsert\nstatus 'active' / code 既定 NULL]
+  UpsertProj --> UpsertMem[members.upsert\nrole / initials を受け入れ\ninitials 省略時は自動生成]
+  UpsertMem --> UpsertTask[tasks.upsert]
+  UpsertTask --> InsertDep[task_dependencies.insert]
+  InsertDep --> InsertHol[holidays.insert]
+  InsertHol --> Commit[COMMIT]
+  Commit --> End[件数を返却]
 ```
 
-### 物理データモデル
+### イニシャル自動生成ロジック
 
-テーブル設計上の重要な決定点:
+```mermaid
+flowchart TD
+  Input[name 文字列] --> Trim[前後空白を除去]
+  Trim --> Split{半角空白または全角空白で分割可?}
+  Split -->|Yes 2 トークン以上| TwoChar[姓の先頭 1 文字 + 名の先頭 1 文字]
+  Split -->|No| Slice[name の先頭最大 2 文字]
+  TwoChar --> Output[initials を返却]
+  Slice --> Output
+```
 
-- **日付型**: SQLite には DATE 型がないため TEXT（`YYYY-MM-DD` 形式）で保存する。比較演算が文字列辞書順で正しく動作する。
-- **タイムスタンプ**: INTEGER（Unix エポック秒）で保存し、Drizzle の `{ mode: 'timestamp' }` で Date 型に自動変換する。
-- **boolean**: SQLite には BOOLEAN 型がないため INTEGER（0/1）で保存。Drizzle の `{ mode: 'boolean' }` で自動変換。
-- **外部キー**: `PRAGMA foreign_keys = ON` を接続時に設定し参照整合性を保証。
+## Requirements Traceability
 
----
+| Requirement | Summary | Components | Interfaces | Flows |
+|-------------|---------|------------|------------|-------|
+| 1.1, 1.2, 1.6 | projects に status / code を追加 | `db/schema.ts`, マイグレーション 0001 | Drizzle 型 `Project` | マイグレーション適用フロー |
+| 1.3, 1.4, 1.5 | status / code の Zod 検証と tRPC 出力 | `api/projects.ts` | tRPC `projects.*` | — |
+| 2.1, 2.2, 2.3, 2.8 | members に role / initials を追加 | `db/schema.ts`, マイグレーション 0001 | Drizzle 型 `Member` | マイグレーション適用フロー |
+| 2.4, 2.5 | role / initials の Zod 検証 | `api/members.ts` | tRPC `members.*` | — |
+| 2.6, 2.7 | initials 自動生成 | `services/members-service.ts` | `generateInitials(name): string` | イニシャル自動生成ロジック |
+| 3.1, 3.2, 3.3, 3.4 | マイグレーションの後方互換 | マイグレーション 0001, drizzle-kit | — | マイグレーション適用フロー |
+| 4.1-4.7 | WBS Importer 拡張 | `services/wbs-importer.ts`, `errors/codes.ts` | Zod スキーマ拡張 | WBS YAML インポートフロー |
+| 5.1-5.6 | シードスクリプト | `seeds/seed.ts`, `seeds/mockup-projects.ts` | CLI `npm run seed` | — |
+| 6.1, 6.2, 6.3, 6.4, 6.5 | tRPC 入出力型の更新 | `api/projects.ts`, `api/members.ts` | tRPC `projects.*` / `members.*` | — |
+| 7.1, 7.2 | ステアリング更新 | `.kiro/steering/domain.md` | — | — |
+| 8.1-8.5 | テストカバレッジ | `db/schema.test.ts`, `services/members-service.test.ts`, `services/wbs-importer.test.ts`, `api/projects.test.ts`, `api/members.test.ts` | Vitest 4 | — |
 
-## エラーハンドリング
+## Components and Interfaces
 
-### エラー戦略
+| Component | Domain/Layer | Intent | Req Coverage | Key Dependencies (P0/P1) | Contracts |
+|-----------|--------------|--------|--------------|--------------------------|-----------|
+| `db/schema.ts` | Data | `projects` / `members` に 4 カラムを定義 | 1.1, 1.2, 2.1, 2.2 | Drizzle ORM (P0) | State |
+| Migration 0001 | Data | 既存 DB に非破壊で 4 カラムを追加 | 1.6, 2.8, 3.1, 3.2, 3.3, 3.4 | drizzle-kit (P0), better-sqlite3 (P0) | Batch |
+| `services/members-service.ts` | Services | `initials` 自動生成純粋関数 | 2.6, 2.7 | — | Service |
+| `services/wbs-importer.ts` | Services | YAML から DB へ新フィールドを反映 | 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7 | js-yaml (P0), Zod (P0), `members-service.ts` (P1), `errors/codes.ts` (P0) | Service, Batch |
+| `api/projects.ts` | API | `status` / `code` を入出力で扱う tRPC ルーター | 1.3, 1.4, 1.5, 6.1, 6.3, 6.5 | Zod (P0), Drizzle (P0) | API |
+| `api/members.ts` | API | `role` / `initials` を入出力で扱う tRPC ルーター | 2.3, 2.4, 2.5, 6.2, 6.4, 6.5 | Zod (P0), Drizzle (P0), `members-service.ts` (P1) | API |
+| `errors/codes.ts` | Errors | `IMPORT_INVALID_PROJECT_STATUS` を追加 | 4.6 | — | State |
+| `seeds/seed.ts` | Tooling | 5 プロジェクト分のシード投入 | 5.1, 5.2, 5.3, 5.4, 5.5, 5.6 | better-sqlite3 (P0), Drizzle (P0), `seeds/mockup-projects.ts` (P0) | Batch |
+| `.kiro/steering/domain.md` | Steering | フィールド対応表追記 | 7.1, 7.2 | — | — |
 
-| エラー種別 | 発生箇所 | 対応 |
-|-----------|---------|------|
-| 入力バリデーション失敗 | tRPC ルーター（Zod） | TRPCError BAD_REQUEST として返す |
-| エンティティ未発見 | API ルーター | AppError(PROJ_NOT_FOUND 等) → TRPCError NOT_FOUND |
-| YAML パースエラー | WbsImporter | AppError(IMPORT_PARSE_ERROR) → TRPCError BAD_REQUEST |
-| YAML 構造不正 | WbsImporter | AppError(IMPORT_INVALID_YAML) → TRPCError BAD_REQUEST |
-| DB エラー | DB レイヤー | 上位に再 throw（tRPC が INTERNAL_SERVER_ERROR に変換） |
+### Data Layer
 
-### モニタリング
+#### `db/schema.ts`
 
-- HTTP リクエストログ: `hono/logger` ミドルウェア（エントリーポイントに設定）
-- ビジネスロジックログ: `pino` を使用（WbsImporter）
-- ログには個人名を含めない（task_id / project_id のみ）
+| Field | Detail |
+|-------|--------|
+| Intent | Drizzle スキーマに `status` / `code` / `role` / `initials` を型定義する |
+| Requirements | 1.1, 1.2, 2.1, 2.2 |
+| Owner / Reviewers | core-data-model |
 
----
+**Responsibilities & Constraints**
+- `projects` に `status: text('status').notNull().default('active')` と `code: text('code')` を追加する。
+- `members` に `role: text('role')` と `initials: text('initials')` を追加する。
+- Drizzle 推論型 `Project` / `Member` を再エクスポートし、tRPC / シードから参照可能にする。
+- 既存カラムの定義・順序を変更しない（マイグレーション差分を最小化するため）。
 
-## テスト戦略
+**Dependencies**
+- Outbound: Drizzle ORM `sqlite-core` — テーブル定義 DSL (P0)
+- Outbound: 既存 `tasks` / `progress_snapshots` 等の参照 — Foreign Key 整合性 (P0)
 
-### サーバー単体テスト（Vitest）
+**Contracts**: State
 
-| テスト対象 | テスト内容 | 要件 |
-|-----------|----------|------|
-| `wbs-importer.ts` | 正常インポート（3 YAML → DB） | 6.1–6.9 |
-| `wbs-importer.ts` | parent_id の external_id 解決 | 6.2 |
-| `wbs-importer.ts` | depends_on の task_dependencies 挿入 | 6.3 |
-| `wbs-importer.ts` | 不正 YAML でのアトミックロールバック | 6.7 |
-| `wbs-importer.ts` | 再インポート（upsert）での重複なし | 6.8 |
-| `wbs-importer.ts` | tasks.yaml の estimate_days/planned 日付が null → デフォルト値（0/null） | 6.11 |
-| `wbs-importer.ts` | schedule.yaml の assignments[] → タスクの planned_start/end に反映 | 6.12 |
-| `wbs-importer.ts` | planned 日付 null のタスクでスナップショット作成 → pv_days = 0 | 6.13 |
-| `projects.ts` (router) | NOT_FOUND エラーの正確な AppError コード | 2.4 |
-| `members.ts` (router) | availability_rate 範囲外バリデーション | 4.5 |
+##### State Management
+- State model: テーブル列定義（DB スキーマ）
+- Persistence & consistency: `ALTER TABLE` で追加されたカラムは Drizzle スキーマと一致すること
+- Concurrency strategy: 単一プロセスで起動するため不要
 
-### E2E テスト（Playwright）
+#### Migration 0001 (`db/migrations/0001_add_status_code_role_initials.sql`)
 
-| テストフロー | 内容 | 要件 |
-|------------|------|------|
-| WBS インポート → タスク一覧確認 | 3 YAML ファイルをインポートしてタスク一覧が返ること | 6.1, 6.9 |
-| 実プロジェクト YAML インポート | tasks.yaml（84件）+ staffing.yaml + reschedule.yaml（assignments 付き）で正常インポートされ、タスク件数・planned 日付が正しいこと | 6.11, 6.12 |
-| 再インポート重複なし | 同一 project_id に再インポートしてもタスク件数が増えないこと | 6.8 |
+| Field | Detail |
+|-------|--------|
+| Intent | 既存 DB に非破壊で 4 カラムを追加 |
+| Requirements | 1.6, 2.8, 3.1, 3.2, 3.3, 3.4 |
 
----
+**Responsibilities & Constraints**
+- 順序: `ALTER TABLE projects ADD COLUMN status TEXT NOT NULL DEFAULT 'active'` → `ALTER TABLE projects ADD COLUMN code TEXT` → `ALTER TABLE members ADD COLUMN role TEXT` → `ALTER TABLE members ADD COLUMN initials TEXT`。
+- drizzle-kit は SQLite で `NOT NULL DEFAULT` を扱える（`generate` 出力を確認）。万一 drizzle-kit がテーブル再作成方式を選択した場合は手動で `ALTER TABLE ADD COLUMN` 形式に書き換える。
+- マイグレーション SQL は 1 トランザクションで実行され、途中でエラーが発生した場合はロールバックする（better-sqlite3 + drizzle のデフォルト挙動）。
 
-## セキュリティ考慮事項
+**Dependencies**
+- Outbound: drizzle-kit — マイグレーション生成 (P0)
+- Outbound: better-sqlite3 — トランザクション実行 (P0)
 
-- **YAML インジェクション**: `js-yaml` の `SAFE_LOAD`（デフォルト）を使用し、JavaScript オブジェクト生成を禁止する（要件 6.10）
-- **SQL インジェクション**: Drizzle ORM のパラメータ化クエリで自動対応
-- **入力バリデーション**: 全 tRPC プロシージャで Zod スキーマによる厳格なバリデーション（要件 7.5）
-- **CORS**: Hono の CORS を `localhost` のみに制限（エントリーポイントに設定）
-- **個人情報**: ログに担当者名を含めない（task_id のみ参照）
+**Contracts**: Batch
+
+##### Batch / Job Contract
+- Trigger: 開発者が `drizzle-kit migrate` を実行
+- Input / validation: 既存 `0000_*.sql` 適用済みの DB
+- Output / destination: `projects` / `members` テーブルに 4 カラムが追加された状態
+- Idempotency & recovery: drizzle-kit のマイグレーション履歴テーブル (`__drizzle_migrations`) で適用済み判定。エラー時はトランザクションロールバックで変更前を維持
+
+### Services Layer
+
+#### `services/members-service.ts`
+
+| Field | Detail |
+|-------|--------|
+| Intent | `initials` 自動生成（純粋関数） |
+| Requirements | 2.6, 2.7 |
+
+**Responsibilities & Constraints**
+- 副作用を持たない純粋関数として実装。
+- 入力: `name: string`。出力: 1〜2 文字の `initials: string`。
+- 半角空白 / 全角空白で分割し、2 トークン以上なら最初の 2 トークン先頭から 1 文字ずつ抽出。
+- 1 トークンしかない場合は先頭最大 2 文字を返す（サロゲートペアを考慮し `Array.from(str)` でコード単位ではなく文字単位で扱う）。
+
+**Dependencies**
+- Inbound: `services/wbs-importer.ts` — YAML インポート時にイニシャル生成 (P1)
+- Inbound: `api/members.ts` — `members.create` / `members.update` 時のフォールバック (P1)
+
+**Contracts**: Service
+
+##### Service Interface
+```typescript
+export function generateInitials(name: string): string
+```
+- Preconditions: `name` は非空文字列
+- Postconditions: 返値は `name` 由来の 1〜2 文字
+- Invariants: 同一入力に対し常に同一出力（純粋性）
+
+**Implementation Notes**
+- Integration: WBS Importer の `members` ループと `members.create` で再利用
+- Validation: 空文字列入力時は呼び出し側でエラー化（このサービス自体は防御的に空文字 `''` を返さない）
+- Risks: サロゲートペア（絵文字等）の取り扱いを誤ると 1 文字が分割される → `Array.from` で対応
+
+#### `services/wbs-importer.ts`（修正）
+
+| Field | Detail |
+|-------|--------|
+| Intent | YAML に追加されたオプショナルフィールドを DB に反映 |
+| Requirements | 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7 |
+
+**Responsibilities & Constraints**
+- `schedule.meta` の Zod スキーマに `project_status?: 'active' \| 'paused' \| 'draft' \| 'archived'` と `project_code?: string` を追加。
+- `staffing.members[]` の Zod スキーマに `role?: string \| null` と `initials?: string \| null` を追加。
+- `schedule.meta.project_status` が enum 外の値なら `AppError` を `ErrorCode.IMPORT_INVALID_PROJECT_STATUS` でスローする。
+- `initials` が省略され、`name` から生成可能な場合は `generateInitials(name)` で補完する。明示的に `null` を渡された場合は `null` のまま保存。
+- 後方互換: 既存 YAML（新フィールドなし）はそのまま動作する。`project_status` が省略された場合は DB のデフォルト値 `'active'` を採用する。
+
+**Dependencies**
+- Inbound: tRPC `import.fromYaml` ルート (P0)
+- Outbound: `db/schema.ts`（テーブル定義参照）(P0)
+- Outbound: `services/members-service.ts`（`generateInitials`）(P1)
+- Outbound: `errors/codes.ts`（`IMPORT_INVALID_PROJECT_STATUS`）(P0)
+- External: js-yaml — YAML パース (P0)
+
+**Contracts**: Service, Batch
+
+##### Service Interface
+```typescript
+export async function importFromYaml(
+  projectId: number,
+  yamlText: string,
+): Promise<{ projects: number; members: number; tasks: number; dependencies: number; holidays: number }>
+```
+- Preconditions: `projectId` は事前に作成されている / `yamlText` は schedule・staffing・tasks の 3 セクションを含む
+- Postconditions: DB の `projects` / `members` / `tasks` / `task_dependencies` / `holidays` が YAML に従って upsert されている
+- Invariants: トランザクション内で全テーブルを更新。途中失敗時はロールバック
+
+##### Batch / Job Contract
+- Trigger: tRPC `import.fromYaml` 呼び出し
+- Input / validation: YAML テキスト（Zod で構造検証）
+- Output / destination: DB 各テーブル + 件数オブジェクト
+- Idempotency & recovery: `external_id` ベースの upsert により冪等。トランザクションロールバックで変更前を維持
+
+**Implementation Notes**
+- Integration: tRPC ルーターから呼び出され、UI に件数を返す
+- Validation: 既存 Zod スキーマに 4 フィールドを追加するだけで他フィールドの検証は変えない
+- Risks: drizzle-kit が SQLite の `ALTER TABLE` を生成する際、テーブル再作成方式を選ぶ可能性がある → 生成 SQL を必ず手動レビューする
+
+### API Layer
+
+#### `api/projects.ts`（修正）
+
+| Field | Detail |
+|-------|--------|
+| Intent | `status` / `code` を入出力で扱う tRPC ルーター |
+| Requirements | 1.3, 1.4, 1.5, 6.1, 6.3, 6.5 |
+
+**Responsibilities & Constraints**
+- `createProjectSchema` に `status: z.enum(['active','paused','draft','archived']).default('active')` と `code: z.string().nullable().optional()` を追加する。
+- `updateProjectSchema` でも同様にオプショナルで受け入れる。
+- `projects.list` / `projects.getById` のレスポンスは Drizzle 推論型 `Project` をそのまま使い、`status` / `code` を含めて返す。
+- 既存の Zod 型を変更したフィールド（`name` / `startDate` / `endDate`）には触れない。
+
+**Dependencies**
+- Inbound: クライアント `useProjects` / `useProjectById` フック (P0)
+- Outbound: `db/schema.ts`（`projects` テーブル）(P0)
+- Outbound: Zod 4 — バリデーション (P0)
+
+**Contracts**: API
+
+##### API Contract
+| Method | Endpoint | Request | Response | Errors |
+|--------|----------|---------|----------|--------|
+| Query | `projects.list` | なし | `Project[]` (status/code 含む) | 500 |
+| Query | `projects.getById` | `{ id: number }` | `Project` | 404, 500 |
+| Mutation | `projects.create` | `CreateProjectInput` (status/code 含む) | `Project` | 400, 500 |
+| Mutation | `projects.update` | `UpdateProjectInput` (status/code 含む) | `Project` | 400, 404, 500 |
+
+#### `api/members.ts`（修正）
+
+| Field | Detail |
+|-------|--------|
+| Intent | `role` / `initials` を入出力で扱う tRPC ルーター |
+| Requirements | 2.3, 2.4, 2.5, 6.2, 6.4, 6.5 |
+
+**Responsibilities & Constraints**
+- `createMemberSchema` に `role: z.string().nullable().optional()` と `initials: z.string().min(1).max(4).nullable().optional()` を追加。
+- `members.create` 内部で `initials` が省略され `name` から自動生成可能な場合は `generateInitials(name)` で補完する。明示的に `null` を渡された場合は `null` を保存（自動生成しない）。
+- `members.listByProject` / `members.getById` のレスポンスは Drizzle 推論型 `Member` をそのまま使い、`role` / `initials` を含めて返す。
+
+**Dependencies**
+- Inbound: クライアント `useMembers` / `useMemberById` フック (P0)
+- Outbound: `db/schema.ts`（`members` テーブル）(P0)
+- Outbound: `services/members-service.ts`（`generateInitials`）(P1)
+
+**Contracts**: API
+
+##### API Contract
+| Method | Endpoint | Request | Response | Errors |
+|--------|----------|---------|----------|--------|
+| Query | `members.listByProject` | `{ projectId: number }` | `Member[]` (role/initials 含む) | 500 |
+| Query | `members.getById` | `{ id: number }` | `Member` | 404, 500 |
+| Mutation | `members.create` | `CreateMemberInput` (role/initials 含む) | `Member` | 400, 500 |
+| Mutation | `members.update` | `UpdateMemberInput` (role/initials 含む) | `Member` | 400, 404, 500 |
+
+### Errors Layer
+
+#### `errors/codes.ts`（修正）
+
+| Field | Detail |
+|-------|--------|
+| Intent | 新エラーコード `IMPORT_INVALID_PROJECT_STATUS` を追加 |
+| Requirements | 4.6 |
+
+**Responsibilities & Constraints**
+- `ErrorCode` オブジェクトに `IMPORT_INVALID_PROJECT_STATUS: 'IMPORT_INVALID_PROJECT_STATUS'` を追加。
+- 既存のドメインプレフィックス規約（`IMPORT_*`）に従う。
+- 文字列リテラルの直書きを禁ずる規約に従い、`wbs-importer.ts` から定数経由で参照する。
+
+### Tooling Layer
+
+#### `seeds/seed.ts` + `seeds/mockup-projects.ts`
+
+| Field | Detail |
+|-------|--------|
+| Intent | モックアップ準拠の 5 プロジェクトをシードデータとして投入 |
+| Requirements | 5.1, 5.2, 5.3, 5.4, 5.5, 5.6 |
+
+**Responsibilities & Constraints**
+- `seeds/mockup-projects.ts` に `mockup/projects-data.jsx` から抽出した定数（プロジェクト 5 件、各プロジェクトのメンバー・タスク・依存関係・休日）を TypeScript として配置する。`assignee` は名前から `external_id` に解決する事前変換も含めて定義する。
+- `seeds/seed.ts` は `better-sqlite3` で DB を開き、Drizzle 経由で `projects` / `members` / `tasks` / `task_dependencies` / `holidays` を順番に投入する。
+- 既存 `evm.db` が存在する場合は事前削除（または `TRUNCATE` / `DELETE FROM`）するオプションを `--reset` フラグで提供。デフォルトは初期化挙動（テーブルを空にしてから挿入）。
+- 投入はトランザクション内で実行。Foreign Key 違反等が発生したらロールバックし、`process.exit(1)` で終了する。
+- 完了時に投入件数を `console.log` で表示。
+- `package.json` の `scripts` に `"seed": "tsx server/seeds/seed.ts"` を追加。
+
+**Dependencies**
+- Outbound: better-sqlite3 — トランザクション (P0)
+- Outbound: Drizzle ORM — insert API (P0)
+- Outbound: `db/schema.ts` (P0)
+
+**Contracts**: Batch
+
+##### Batch / Job Contract
+- Trigger: 開発者が `npm run seed` を実行
+- Input / validation: `seeds/mockup-projects.ts` の定数データ（コード内検証）
+- Output / destination: SQLite DB の 5 テーブルに対してデータ投入
+- Idempotency & recovery: `--reset` で常に初期化してから投入することで冪等性確保。エラー時はロールバック + 非ゼロ終了
+
+## Data Models
+
+### Logical Data Model
+
+#### projects テーブル（拡張後）
+
+| カラム | 型 | NULL | デフォルト | 用途 |
+|---|---|---|---|---|
+| id | INTEGER PK AUTOINCREMENT | NO | — | 主キー |
+| name | TEXT | NO | — | プロジェクト名 |
+| start_date | TEXT | NO | — | 開始日 (YYYY-MM-DD) |
+| end_date | TEXT | NO | — | 終了日 (YYYY-MM-DD) |
+| **status** | TEXT | NO | `'active'` | プロジェクト状態 (`active` / `paused` / `draft` / `archived`) |
+| **code** | TEXT | YES | NULL | 表示用短縮コード (例: `NXP-002`) |
+| created_at | INTEGER | NO | now() | 作成時刻 |
+| updated_at | INTEGER | NO | now() | 更新時刻 |
+
+#### members テーブル（拡張後）
+
+| カラム | 型 | NULL | デフォルト | 用途 |
+|---|---|---|---|---|
+| id | INTEGER PK AUTOINCREMENT | NO | — | 主キー |
+| project_id | INTEGER FK | NO | — | プロジェクト ID |
+| external_id | TEXT | YES | NULL | WBS YAML 由来 ID |
+| name | TEXT | NO | — | 氏名 |
+| availability_rate | REAL | NO | 1.0 | 稼働率 |
+| assignment_start | TEXT | YES | NULL | 参画開始日 |
+| assignment_end | TEXT | YES | NULL | 参画終了日 |
+| **role** | TEXT | YES | NULL | 役割（例: PM, Lead Eng, Engineer, Designer, QA, BA, Security, Analyst） |
+| **initials** | TEXT | YES | NULL | 表示用 1〜4 文字のイニシャル |
+| created_at | INTEGER | NO | now() | 作成時刻 |
+| updated_at | INTEGER | NO | now() | 更新時刻 |
+
+**Consistency & Integrity**:
+- `Project.status` は CHECK 制約ではなく、Zod / TypeScript 型でアプリ側で担保する（SQLite の柔軟性を活用し、後の値追加を容易にするため）。
+- `Project.code` は unique 制約なし。重複時の警告は dashboard 側でも特に行わない（運用判断）。
+- `Member.role` は自由文字列。プリセットは UI 側の入力補完で扱う（→ `dashboard`）。
+- `Member.initials` は 1〜4 文字（Zod で制約）。`null` の場合は Avatar 側で `name` から都度生成する判断を `dashboard` 側に委ねる選択肢もあるが、本スペックでは保存時に補完する方針を採る。
+
+### Physical Data Model
+
+#### マイグレーション 0001 (期待 SQL)
+
+```sql
+-- 0001_add_status_code_role_initials.sql
+ALTER TABLE projects ADD COLUMN status TEXT NOT NULL DEFAULT 'active';
+ALTER TABLE projects ADD COLUMN code TEXT;
+ALTER TABLE members ADD COLUMN role TEXT;
+ALTER TABLE members ADD COLUMN initials TEXT;
+```
+
+> drizzle-kit が SQLite で `ALTER TABLE ADD COLUMN` を直接生成しない場合（テーブル再作成方式を選んだ場合）、生成 SQL を手動で上記の 4 行に置き換えること。既存データ保持のために必須。
+
+### Data Contracts & Integration
+
+#### tRPC Project 入力スキーマ（拡張部分）
+
+```typescript
+export const createProjectSchema = z.object({
+  name:      z.string().min(1),
+  startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  endDate:   z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  status:    z.enum(['active', 'paused', 'draft', 'archived']).default('active'),
+  code:      z.string().nullable().optional(),
+})
+export type CreateProjectInput = z.infer<typeof createProjectSchema>
+```
+
+#### tRPC Member 入力スキーマ（拡張部分）
+
+```typescript
+export const createMemberSchema = z.object({
+  projectId:        z.number().int().positive(),
+  externalId:       z.string().nullable().optional(),
+  name:             z.string().min(1),
+  availabilityRate: z.number().min(0).max(1).default(1),
+  assignmentStart:  z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+  assignmentEnd:    z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+  role:             z.string().nullable().optional(),
+  initials:         z.string().min(1).max(4).nullable().optional(),
+})
+export type CreateMemberInput = z.infer<typeof createMemberSchema>
+```
+
+#### WBS YAML 構造（拡張部分のみ）
+
+```yaml
+# schedule.yaml
+schedule:
+  meta:
+    schedule_start: '2026-04-01'
+    schedule_end:   '2026-09-30'
+    project_status: 'active'      # NEW: optional
+    project_code:   'NXP-002'     # NEW: optional
+
+# staffing.yaml
+staffing:
+  members:
+    - id: M001
+      name: '田中 美咲'
+      availability_rate: 0.8
+      role: 'PM'                  # NEW: optional
+      initials: '田美'            # NEW: optional
+```
+
+## Error Handling
+
+### Error Strategy
+
+- スキーマ層: SQLite の型制約 + Zod の型制約で書き込み前に弾く。
+- サービス層 (`wbs-importer.ts`): 入力 YAML のバリデーション失敗時に `AppError` を `ErrorCode.IMPORT_INVALID_PROJECT_STATUS` 等でスロー。
+- API 層 (`projects.ts` / `members.ts`): Zod バリデーションエラーは tRPC が自動的に `BAD_REQUEST` に変換。`AppError` は既存パターンに従い `TRPCError` に再ラップ。
+- シードスクリプト: トランザクション内で `try / catch`。失敗時は `console.error` + `process.exit(1)`。
+
+### Error Categories and Responses
+
+**User Errors (400)**:
+- `status` enum 外 → `ZodError` → tRPC が `BAD_REQUEST` で返却 → クライアントはトーストで表示。
+- `initials` 文字数 (5 文字以上) → 同上。
+
+**System Errors (500)**:
+- マイグレーション失敗 → drizzle-kit が SQL エラーをスロー → 起動時に exit。
+- シード Foreign Key 違反 → トランザクションロールバック → `process.exit(1)`。
+
+**Business Logic Errors (422 相当)**:
+- WBS YAML の `project_status` が不正値 → `IMPORT_INVALID_PROJECT_STATUS` で `AppError` スロー → tRPC `UNPROCESSABLE_CONTENT` に変換。
+
+### Monitoring
+
+- pino 経由でビジネスロジック層のエラーをログ出力（既存パターン踏襲）。
+- マイグレーション・シードは標準出力に進捗・件数を表示。
+
+## Testing Strategy
+
+### Unit Tests
+
+1. **Schema 単体テスト** (`db/schema.test.ts`): `projects` に `status='active'` / `code='NXP-002'` を insert → select で読み出し、両カラムが取得できることを確認 (要件 1.1, 1.2, 1.5, 8.2)。
+2. **Member スキーマ単体テスト** (`db/schema.test.ts`): `members` に `role='PM'` / `initials='田美'` を insert → select で確認 (要件 2.1, 2.2, 2.3, 8.1)。
+3. **Initials 自動生成テスト** (`services/members-service.test.ts`): `'田中 美咲'` (半角空白) → `'田美'`、 `'田中　美咲'` (全角空白) → `'田美'`、 `'伊藤健太'` (空白なし) → `'伊藤'` の 3 ケース (要件 2.6, 2.7, 8.4)。
+4. **Project 入力 Zod テスト** (`api/projects.test.ts`): `status='invalid'` で `safeParse` が失敗、`status='paused'` で成功することを確認 (要件 1.3, 1.4, 6.3)。
+5. **Member 入力 Zod テスト** (`api/members.test.ts`): `initials='12345'` (5 文字) で失敗、`initials='田美'` で成功 (要件 2.5, 6.4)。
+
+### Integration Tests
+
+1. **WBS Importer 新フィールド対応** (`services/wbs-importer.test.ts`): 新フィールドを含む YAML を読み込み、DB に `status` / `code` / `role` / `initials` が保存されることを確認 (要件 4.1, 4.2, 4.3, 4.4, 8.3)。
+2. **WBS Importer 後方互換** (`services/wbs-importer.test.ts`): 新フィールドを欠いた YAML を読み込み、`status='active'` / `code/role/initials=null` でインポート完了することを確認 (要件 4.5, 4.7, 8.3)。
+3. **WBS Importer 無効 status** (`services/wbs-importer.test.ts`): `project_status='unknown'` を含む YAML が `IMPORT_INVALID_PROJECT_STATUS` でスローすることを確認 (要件 4.6)。
+4. **Members tRPC 自動生成統合** (`api/members.test.ts`): `members.create` で `initials` を省略すると `generateInitials(name)` の結果が保存されることを確認 (要件 2.6, 2.7)。
+5. **マイグレーション後方互換** (`db/db.test.ts`): 既存 `0000_*.sql` 適用済み DB に `0001_*.sql` を適用 → 既存タスク・進捗・依存関係が全件読み込めることを確認 (要件 3.1, 3.2, 3.3, 3.4)。
+
+### E2E Tests
+
+本スペックでは UI 変更がないため E2E テストは追加しない（`dashboard` spec で WBS インポート → 表示の通しシナリオを担う）。
+
+### Performance / Load
+
+不要（数件〜数十件のレコードを扱うローカルアプリのため）。
+
+## Security Considerations
+
+- 個人情報（担当者氏名・イニシャル）はログ出力対象外。pino ロガー設定で氏名フィールドをマスクすることは別 spec の対象とし、本スペックではログ箇所に氏名を追加しないことのみ徹底する。
+- YAML パースは引き続き `js-yaml` の SAFE_LOAD オプションを使用する。
+- Zod による入力バリデーションを徹底し、enum / 文字数制約で異常値を弾く。
+
+## Migration Strategy
+
+```mermaid
+flowchart LR
+  A[現状\n0000_*.sql 適用済み] --> B[drizzle-kit generate]
+  B --> C[0001_*.sql 生成 + 手動レビュー]
+  C --> D[drizzle-kit migrate]
+  D --> E[既存 DB に 4 カラム追加]
+  E --> F[既存テスト + 新規テスト実行]
+  F -->|FAIL| G[ロールバック\n.kiro/specs に修正]
+  F -->|PASS| H[完了]
+```
+
+**Phase breakdown**:
+1. スキーマ定義更新 (`schema.ts`) → 2. マイグレーション生成・手動調整 → 3. ユニットテスト追加 → 4. WBS Importer / tRPC / シード更新 → 5. ステアリング更新 → 6. 全テスト実行。
+
+**Rollback triggers**:
+- マイグレーション SQL がテーブル再作成方式で既存データ消失を引き起こす場合 → SQL を手動で `ALTER TABLE ADD COLUMN` 形式に書き換える。
+- 既存テストが新スキーマで失敗する場合 → スキーマ定義またはマイグレーション SQL を見直す。
+
+**Validation checkpoints**:
+- マイグレーション適用後、`SELECT COUNT(*)` で既存レコード数が変わっていないこと。
+- 新カラムが期待値で埋まっていること (`status='active'`、その他 NULL)。
+- WBS Importer の後方互換テストが全件パスしていること。
