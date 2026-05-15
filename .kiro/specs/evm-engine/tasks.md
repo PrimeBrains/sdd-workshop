@@ -1,14 +1,14 @@
 # Implementation Plan
 
 - [ ] 1. 基盤整備: エラーコードと型エクスポートの確認
-- [ ] 1.1 EVM エラーコードを `errors/codes.ts` に整備する
+- [x] 1.1 EVM エラーコードを `errors/codes.ts` に整備する
   - `server/src/errors/codes.ts` の `ErrorCode` オブジェクトに `EVM_INVALID_BASE_DATE` / `EVM_INVALID_AVAILABILITY_RATE` / `EVM_CIRCULAR_DEPENDENCY` が存在することを確認し、不足があれば追加する
   - 文字列リテラル直書き禁止規約に従い、`as const` でリテラル型を維持する
   - 追加後、`tsc --noEmit` でコンパイルエラーが出ないことで完了を確認できる
   - _Requirements: 11.4_
   - _Boundary: ErrorsLayer_
 
-- [ ] 1.2 (P) Drizzle 推論型のエクスポートを確認する
+- [x] 1.2 (P) Drizzle 推論型のエクスポートを確認する
   - `server/src/db/schema.ts` から `Project` / `Task` / `Member` / `Holiday` / `ProgressSnapshot` / `TaskDependency` 型が型エクスポートされていることを確認する
   - 不足している場合は `core-data-model` spec へ差分修正を依頼するメモを残す（本スペックでは型を追加しない）
   - `services/evm-*.ts` から `import type { Project, Task, ... } from '../db/schema'` でインポート可能なことで完了を確認できる
