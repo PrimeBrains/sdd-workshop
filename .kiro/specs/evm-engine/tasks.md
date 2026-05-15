@@ -181,7 +181,7 @@
   - _Boundary: EvmRouter_
   - _Depends: 8.2_
 
-- [ ] 9.3 (P) パフォーマンスベンチを追加する
+- [x] 9.3 (P) パフォーマンスベンチを追加する
   - `server/src/api/evm.bench.ts` を作成し、100 タスク・5 メンバー・60 日分スナップショットの入力で `evm.calculate` を 50 回実行する
   - p95 が 200ms 以内であることを Vitest `bench` で assert する
   - 計測結果が CI ログに出力されることで完了を確認できる
