@@ -176,7 +176,7 @@
   - _Boundary: AcUnit_
 
 - [ ] 5. Core: ProgressInputPanel コンポーネント実装
-- [ ] 5.1 ProgressInputPanel の型定義を作成する
+- [x] 5.1 ProgressInputPanel の型定義を作成する
   - `evm-studio/client/src/components/gantt/progress-input-panel-types.ts` を新規作成する
   - `ProgressInputTask` interface を定義する: `id: number; code: string; name: string; assigneeName: string | null; plannedStart: string; plannedEnd: string; bac: number; spi: number | null; ancestors: Array<{ id: number; name: string }>`
   - `ProgressInputPanelProps` interface を定義する: `task: ProgressInputTask; projectStartISO: string; baseDate: string; snapshotDate: string; onSnapshotDateChange: (date: string) => void; onClose: () => void; onSaved?: (snapshot: ProgressSnapshot) => void`
@@ -185,7 +185,7 @@
   - _Requirements: 6.1, 6.2_
   - _Boundary: ProgressInputPanelTypes_
 
-- [ ] 5.2 ProgressInputPanel コンポーネントの骨格と初期化を実装する
+- [x] 5.2 ProgressInputPanel コンポーネントの骨格と初期化を実装する
   - `evm-studio/client/src/components/gantt/ProgressInputPanel.tsx` を新規作成する
   - props として `ProgressInputPanelProps` を受け入れる関数コンポーネントを定義する
   - 内部 `useState`: `progress: number`、`acDaysToday: number`、`note: string`、`acUnit: 'MD' | 'h'`、`saveError: string | null`
@@ -197,7 +197,7 @@
   - _Depends: 3.1, 3.3, 5.1_
   - _Boundary: ProgressInputPanel_
 
-- [ ] 5.3 ProgressInputPanel のヘッダー部（スナップショット日付 + 過去日警告 + メタ情報）を実装する
+- [x] 5.3 ProgressInputPanel のヘッダー部（スナップショット日付 + 過去日警告 + メタ情報）を実装する
   - パネル上部に `<input type="date" value={snapshotDate} max={baseDate} onChange={e => onSnapshotDateChange(e.target.value)} />` を表示する
   - `isPast === true` のとき、日付エリアの背景色を `EVM.warnSoft`、ボーダーを `EVM.warn` にし、`baseDate` との日数差分（例: `3日前`）を表示する
   - `isPast === false` のとき、背景色を `EVM.brandSoft`、ボーダーを `EVM.brand` にし、`今日` ラベルを表示する
@@ -207,7 +207,7 @@
   - _Depends: 5.2_
   - _Boundary: ProgressInputPanel_
 
-- [ ] 5.4 進捗率入力（スライダー + 数値 + 進捗バー + 計画線マーカー + 差分色分け）を実装する
+- [x] 5.4 進捗率入力（スライダー + 数値 + 進捗バー + 計画線マーカー + 差分色分け）を実装する
   - レンジスライダー `<input type="range" min={0} max={100} step={5} value={progress} onChange={e => setProgress(+e.target.value)} />` と数値入力 `<input type="number" min={0} max={100} step={1} value={progress} onChange={e => setProgress(Math.max(0, Math.min(100, +e.target.value || 0)))} />` を表示し、両者を `progress` ステートで連動させる
   - 進捗バー（高さ 10px の divider）の塗りを `width: ${progress}%` で表示し、塗り色を `diffPct >= 0 ? EVM.brandDeep : diffPct >= -10 ? EVM.warn : EVM.crit` で切り替える
   - 計画線マーカーを `left: calc(${plannedPct}% - 1px); width: 2px` の縦線で重ね、上に「計画 N%」のラベルを表示する（`plannedPct > 0 && plannedPct <= 100` のときのみ表示）
@@ -217,7 +217,7 @@
   - _Depends: 5.3_
   - _Boundary: ProgressInputPanel_
 
-- [ ] 5.5 AC 入力（MD/h トグル + 前回累積 + 本日追加 + 累積合計 + プレビュー）を実装する
+- [x] 5.5 AC 入力（MD/h トグル + 前回累積 + 本日追加 + 累積合計 + プレビュー）を実装する
   - MD / h トグルボタン 2 つを表示し、クリックで `setAcUnit('MD' | 'h')` を切り替える。切替時は `setAcDaysToday(0)` で本日入力をリセットする
   - 本日追加分の数値入力 `<input type="number" min={0} step={0.5} value={acDaysToday * factor} onChange={e => setAcDaysToday(Math.max(0, (+e.target.value || 0) / factor))} />` を表示する。`factor = acUnit === 'h' ? 8 : 1`
   - 前回累積 (`prevAcDays * factor`)、本日 (`acDaysToday * factor`)、累積合計 (`(prevAcDays + acDaysToday) * factor`) の 3 値を `.toFixed(1)` で整形して表示する
@@ -227,7 +227,7 @@
   - _Depends: 3.2, 5.4_
   - _Boundary: ProgressInputPanel_
 
-- [ ] 5.6 メモ入力欄を実装する
+- [x] 5.6 メモ入力欄を実装する
   - `<textarea value={note} maxLength={1000} onChange={e => setNote(e.target.value)} placeholder="進捗の状況・課題・次のアクションなど" />` を表示する
   - `maxLength={1000}` で 1001 文字目以降の入力をブラウザが拒否すること
   - スタイル: モックアップ準拠（`Card` 内、`Eyebrow` で「メモ · 任意」ラベル、`minHeight: 72px`、`resize: vertical`）
@@ -236,7 +236,7 @@
   - _Depends: 5.5_
   - _Boundary: ProgressInputPanel_
 
-- [ ] 5.7 保存ボタン・キャンセル・dirty 制御・エラー表示を実装する
+- [x] 5.7 保存ボタン・キャンセル・dirty 制御・エラー表示を実装する
   - `dirty = progress !== prevProgress || acDaysToday > 0 || note !== prevNote` を派生
   - 保存ボタン `<button disabled={!dirty || recordMutation.isPending} onClick={handleSave}>保存</button>` を表示する
   - `handleSave`:
