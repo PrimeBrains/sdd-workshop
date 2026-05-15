@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   countWorkingDays,
   calculatePrevDate,
+  calculatePrevDayDelta,
   calculateTaskPv,
   calculateProjectPv,
   calculateTaskEv,
@@ -9,6 +10,7 @@ import {
   calculateProjectAc,
   evaluateAlertLevel,
 } from './evm-engine.js'
+import type { EvmSummary } from './evm-engine.js'
 import type { Holiday, Member, ProgressSnapshot, Task } from '../db/schema.js'
 import { AppError } from '../errors/AppError.js'
 import { ErrorCode } from '../errors/codes.js'
@@ -1122,5 +1124,47 @@ describe('calculatePrevDate', () => {
     expect(() => calculatePrevDate('2026/05/13', [])).toThrow(
       expect.objectContaining({ code: ErrorCode.EVM_INVALID_BASE_DATE }),
     )
+  })
+})
+
+// ─── calculatePrevDayDelta ───────────────────────────────────────────────────
+
+describe('calculatePrevDayDelta', () => {
+  // EvmSummary 共通ベース（taskMetrics を含まない、design.md の型定義どおり）
+  const baseSummary: EvmSummary = {
+    bac: 10,
+    pv: 10,
+    ev: 6,
+    ac: 8,
+    spi: 0.6,
+    cpi: 0.75,
+    eac: null,
+    vac: null,
+    etc: null,
+    tcpi: null,
+  }
+
+  it('previous が null のとき spiDelta=0 / cpiDelta=0 を返す（要件 2.7）', () => {
+    const result = calculatePrevDayDelta(baseSummary, null)
+    expect(result.spiDelta).toBe(0)
+    expect(result.cpiDelta).toBe(0)
+  })
+
+  it('current.spi が null のとき spiDelta=0、cpi は正常に差分計算する（要件 2.6）', () => {
+    const current: EvmSummary = { ...baseSummary, spi: null, cpi: 0.9 }
+    const previous: EvmSummary = { ...baseSummary, spi: 0.8, cpi: 0.7 }
+    const result = calculatePrevDayDelta(current, previous)
+    // spi のいずれかが null → spiDelta = 0
+    expect(result.spiDelta).toBe(0)
+    // cpi はどちらも非 null → 0.9 - 0.7 = 0.2
+    expect(result.cpiDelta).toBeCloseTo(0.2)
+  })
+
+  it('current/previous のいずれの spi/cpi も非 null のとき 差分を返す（要件 2.6）', () => {
+    const current: EvmSummary = { ...baseSummary, spi: 0.9, cpi: 0.85 }
+    const previous: EvmSummary = { ...baseSummary, spi: 0.8, cpi: 0.7 }
+    const result = calculatePrevDayDelta(current, previous)
+    expect(result.spiDelta).toBeCloseTo(0.1)
+    expect(result.cpiDelta).toBeCloseTo(0.15)
   })
 })

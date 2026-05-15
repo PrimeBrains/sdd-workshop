@@ -17,8 +17,13 @@ export interface TaskEvmMetrics {
   alertLevel: AlertLevel
 }
 
-/** プロジェクト単位の EVM サマリー */
-export interface ProjectEvmMetrics {
+/**
+ * プロジェクト単位の EVM サマリー（taskMetrics を含まない、design.md 準拠の集計のみ型）
+ *
+ * `calculatePrevDayDelta` の入力として、当日 / 前日サマリーを比較する際に使用する。
+ * `ProjectEvmMetrics` は本型を構造的にスーパーセットとして含むため、そのまま渡せる。
+ */
+export interface EvmSummary {
   bac: number
   pv: number
   ev: number
@@ -29,6 +34,10 @@ export interface ProjectEvmMetrics {
   vac: number | null
   etc: number | null
   tcpi: number | null
+}
+
+/** プロジェクト単位の EVM サマリー（タスク単位メトリクスを含む） */
+export interface ProjectEvmMetrics extends EvmSummary {
   taskMetrics: TaskEvmMetrics[]
 }
 
@@ -164,6 +173,34 @@ export function calculatePrevDate(
 
     current.setUTCDate(current.getUTCDate() - 1)
   }
+}
+
+/**
+ * 当日サマリーと前日サマリーから SPI / CPI の前日比 Delta を算出する（要件 2.6 / 2.7）
+ *
+ * - `previous === null` の場合は `spiDelta = 0` / `cpiDelta = 0` を返す
+ *   （前日スナップショットが存在しない or `prevDate` が `Project.startDate` 以前のケース）
+ * - `current.spi` / `previous.spi` のいずれかが `null` のとき `spiDelta = 0` とする
+ *   （`null` 同士の引き算を回避し、UI 側の前日比トグルで意味のない差分を表示しない）
+ * - `current.cpi` / `previous.cpi` のいずれかが `null` のとき `cpiDelta = 0` とする
+ * - 正常時は `current.spi - previous.spi` / `current.cpi - previous.cpi` を返す
+ *
+ * 純粋関数。副作用ゼロ。
+ */
+export function calculatePrevDayDelta(
+  current: EvmSummary,
+  previous: EvmSummary | null,
+): { spiDelta: number; cpiDelta: number } {
+  if (previous === null) {
+    return { spiDelta: 0, cpiDelta: 0 }
+  }
+
+  const spiDelta =
+    current.spi !== null && previous.spi !== null ? current.spi - previous.spi : 0
+  const cpiDelta =
+    current.cpi !== null && previous.cpi !== null ? current.cpi - previous.cpi : 0
+
+  return { spiDelta, cpiDelta }
 }
 
 /**

@@ -35,7 +35,7 @@
   - _Boundary: EvmEngine_
   - _Depends: 1.1_
 
-- [ ] 2.3 (P) `calculatePrevDayDelta` を実装する
+- [x] 2.3 (P) `calculatePrevDayDelta` を実装する
   - `calculatePrevDayDelta(current: EvmSummary, previous: EvmSummary | null): { spiDelta: number; cpiDelta: number }` を実装する
   - `previous === null`、または `current.spi`/`previous.spi`/`current.cpi`/`previous.cpi` のいずれかが `null` のとき対応する Delta を `0` とする
   - それ以外は `current.spi - previous.spi` / `current.cpi - previous.cpi` を返す
