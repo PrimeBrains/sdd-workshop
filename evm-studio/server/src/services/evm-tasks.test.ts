@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { rollupTasks, type TaskEvm } from './evm-tasks.js'
+import {
+  filterAlerts,
+  rollupTasks,
+  rollupTasksPrevDiff,
+  type AlertEntry,
+  type TaskEvm,
+} from './evm-tasks.js'
 import type { Holiday, Member, ProgressSnapshot, Project, Task } from '../db/schema.js'
 
 /**
@@ -341,5 +347,186 @@ describe('rollupTasks', () => {
     })
 
     expect(result[0]!.spi).toBe(null)
+  })
+})
+
+// ─── rollupTasksPrevDiff (Requirement 2.5) ──────────────────────────────
+
+describe('rollupTasksPrevDiff', () => {
+  it('prevDate スナップショットが存在する葉タスクのみ {id, progress, spi} を返す（要件 2.5）', () => {
+    // 葉 task1: prevDate(2026-05-13) 以前にスナップショットあり → 含まれる
+    // 葉 task2: スナップショット無し → 除外される
+    // 葉 task3: prevDate より後のスナップショットしかない → 除外される
+    const task1: Task = {
+      ...baseTask,
+      id: 1,
+      name: 'タスクA',
+      estimateDays: 10,
+      sortOrder: 0,
+    }
+    const task2: Task = {
+      ...baseTask,
+      id: 2,
+      name: 'タスクB',
+      estimateDays: 5,
+      sortOrder: 1,
+    }
+    const task3: Task = {
+      ...baseTask,
+      id: 3,
+      name: 'タスクC',
+      estimateDays: 5,
+      sortOrder: 2,
+    }
+    const snapshots: ProgressSnapshot[] = [
+      // task1: prevDate と同日 → 含む
+      makeSnapshot({
+        id: 1,
+        taskId: 1,
+        snapshotDate: '2026-05-13',
+        progressPct: 50,
+        acDays: 5,
+      }),
+      // task3: prevDate より後 → 除外
+      makeSnapshot({
+        id: 2,
+        taskId: 3,
+        snapshotDate: '2026-05-14',
+        progressPct: 30,
+        acDays: 2,
+      }),
+    ]
+
+    const result = rollupTasksPrevDiff({
+      project: baseProject,
+      tasks: [task1, task2, task3],
+      members: [],
+      snapshots,
+      holidays: noHolidays,
+      prevDate: '2026-05-13',
+    })
+
+    expect(result.map((r) => r.id)).toEqual([1])
+    expect(result[0]!.progress).toBe(50)
+    // {id, progress, spi} のみが返る（他のキーを含まない）
+    expect(Object.keys(result[0]!).sort()).toEqual(['id', 'progress', 'spi'])
+  })
+})
+
+// ─── filterAlerts (Requirements 4.1-4.6, 13.4) ──────────────────────────
+
+describe('filterAlerts', () => {
+  /** TaskEvm を簡単に作るヘルパ（leaf=true デフォルト） */
+  function makeTaskEvm(
+    overrides: Partial<TaskEvm> & { id: number; spi: number | null },
+  ): TaskEvm {
+    const { id, spi, ...rest } = overrides
+    return {
+      id,
+      code: `${id}`,
+      name: `タスク${id}`,
+      level: 1,
+      start: 0,
+      end: 1,
+      progress: 0,
+      spi,
+      assignee: null,
+      leaf: true,
+      bac: 1,
+      ...rest,
+    }
+  }
+
+  it('spi = 0.79 は critical（境界: < 0.8）', () => {
+    const tasks: TaskEvm[] = [makeTaskEvm({ id: 1, spi: 0.79 })]
+    const alerts = filterAlerts(tasks)
+    expect(alerts).toHaveLength(1)
+    expect(alerts[0]!.level).toBe('critical')
+    expect(alerts[0]!.spi).toBe(0.79)
+    expect(alerts[0]!.taskId).toBe(1)
+  })
+
+  it('spi = 0.80 は warning（境界: 0.8 <= spi < 0.9）', () => {
+    const tasks: TaskEvm[] = [makeTaskEvm({ id: 2, spi: 0.8 })]
+    const alerts = filterAlerts(tasks)
+    expect(alerts).toHaveLength(1)
+    expect(alerts[0]!.level).toBe('warning')
+  })
+
+  it('spi = 0.89 は warning（境界: < 0.9）', () => {
+    const tasks: TaskEvm[] = [makeTaskEvm({ id: 3, spi: 0.89 })]
+    const alerts = filterAlerts(tasks)
+    expect(alerts).toHaveLength(1)
+    expect(alerts[0]!.level).toBe('warning')
+  })
+
+  it('spi = 0.90 は除外（境界: >= 0.9）', () => {
+    const tasks: TaskEvm[] = [makeTaskEvm({ id: 4, spi: 0.9 })]
+    const alerts = filterAlerts(tasks)
+    expect(alerts).toEqual([])
+  })
+
+  it('spi = 1.00 は除外', () => {
+    const tasks: TaskEvm[] = [makeTaskEvm({ id: 5, spi: 1.0 })]
+    const alerts = filterAlerts(tasks)
+    expect(alerts).toEqual([])
+  })
+
+  it('spi = null は除外', () => {
+    const tasks: TaskEvm[] = [makeTaskEvm({ id: 6, spi: null })]
+    const alerts = filterAlerts(tasks)
+    expect(alerts).toEqual([])
+  })
+
+  it('spi 昇順（重大度順）でソートされる（要件 4.6）', () => {
+    // 入力順: 0.85(warning), 0.50(critical), 0.88(warning), 0.70(critical)
+    // 期待出力順: 0.50, 0.70, 0.85, 0.88
+    const tasks: TaskEvm[] = [
+      makeTaskEvm({ id: 1, spi: 0.85 }),
+      makeTaskEvm({ id: 2, spi: 0.5 }),
+      makeTaskEvm({ id: 3, spi: 0.88 }),
+      makeTaskEvm({ id: 4, spi: 0.7 }),
+    ]
+    const alerts = filterAlerts(tasks)
+    expect(alerts.map((a) => a.taskId)).toEqual([2, 4, 1, 3])
+    expect(alerts.map((a) => a.level)).toEqual([
+      'critical',
+      'critical',
+      'warning',
+      'warning',
+    ])
+  })
+
+  it('親タスク（leaf=false）は対象外（要件 4.2 葉タスク条件）', () => {
+    const tasks: TaskEvm[] = [
+      { ...makeTaskEvm({ id: 1, spi: 0.5 }), leaf: false },
+    ]
+    expect(filterAlerts(tasks)).toEqual([])
+  })
+
+  it('0 件のとき空配列を返す（要件 4.5）', () => {
+    expect(filterAlerts([])).toEqual([])
+  })
+
+  it('taskName と assigneeName を伝搬する', () => {
+    const tasks: TaskEvm[] = [
+      {
+        ...makeTaskEvm({ id: 10, spi: 0.6 }),
+        name: '実装タスク',
+        assignee: '田中 美咲',
+      },
+    ]
+    const alerts = filterAlerts(tasks)
+    expect(alerts[0]!.taskName).toBe('実装タスク')
+    expect(alerts[0]!.assigneeName).toBe('田中 美咲')
+  })
+
+  it('AlertEntry の型は taskId/taskName/assigneeName/spi/level を持つ', () => {
+    const tasks: TaskEvm[] = [makeTaskEvm({ id: 1, spi: 0.7 })]
+    const alerts = filterAlerts(tasks)
+    const entry: AlertEntry = alerts[0]!
+    expect(Object.keys(entry).sort()).toEqual(
+      ['assigneeName', 'level', 'spi', 'taskId', 'taskName'].sort(),
+    )
   })
 })

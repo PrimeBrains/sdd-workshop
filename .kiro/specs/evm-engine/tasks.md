@@ -110,7 +110,7 @@
   - _Boundary: EvmTasks_
   - _Depends: 2.1_
 
-- [ ] 6.2 `rollupTasksPrevDiff` を実装する
+- [x] 6.2 `rollupTasksPrevDiff` を実装する
   - 前日 (`prevDate`) 時点のスナップショットから、進捗が存在する葉タスクのみ `{ id, progress, spi }` を返す
   - 内部で `rollupTasks` を `baseDate = prevDate` で呼び出し、結果から `leaf === true && progress !== undefined` のものをフィルタする
   - Vitest で「prevDate スナップショットが存在するタスクのみ返す」が緑になることで完了を確認できる
@@ -118,7 +118,7 @@
   - _Boundary: EvmTasks_
   - _Depends: 6.1_
 
-- [ ] 6.3 (P) `filterAlerts` を実装する
+- [x] 6.3 (P) `filterAlerts` を実装する
   - 葉タスクの `spi` が `< 0.8` → `level: 'critical'`、`[0.8, 0.9)` → `level: 'warning'` のアラートを生成する
   - `spi === null` または `>= 0.9` は除外する
   - `spi` 昇順（重大度順）でソートして返す

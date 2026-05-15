@@ -351,3 +351,114 @@ export function rollupTasks(input: RollupTasksInput): ReadonlyArray<TaskEvm> {
   })
   return indexed.map((x) => x.r)
 }
+
+// ─── 前日比 (Requirement 2.5) ─────────────────────────────────────────────
+
+/**
+ * 前日比タスク差分の最小エントリ。`prevDay.tasks` 用に
+ * 進捗とSPI のみを返す（要件 2.5）。
+ */
+export interface TaskPrevDiff {
+  id: number
+  progress: number
+  spi: number | null
+}
+
+export interface RollupTasksPrevDiffInput {
+  project: Pick<Project, 'startDate'>
+  tasks: ReadonlyArray<Task>
+  members: ReadonlyArray<Member>
+  snapshots: ReadonlyArray<ProgressSnapshot>
+  holidays: ReadonlyArray<Holiday>
+  prevDate: string
+}
+
+/**
+ * `prevDate` 時点のスナップショットを反映したタスク進捗差分を返す（要件 2.5）。
+ *
+ * - 内部で `rollupTasks` を `baseDate = prevDate` で実行する
+ * - 葉タスクのうち `prevDate` 以前にスナップショットが存在するもののみを残す
+ * - 返却は `{ id, progress, spi }` の最小エントリで、`rollupTasks` の安定ソート順を保つ
+ */
+export function rollupTasksPrevDiff(
+  input: RollupTasksPrevDiffInput,
+): ReadonlyArray<TaskPrevDiff> {
+  const { project, tasks, members, snapshots, holidays, prevDate } = input
+
+  const rolled = rollupTasks({
+    project,
+    tasks,
+    members,
+    snapshots,
+    holidays,
+    baseDate: prevDate,
+  })
+
+  // prevDate 以前にスナップショットが存在する taskId 集合
+  const taskIdsWithSnapshot = new Set<number>()
+  for (const s of snapshots) {
+    if (s.snapshotDate <= prevDate) {
+      taskIdsWithSnapshot.add(s.taskId)
+    }
+  }
+
+  const out: TaskPrevDiff[] = []
+  for (const r of rolled) {
+    if (!r.leaf) continue
+    if (!taskIdsWithSnapshot.has(r.id)) continue
+    out.push({ id: r.id, progress: r.progress, spi: r.spi })
+  }
+  return out
+}
+
+// ─── アラート判定 (Requirements 4.1-4.6, 13.4) ────────────────────────────
+
+/**
+ * アラート 1 件分。葉タスクの `spi` 閾値判定で生成される（要件 4.1-4.6）。
+ *
+ * - `< 0.8` → `'critical'`
+ * - `[0.8, 0.9)` → `'warning'`
+ * - `>= 0.9` または `null` は対象外（要件 4.4）
+ */
+export interface AlertEntry {
+  taskId: number
+  taskName: string
+  assigneeName: string | null
+  spi: number
+  level: 'warning' | 'critical'
+}
+
+/**
+ * タスクリストから SPI 閾値ベースのアラートを抽出する（要件 4.1-4.6, 13.4）。
+ *
+ * - 入力は `rollupTasks` の出力を想定する
+ * - 葉タスク（`leaf === true`）かつ `spi !== null` のもののみが対象
+ * - `spi` 昇順（重大度高い順）で安定ソートして返す
+ * - 該当が 0 件のとき空配列 `[]` を返す
+ */
+export function filterAlerts(
+  tasks: ReadonlyArray<TaskEvm>,
+): ReadonlyArray<AlertEntry> {
+  const entries: AlertEntry[] = []
+  for (const t of tasks) {
+    if (!t.leaf) continue
+    if (t.spi === null) continue
+    if (t.spi >= 0.9) continue
+    const level: 'warning' | 'critical' = t.spi < 0.8 ? 'critical' : 'warning'
+    entries.push({
+      taskId: t.id,
+      taskName: t.name,
+      assigneeName: t.assignee,
+      spi: t.spi,
+      level,
+    })
+  }
+
+  // spi 昇順で安定ソート（同値は入力順を保つ）
+  const indexed = entries.map((e, i) => ({ e, i }))
+  indexed.sort((a, b) => {
+    if (a.e.spi !== b.e.spi) return a.e.spi - b.e.spi
+    return a.i - b.i
+  })
+  return indexed.map((x) => x.e)
+}
