@@ -111,7 +111,7 @@
   - _Requirements: 5.1, 5.3_
   - _Boundary: seeds/mockup-projects.ts_
 
-- [ ] 5.2 シードスクリプト `seeds/seed.ts` と `npm run seed` を実装する
+- [x] 5.2 シードスクリプト `seeds/seed.ts` と `npm run seed` を実装する
   - `evm-studio/server/seeds/seed.ts` を新規作成し、better-sqlite3 / Drizzle 経由で `projects` → `members` → `tasks` → `task_dependencies` → `holidays` の順で投入する
   - `--reset` フラグで既存テーブルを `DELETE FROM` してから投入する。フラグなしでも安全側に倒し、デフォルトで初期化挙動を取る
   - 投入はトランザクション内で実行し、失敗時はロールバック + `process.exit(1)`

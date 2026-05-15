@@ -6,7 +6,8 @@
     "dev:server": "npm --prefix server run dev",
     "dev:client": "npm --prefix client run dev",
     "test": "npm --prefix server run test",
-    "test:e2e": "playwright test --config e2e/playwright.config.ts"
+    "test:e2e": "playwright test --config e2e/playwright.config.ts",
+    "seed": "npm --prefix server exec -- tsx server/seeds/seed.ts"
   },
   "devDependencies": {
     "concurrently": "^9.2.1",
