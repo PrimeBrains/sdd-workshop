@@ -235,6 +235,8 @@ const baseMember: Member = {
   projectId: 1,
   externalId: 'M001',
   name: 'テストメンバー',
+  role: null,
+  initials: null,
   availabilityRate: 1.0,
   assignmentStart: null,
   assignmentEnd: null,

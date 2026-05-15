@@ -2,7 +2,7 @@
 
 ## 1. 基盤整備（スキーマと共通定数）
 
-- [ ] 1.1 Drizzle スキーマに `projects.status` / `projects.code` / `members.role` / `members.initials` の 4 カラムを追加する
+- [x] 1.1 Drizzle スキーマに `projects.status` / `projects.code` / `members.role` / `members.initials` の 4 カラムを追加する
   - `evm-studio/server/src/db/schema.ts` の `projects` テーブル定義に `status: text('status').notNull().default('active')` と `code: text('code')` を追記する
   - 同ファイルの `members` テーブル定義に `role: text('role')` と `initials: text('initials')` を追記する
   - Drizzle の型推論経由で `Project` / `Member` の型に新カラムが現れることを `tsc --noEmit` で確認する

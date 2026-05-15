@@ -5,6 +5,8 @@ import type { AnySQLiteColumn } from 'drizzle-orm/sqlite-core'
 export const projects = sqliteTable('projects', {
   id:        integer('id').primaryKey({ autoIncrement: true }),
   name:      text('name').notNull(),
+  status:    text('status').notNull().default('active'),
+  code:      text('code'),
   startDate: text('start_date').notNull(),
   endDate:   text('end_date').notNull(),
   createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
@@ -19,6 +21,8 @@ export const members = sqliteTable('members', {
   projectId:        integer('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
   externalId:       text('external_id'),
   name:             text('name').notNull(),
+  role:             text('role'),
+  initials:         text('initials'),
   availabilityRate: real('availability_rate').notNull().default(1.0),
   assignmentStart:  text('assignment_start'),
   assignmentEnd:    text('assignment_end'),
