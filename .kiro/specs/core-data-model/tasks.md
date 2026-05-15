@@ -142,7 +142,7 @@
   - _Boundary: db/db.test.ts_
   - _Depends: 1.2, 4.1, 4.2_
 
-- [ ] 7.2 `npm test` のフルラン + シード投入で受け入れ条件を最終確認する
+- [x] 7.2 `npm test` のフルラン + シード投入で受け入れ条件を最終確認する
   - `npm test` を実行し、全テスト（schema / members-service / wbs-importer / projects / members / db）がパスすることを確認する
   - クリーンな DB に `drizzle-kit migrate` + `npm run seed` を順に実行し、SQLite クライアントで 5 プロジェクト分のデータと新カラムが入っていることを目視確認する
   - 観測可能な完了条件: `npm test` が green、`npm run seed` 後の DB に `projects.code='NXP-002'` 等が存在することを `SELECT` 文で確認できる
