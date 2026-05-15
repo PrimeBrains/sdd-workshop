@@ -13,9 +13,14 @@ import { AppError } from '../errors/AppError.js'
 import { ErrorCode } from '../errors/codes.js'
 import { projects, tasks, members, holidays, progressSnapshots, taskDependencies } from '../db/schema.js'
 import * as schema from '../db/schema.js'
-import type { TaskEvmMetrics } from '../services/evm-engine.js'
+import type { TaskEvmMetrics, EvmSummary } from '../services/evm-engine.js'
 import { calculateEvmMetrics, calculateFeverChart } from '../services/evm-engine.js'
 import { findCriticalPath } from '../services/critical-path.js'
+import type { AssigneeEvm, AssigneePrevDay } from '../services/evm-assignees.js'
+import type { TaskEvm, TaskPrevDiff, AlertEntry } from '../services/evm-tasks.js'
+import type { SpiTrendPoint as SpiTrendPointService } from '../services/evm-trend.js'
+import type { FeverChart } from '../services/evm-fever.js'
+import type { GanttMeta } from '../services/evm-gantt.js'
 
 // ── Feature Flag ──────────────────────────────────────────────────────────────
 export const ENABLE_EVM_ROUTER = true
@@ -61,7 +66,7 @@ export interface GanttTaskOutput {
   level: number; sortOrder: number; isBuffer: boolean; isLeaf: boolean
 }
 
-export interface EvmCalculateOutput {
+export interface LegacyEvmCalculateOutput {
   summary: EvmSummaryOutput
   tasks: TaskEvmMetrics[]
   assignees: AssigneeEvmOutput[]
@@ -69,6 +74,38 @@ export interface EvmCalculateOutput {
   feverChart: FeverChartOutput | null
   spiTrend: SpiTrendPoint[]
   gantt: GanttTaskOutput[]
+}
+
+// ── Task 8.1: 新 EVM 計算 API スキーマ・型 ─────────────────────────────────────
+//
+// Requirements: 9.1, 9.5
+// `evm.calculate` を統合計算 API に拡張するための入力スキーマと出力型。
+// 実際のハンドラ実装（calculate 内ロジックの差し替え）はタスク 8.2 で行う。
+
+export const evmCalculateSchema = z.object({
+  projectId: z.number().int().positive(),
+  baseDate:  z.string().regex(/^\d{4}-\d{2}-\d{2}$/),  // YYYY-MM-DD
+  options: z.object({
+    prevDate:         z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+    trendWindowDays:  z.number().int().positive().optional(),
+  }).optional(),
+})
+
+export type EvmCalculateInput = z.infer<typeof evmCalculateSchema>
+
+export type EvmCalculateOutput = {
+  summary: EvmSummary & { spiDelta: number; cpiDelta: number }
+  prevDay: {
+    summary:   EvmSummary
+    assignees: ReadonlyArray<AssigneePrevDay>
+    tasks:     ReadonlyArray<TaskPrevDiff>
+  } | null
+  assignees: ReadonlyArray<AssigneeEvm>
+  alerts:    ReadonlyArray<AlertEntry>
+  spiTrend:  ReadonlyArray<SpiTrendPointService>
+  fever:     FeverChart | null
+  tasks:     ReadonlyArray<TaskEvm>
+  gantt:     GanttMeta
 }
 
 // ── AppError → TRPCError conversion ───────────────────────────────────────────
@@ -105,7 +142,7 @@ export function createEvmRouter(db: DrizzleDb) {
     // ── evm.calculate ─────────────────────────────────────────────────────────
     calculate: t.procedure
       .input(calculateInputSchema)
-      .query(async ({ input }): Promise<EvmCalculateOutput> => {
+      .query(async ({ input }): Promise<LegacyEvmCalculateOutput> => {
         // プロジェクト存在確認
         const projectRows = await db.select().from(projects).where(eq(projects.id, input.projectId))
         const project = projectRows[0]

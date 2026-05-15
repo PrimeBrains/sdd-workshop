@@ -139,7 +139,7 @@
   - _Boundary: EvmGantt_
 
 - [ ] 8. tRPC ルーター: `api/evm.ts`
-- [ ] 8.1 Zod 入力スキーマと型エクスポートを定義する
+- [x] 8.1 Zod 入力スキーマと型エクスポートを定義する
   - `server/src/api/evm.ts` に `evmCalculateSchema = z.object({ projectId, baseDate, options? })` を定義する
   - `EvmCalculateInput` / `EvmCalculateOutput` 型をエクスポートする
   - `options.prevDate` / `options.trendWindowDays` が optional であることを確認する
