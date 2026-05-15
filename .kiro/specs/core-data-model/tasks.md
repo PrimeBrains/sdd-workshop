@@ -44,7 +44,7 @@
 
 ## 3. データアクセスとインポーター拡張
 
-- [ ] 3.1 WBS Importer の Zod スキーマに新オプショナルフィールドを追加する
+- [x] 3.1 WBS Importer の Zod スキーマに新オプショナルフィールドを追加する
   - `evm-studio/server/src/services/wbs-importer.ts` の `schedule.meta` 用 Zod スキーマに `project_status: z.enum(['active','paused','draft','archived']).optional()` と `project_code: z.string().optional()` を追加する
   - `staffing.members[]` 用 Zod スキーマに `role: z.string().nullable().optional()` と `initials: z.string().min(1).max(4).nullable().optional()` を追加する
   - 既存の `meta` / `members` 構造は維持し、新フィールド以外の検証ルールを変えない

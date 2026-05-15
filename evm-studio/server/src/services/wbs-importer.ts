@@ -6,6 +6,7 @@
  * 要件 6.10: SAFE_LOAD パース失敗 → AppError(IMPORT_PARSE_ERROR)
  */
 import yaml from 'js-yaml'
+import { z } from 'zod'
 import { eq, and } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { AppError } from '../errors/AppError.js'
@@ -19,6 +20,36 @@ import {
   progressSnapshots,
 } from '../db/schema.js'
 import * as schema from '../db/schema.js'
+
+// ─── Zod schemas (Task 3.1: optional new fields) ────────────────────────────
+
+/**
+ * schedule.meta に追加されるオプショナルフィールドの Zod スキーマ。
+ * 既存の schedule_start / schedule_end の検証は別途 requireField で実施するため、
+ * このスキーマでは新フィールドのみを定義する（passthrough で既存フィールド維持）。
+ *
+ * 要件 4.1, 4.2, 4.6 (enum 違反検出は task 3.2 で AppError に変換)
+ */
+export const scheduleMetaOptionalFieldsSchema = z
+  .object({
+    project_status: z.enum(['active', 'paused', 'draft', 'archived']).optional(),
+    project_code: z.string().optional(),
+  })
+  .passthrough()
+
+/**
+ * staffing.members[] に追加されるオプショナルフィールドの Zod スキーマ。
+ * 既存の id / name / availability_rate の検証は別途 requireField で実施するため、
+ * このスキーマでは新フィールドのみを定義する（passthrough で既存フィールド維持）。
+ *
+ * 要件 4.3, 4.4, 4.7
+ */
+export const staffingMemberOptionalFieldsSchema = z
+  .object({
+    role: z.string().nullable().optional(),
+    initials: z.string().min(1).max(4).nullable().optional(),
+  })
+  .passthrough()
 
 // ─── Date helpers ────────────────────────────────────────────────────────────
 
@@ -64,6 +95,9 @@ export interface ParsedMember {
   availability_rate: number
   assignment_start?: string
   assignment_end?: string
+  // ── Task 3.1: 新オプショナルフィールド（DB 反映は task 3.2）─────────────
+  role?: string | null
+  initials?: string | null
 }
 
 export interface ParsedStaffingYaml {
@@ -83,6 +117,9 @@ export interface ParsedScheduleYaml {
   meta: {
     schedule_start: string
     schedule_end: string
+    // ── Task 3.1: 新オプショナルフィールド（DB 反映は task 3.2）─────────────
+    project_status?: 'active' | 'paused' | 'draft' | 'archived'
+    project_code?: string
   }
   assignments?: ParsedScheduleAssignment[]
 }
@@ -215,12 +252,18 @@ export function parseStaffingYaml(yamlString: string): ParsedStaffingYaml {
     requireField(item, 'name', ctx)
     requireField(item, 'availability_rate', ctx)
 
+    // Task 3.1: 新オプショナルフィールド（role / initials）の Zod バリデーション。
+    // 既存フィールド (id / name / availability_rate) の検証ルールは変更しない。
+    const optional = staffingMemberOptionalFieldsSchema.parse(item)
+
     return {
       id: String(item['id']),
       name: String(item['name']),
       availability_rate: Number(item['availability_rate']),
       ...(item['assignment_start'] !== undefined ? { assignment_start: String(item['assignment_start']) } : {}),
       ...(item['assignment_end'] !== undefined ? { assignment_end: String(item['assignment_end']) } : {}),
+      ...(optional.role !== undefined ? { role: optional.role } : {}),
+      ...(optional.initials !== undefined ? { initials: optional.initials } : {}),
     }
   })
 
@@ -268,6 +311,11 @@ export function parseScheduleYaml(yamlString: string): ParsedScheduleYaml {
   requireField(metaRaw, 'schedule_start', 'schedule.yaml meta')
   requireField(metaRaw, 'schedule_end', 'schedule.yaml meta')
 
+  // Task 3.1: 新オプショナルフィールド (project_status / project_code) の Zod バリデーション。
+  // 既存フィールド (schedule_start / schedule_end) の検証ルールは変更しない。
+  // project_status の enum 違反は ZodError として伝播する（task 3.2 で AppError 変換）。
+  const metaOptional = scheduleMetaOptionalFieldsSchema.parse(metaRaw)
+
   let assignments: ParsedScheduleAssignment[] | undefined
   if (Array.isArray(raw['assignments'])) {
     assignments = (raw['assignments'] as unknown[]).map((item, index) => {
@@ -292,6 +340,12 @@ export function parseScheduleYaml(yamlString: string): ParsedScheduleYaml {
     meta: {
       schedule_start: toYMD(metaRaw['schedule_start']) ?? '',
       schedule_end: toYMD(metaRaw['schedule_end']) ?? '',
+      ...(metaOptional.project_status !== undefined
+        ? { project_status: metaOptional.project_status }
+        : {}),
+      ...(metaOptional.project_code !== undefined
+        ? { project_code: metaOptional.project_code }
+        : {}),
     },
     ...(assignments !== undefined ? { assignments } : {}),
   }
