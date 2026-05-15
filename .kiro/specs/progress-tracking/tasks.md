@@ -18,7 +18,7 @@
   - _Depends: 1.1_
   - _Boundary: DBMigration_
 
-- [ ] 1.3 (P) SNAP_* エラーコードを 3 件追加する
+- [x] 1.3 (P) SNAP_* エラーコードを 3 件追加する
   - `evm-studio/server/src/errors/codes.ts` の `ErrorCode` オブジェクトに `SNAP_TASK_NOT_FOUND: 'SNAP_TASK_NOT_FOUND'` / `SNAP_FUTURE_DATE: 'SNAP_FUTURE_DATE'` / `SNAP_NOTE_TOO_LONG: 'SNAP_NOTE_TOO_LONG'` を追加する
   - TypeScript の型推論で `ErrorCode` 型が 3 つの新コードを含むこと、既存コード（`EVM_*` / `PROJ_*` / `TASK_*` / `IMPORT_*` 等）が削除されていないことを確認する
   - _Requirements: 9.3_

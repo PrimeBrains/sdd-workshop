@@ -18,6 +18,8 @@ export const ErrorCode = {
   IMPORT_INVALID_PROJECT_STATUS: 'IMPORT_INVALID_PROJECT_STATUS',
   // Snapshot (Progress Tracking)
   SNAP_TASK_NOT_FOUND: 'SNAP_TASK_NOT_FOUND',
+  SNAP_FUTURE_DATE: 'SNAP_FUTURE_DATE',
+  SNAP_NOTE_TOO_LONG: 'SNAP_NOTE_TOO_LONG',
 } as const
 
 export type ErrorCode = typeof ErrorCode[keyof typeof ErrorCode]
