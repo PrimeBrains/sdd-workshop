@@ -27,7 +27,7 @@
 
 ## 2. ドメインサービス（イニシャル自動生成）
 
-- [ ] 2.1 (P) `services/members-service.ts` にイニシャル自動生成関数 `generateInitials` を実装する
+- [x] 2.1 (P) `services/members-service.ts` にイニシャル自動生成関数 `generateInitials` を実装する
   - `evm-studio/server/src/services/members-service.ts` を新規作成する
   - 半角空白 / 全角空白で `name` を分割し、2 トークン以上なら姓 + 名の先頭 1 文字ずつを連結して返す
   - 分割できない場合は `Array.from(name).slice(0, 2).join('')` を返す
