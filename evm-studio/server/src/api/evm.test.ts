@@ -518,3 +518,64 @@ describe('evm.calculate — NXP-002 統合テスト (Task 9.1)', () => {
     expect(result.summary.cpiDelta).toBe(0)
   })
 })
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Task 9.2: エラー伝搬の統合テスト
+//
+// `evm.calculate` のエラー伝搬経路を 2 ケースで検証する:
+//   1. baseDate フォーマット不正 (`'2026/05/13'`) → `TRPCError(BAD_REQUEST)`
+//      (Zod の `regex(/^\d{4}-\d{2}-\d{2}$/)` で弾かれる)
+//   2. projectId 未存在 (`99999`) → `TRPCError(NOT_FOUND)`
+//      かつ `cause.code === 'PROJ_NOT_FOUND'`
+//      (`AppError(PROJ_NOT_FOUND)` → `toTRPCError` で `cause` に詰めて伝搬)
+//
+// Requirements: 9.2, 9.3, 11.5
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('evm.calculate — Task 9.2: エラー伝搬の統合テスト', () => {
+  it("baseDate = '2026/05/13' (スラッシュ区切り) で TRPCError(BAD_REQUEST) を返す", async () => {
+    const db     = createTestDb()
+    const caller = makeCaller(db)
+
+    // プロジェクトは存在させる: NOT_FOUND ではなく BAD_REQUEST を期待
+    const project = await seedProject(db)
+
+    let caughtError: unknown
+    try {
+      await caller.calculate({
+        projectId: project.id,
+        baseDate:  '2026/05/13',  // スラッシュ区切り: Zod regex 拒否対象
+      })
+    } catch (e) {
+      caughtError = e
+    }
+
+    expect(caughtError).toBeInstanceOf(TRPCError)
+    const trpcErr = caughtError as TRPCError
+    expect(trpcErr.code).toBe('BAD_REQUEST')
+  })
+
+  it("projectId = 99999 (未存在) で TRPCError(NOT_FOUND) を返し cause.code === 'PROJ_NOT_FOUND'", async () => {
+    const db     = createTestDb()
+    const caller = makeCaller(db)
+
+    let caughtError: unknown
+    try {
+      await caller.calculate({
+        projectId: 99999,
+        baseDate:  '2026-05-13',
+      })
+    } catch (e) {
+      caughtError = e
+    }
+
+    expect(caughtError).toBeInstanceOf(TRPCError)
+    const trpcErr = caughtError as TRPCError
+    expect(trpcErr.code).toBe('NOT_FOUND')
+
+    // cause は AppError でラップされ、code === 'PROJ_NOT_FOUND' (要件 11.5 の伝搬経路)
+    const cause = trpcErr.cause as { code?: string } | undefined
+    expect(cause).toBeDefined()
+    expect(cause!.code).toBe('PROJ_NOT_FOUND')
+  })
+})

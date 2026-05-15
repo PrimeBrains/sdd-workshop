@@ -173,7 +173,7 @@
   - _Boundary: EvmRouter_
   - _Depends: 8.2_
 
-- [ ] 9.2 (P) エラー伝搬の統合テストを追加する
+- [x] 9.2 (P) エラー伝搬の統合テストを追加する
   - `evm.calculate` に `baseDate = '2026/05/13'`（フォーマット不正）を渡し `BAD_REQUEST` が返ることを検証する
   - `projectId = 99999`（未存在）を渡し `NOT_FOUND` が返り `cause.code === 'PROJ_NOT_FOUND'` であることを検証する
   - 2 ケースが緑になることで完了を確認できる
