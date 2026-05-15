@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { aggregateAssignees } from './evm-assignees.js'
+import { aggregateAssignees, aggregateAssigneesAt } from './evm-assignees.js'
 import type { Holiday, Member, ProgressSnapshot, Task } from '../db/schema.js'
 
 /**
@@ -270,6 +270,91 @@ describe('aggregateAssignees', () => {
     expect(result[0]!.spi).toBe(1)
     expect(result[0]!.cpi).toBe(1)
     expect(result[0]!.status).toBe('normal')
+  })
+
+  it('aggregateAssigneesAt: prevDate 時点の snapshot から baseDate 時点と異なる ev/spi/cpi を返す（要件 2.4）', () => {
+    // task1 (estimateDays=10) はメンバー田中担当
+    //   - 2026-05-12 (prevDate) の snapshot: progress=30%, acDays=5 → ev=3, ac=5  → cpi=0.6
+    //   - 2026-05-13 (baseDate) の snapshot: progress=80%, acDays=8 → ev=8, ac=8  → cpi=1.0
+    // baseDate / prevDate 双方で task はすでに完了領域 (plannedEnd<=prevDate) → pv は同一 (10)
+    const member: Member = { ...baseMember, id: 70, name: '田中', availabilityRate: 1.0 }
+    const task: Task = {
+      ...baseTask,
+      id: 1,
+      assigneeId: 70,
+      estimateDays: 10,
+      plannedStart: '2026-05-11',
+      plannedEnd: '2026-05-12',
+    }
+    const snapshots: ProgressSnapshot[] = [
+      makeSnapshot({ id: 1, taskId: 1, snapshotDate: '2026-05-12', progressPct: 30, acDays: 5 }),
+      makeSnapshot({ id: 2, taskId: 1, snapshotDate: '2026-05-13', progressPct: 80, acDays: 8 }),
+    ]
+
+    // baseDate 集計 (status 付き) -- 全 snapshots を渡す想定
+    const baseResult = aggregateAssignees({
+      baseDate: '2026-05-13',
+      members: [member],
+      tasks: [task],
+      snapshots,
+      holidays: noHolidays,
+    })
+
+    // prevDate 集計 (status / name / bac 無し) -- prevDate 以前の snapshots に絞って渡す
+    const prevSnapshots = snapshots.filter((s) => s.snapshotDate <= '2026-05-12')
+    const prevResult = aggregateAssigneesAt({
+      baseDate: '2026-05-12',
+      members: [member],
+      tasks: [task],
+      snapshots: prevSnapshots,
+      holidays: noHolidays,
+    })
+
+    expect(prevResult).toHaveLength(1)
+    const prev = prevResult[0]!
+
+    // フィールド集合: id / ev / pv / ac / spi / cpi のみ。name / bac / status は含めない。
+    expect(Object.keys(prev).sort()).toEqual(['ac', 'cpi', 'ev', 'id', 'pv', 'spi'].sort())
+    expect(prev.id).toBe(70)
+
+    // prevDate snapshot 由来: ev=3, ac=5
+    expect(prev.ev).toBe(3)
+    expect(prev.ac).toBe(5)
+    // pv は baseDate と同様 estimateDays=10 (タスク完了済み)
+    expect(prev.pv).toBe(10)
+    // spi=3/10=0.3, cpi=3/5=0.6
+    expect(prev.spi).toBeCloseTo(0.3, 5)
+    expect(prev.cpi).toBeCloseTo(0.6, 5)
+
+    // baseDate 結果と比較して数値が差分を持つことを確認
+    const base = baseResult[0]!
+    expect(base.ev).toBe(8)
+    expect(base.spi).toBeCloseTo(0.8, 5)
+    expect(base.cpi).toBeCloseTo(1.0, 5)
+    expect(prev.ev).not.toBe(base.ev)
+    expect(prev.spi).not.toBe(base.spi)
+    expect(prev.cpi).not.toBe(base.cpi)
+  })
+
+  it('aggregateAssigneesAt: 担当タスクなしのメンバーも 1 件返す（全 0、spi/cpi=null）', () => {
+    const member: Member = { ...baseMember, id: 80, name: '無タスク' }
+    const result = aggregateAssigneesAt({
+      baseDate: '2026-05-12',
+      members: [member],
+      tasks: [],
+      snapshots: [],
+      holidays: noHolidays,
+    })
+
+    expect(result).toHaveLength(1)
+    expect(result[0]).toEqual({
+      id: 80,
+      ev: 0,
+      pv: 0,
+      ac: 0,
+      spi: null,
+      cpi: null,
+    })
   })
 
   it('複数メンバー: 各メンバーの担当タスクのみが集計される', () => {

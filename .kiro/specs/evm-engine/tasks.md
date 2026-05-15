@@ -64,7 +64,7 @@
   - _Boundary: EvmAssignees_
   - _Depends: 2.1_
 
-- [ ] 3.2 (P) `aggregateAssigneesAt` を実装する（前日比用）
+- [x] 3.2 (P) `aggregateAssigneesAt` を実装する（前日比用）
   - `aggregateAssigneesAt({ baseDate: prevDate, ... })` を実装し、`{ id, ev, pv, ac, spi, cpi }` のみを返す（status は含めない）
   - 内部実装は `aggregateAssignees` と共有する private helper を経由する
   - Vitest で「prevDate 時点の数値が baseDate 時点と異なる」ケースが緑になることで完了を確認できる
