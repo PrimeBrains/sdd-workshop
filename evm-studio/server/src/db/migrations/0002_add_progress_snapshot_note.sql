@@ -1,0 +1,1 @@
+ALTER TABLE `progress_snapshots` ADD `note` text;

@@ -15,6 +15,13 @@
       "when": 1778822232810,
       "tag": "0001_add_status_code_role_initials",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1778834279600,
+      "tag": "0002_add_progress_snapshot_note",
+      "breakpoints": true
     }
   ]
 }

@@ -39,6 +39,9 @@ type _NewSnapshotCheck   = NewProgressSnapshot extends typeof progressSnapshots.
 // Verify that ProgressSnapshot has pvDays and evDays fields (compile-time)
 type _PvDaysExists = ProgressSnapshot['pvDays'] extends number ? true : never
 type _EvDaysExists = ProgressSnapshot['evDays'] extends number ? true : never
+// 要件 1.1: ProgressSnapshot must include nullable `note: string | null` field
+type _NoteIsNullableString = [ProgressSnapshot['note']] extends [string | null] ? true : never
+type _NoteAcceptsNull = null extends ProgressSnapshot['note'] ? true : never
 
 // Ensure we're not using never (type assertion)
 const _assertTypes: [
@@ -56,7 +59,9 @@ const _assertTypes: [
   _NewSnapshotCheck,
   _PvDaysExists,
   _EvDaysExists,
-] = [true, true, true, true, true, true, true, true, true, true, true, true, true, true]
+  _NoteIsNullableString,
+  _NoteAcceptsNull,
+] = [true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true]
 void _assertTypes
 
 describe('DrizzleSchema — table definitions', () => {
@@ -129,6 +134,16 @@ describe('DrizzleSchema — table definitions', () => {
     expect(cols).toContain('evDays')
     expect(cols).toContain('acDays')
     expect(cols).toContain('createdAt')
+  })
+
+  // 要件 1.1: progress_snapshots テーブルに note カラム（テキスト、NULL 許容）を保持する
+  it('progressSnapshots table includes nullable note column', () => {
+    const cols = Object.keys(progressSnapshots)
+    expect(cols).toContain('note')
+    const noteCol = progressSnapshots.note
+    expect(noteCol).toBeDefined()
+    // note must be nullable (no notNull constraint)
+    expect((noteCol as { notNull: boolean }).notNull).toBe(false)
   })
 
   it('all 6 tables are exported', () => {

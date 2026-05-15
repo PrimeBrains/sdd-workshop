@@ -3,14 +3,14 @@
 ## Tasks
 
 - [ ] 1. 基盤: スキーマ拡張とエラーコード追加
-- [ ] 1.1 progress_snapshots テーブルに note カラムを追加する
+- [x] 1.1 progress_snapshots テーブルに note カラムを追加する
   - `evm-studio/server/src/db/schema.ts` の `progressSnapshots` テーブル定義に `note: text('note')` を追加する（NULL 許容、デフォルト値なし、既存列は変更しない）
   - Drizzle 推論型 `ProgressSnapshot` に `note: string | null` が含まれることを TypeScript で確認する
   - `npx drizzle-kit check` が新しいスキーマと既存マイグレーションの整合性チェックを通すこと（または手動レビューで差分が note 列追加のみであること）
   - _Requirements: 1.1_
   - _Boundary: DBSchema_
 
-- [ ] 1.2 マイグレーション 0002 を生成して note 列を追加する
+- [x] 1.2 マイグレーション 0002 を生成して note 列を追加する
   - `npx drizzle-kit generate` を実行し、`evm-studio/server/src/db/migrations/0002_add_progress_snapshot_note.sql` を生成する
   - 生成された SQL を手動レビューし、`ALTER TABLE progress_snapshots ADD COLUMN note TEXT;` の 1 行のみであることを確認する。テーブル再作成方式になっていたら ALTER TABLE 形式に書き換える
   - `npx drizzle-kit migrate` を実行 → 既存 `evm.db` の `progress_snapshots` テーブルに `note` カラムが追加され、既存レコードの `note` が `NULL` になっていることを `sqlite3` CLI で確認できること

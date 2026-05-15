@@ -83,6 +83,7 @@ export const progressSnapshots = sqliteTable('progress_snapshots', {
   pvDays:       real('pv_days').notNull().default(0),   // リスケ保全用: 記録時点の PV を保存
   evDays:       real('ev_days').notNull().default(0),   // 再見積保全用: 記録時点の EV を保存
   acDays:       real('ac_days').notNull().default(0),
+  note:         text('note'),                            // 要件 1.1: 進捗メモ（NULL 許容、文字数上限はアプリ層で 1000 文字）
   createdAt:    integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
 }, (table) => ({
   taskDateUniq: uniqueIndex('idx_progress_snapshots_task_date').on(table.taskId, table.snapshotDate),
