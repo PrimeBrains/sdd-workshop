@@ -134,7 +134,7 @@
 
 ## 7. 統合検証
 
-- [ ] 7.1 マイグレーション後方互換の統合テストを追加する
+- [x] 7.1 マイグレーション後方互換の統合テストを追加する
   - `evm-studio/server/src/db/db.test.ts` に、既存 `0000_*.sql` 適用済みの SQLite に `0001_*.sql` を追加適用するシナリオを書き、`projects` / `members` / `tasks` / `progress_snapshots` / `task_dependencies` / `holidays` が全件保持されており、新カラムが `status='active'` / NULL になっていることを確認する
   - エラー注入テスト（不正 SQL を渡す等）でロールバックが効くことも 1 ケース追加する
   - 観測可能な完了条件: `npm test -- db` が新規ケースを含めて全件パスする
