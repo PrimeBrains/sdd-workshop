@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   countWorkingDays,
+  calculatePrevDate,
   calculateTaskPv,
   calculateProjectPv,
   calculateTaskEv,
@@ -1092,5 +1093,34 @@ describe('findCriticalPath', () => {
     const t2: Task = { ...baseTask, id: 2, plannedStart: '2026-05-01', plannedEnd: '2026-05-20', isBuffer: false }
     const result = findCriticalPath({ tasks: [t1, t2], dependencies: [] })
     expect(result.terminalTaskId).toBe(2)
+  })
+})
+
+// ─── calculatePrevDate ───────────────────────────────────────────────────────
+
+describe('calculatePrevDate', () => {
+  it('土日をスキップして直近営業日を返す（要件 2.1 / 11.1）', () => {
+    // 2026-05-11(月) → 前日は 2026-05-10(日)・2026-05-09(土) を飛ばして 2026-05-08(金)
+    const result = calculatePrevDate('2026-05-11', [])
+    expect(result).toBe('2026-05-08')
+  })
+
+  it('holidays をスキップして前営業日を返す（要件 2.1 / 11.1）', () => {
+    // 2026-05-14(木) の前日 2026-05-13(水) を祝日にすると 2026-05-12(火) になる
+    const holidays: Holiday[] = [{ id: 1, projectId: 1, date: '2026-05-13' }]
+    const result = calculatePrevDate('2026-05-14', holidays)
+    expect(result).toBe('2026-05-12')
+  })
+
+  it('override が指定されたらその値をそのまま返す（要件 2.2 / 11.4）', () => {
+    const result = calculatePrevDate('2026-05-11', [], '2026-04-30')
+    expect(result).toBe('2026-04-30')
+  })
+
+  it('baseDate が YYYY-MM-DD 形式でない場合 AppError をスローする', () => {
+    expect(() => calculatePrevDate('2026/05/13', [])).toThrow(AppError)
+    expect(() => calculatePrevDate('2026/05/13', [])).toThrow(
+      expect.objectContaining({ code: ErrorCode.EVM_INVALID_BASE_DATE }),
+    )
   })
 })

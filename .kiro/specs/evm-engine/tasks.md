@@ -24,7 +24,7 @@
   - _Requirements: 1.1-1.10, 10.1, 10.2_
   - _Boundary: EvmEngine_
 
-- [ ] 2.2 `calculatePrevDate` を実装する
+- [x] 2.2 `calculatePrevDate` を実装する
   - `calculatePrevDate(baseDate: string, holidays: ReadonlyArray<Holiday>, override?: string): string` を実装する
   - `override` 指定時はその値をそのまま返す
   - 未指定時は `baseDate - 1 日` から土日（`getDay() === 0 || 6`）と `holidays.date` を除外し直近の営業日を返す

@@ -120,6 +120,53 @@ export function countWorkingDays(
 }
 
 /**
+ * baseDate の直近の前営業日を返す（要件 2.1 / 2.2 / 11.1 / 11.4）
+ *
+ * - `override` が指定されている場合はその値をそのまま返す（前日比カードの prevDate 上書き用途）
+ * - 未指定時は baseDate - 1 日から遡り、土日（`getUTCDay() === 0 || 6`）と
+ *   `holidays.date` を除外した直近営業日を返す
+ * - UTC ベース（`Date.UTC`）で計算するためタイムゾーン非依存
+ * - baseDate が 'YYYY-MM-DD' 形式でない場合は AppError をスロー
+ *
+ * @param baseDate 基準日 ('YYYY-MM-DD')
+ * @param holidays プロジェクトの祝日リスト
+ * @param override 明示的に前日日付を指定する場合の上書き値
+ */
+export function calculatePrevDate(
+  baseDate: string,
+  holidays: ReadonlyArray<Holiday>,
+  override?: string,
+): string {
+  if (override !== undefined) {
+    return override
+  }
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(baseDate)) {
+    throw new AppError(ErrorCode.EVM_INVALID_BASE_DATE, `Invalid baseDate format: ${baseDate}`)
+  }
+
+  const holidaySet = new Set(holidays.map((h) => h.date))
+  const current = parseUTCDate(baseDate)
+
+  // 1日前から探索し、土日 / holidays を除外した直近営業日を返す
+  current.setUTCDate(current.getUTCDate() - 1)
+  while (true) {
+    const dayOfWeek = current.getUTCDay()
+    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6
+    const year = current.getUTCFullYear()
+    const month = String(current.getUTCMonth() + 1).padStart(2, '0')
+    const day = String(current.getUTCDate()).padStart(2, '0')
+    const dateStr = `${year}-${month}-${day}`
+
+    if (!isWeekend && !holidaySet.has(dateStr)) {
+      return dateStr
+    }
+
+    current.setUTCDate(current.getUTCDate() - 1)
+  }
+}
+
+/**
  * タスク単体の PV を算出する（fill-to-capacity モデル WBS-CMN-013）
  */
 export function calculateTaskPv(
