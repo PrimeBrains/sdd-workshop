@@ -14,12 +14,18 @@ import { ErrorCode } from '../errors/codes.js'
 import { members } from '../db/schema.js'
 import type { Member } from '../db/schema.js'
 import * as schema from '../db/schema.js'
+import { generateInitials } from '../services/members-service.js'
 
 // ── Feature Flag ──────────────────────────────────────────────────────────────
 export const ENABLE_MEMBERS_ROUTER = true
 
 // ── Zod Schemas ───────────────────────────────────────────────────────────────
 
+// Task 4.2: role / initials を入力スキーマに追加 (Req 2.3, 2.4, 2.5, 6.2, 6.4)
+// - role は NULL 許容のオプショナル文字列 (自由入力)
+// - initials は NULL 許容のオプショナル文字列、長さ 1〜4
+//   create 時に未指定 (undefined) の場合は name から自動生成する (Req 2.6, 2.7)
+//   null が明示された場合は NULL として保存する
 export const createMemberSchema = z.object({
   projectId:        z.number().int().positive(),
   name:             z.string().min(1).max(200),
@@ -27,6 +33,8 @@ export const createMemberSchema = z.object({
   assignmentStart:  z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   assignmentEnd:    z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   externalId:       z.string().optional(),
+  role:             z.string().nullable().optional(),
+  initials:         z.string().min(1).max(4).nullable().optional(),
 })
 
 export const updateMemberSchema = z.object({
@@ -36,6 +44,8 @@ export const updateMemberSchema = z.object({
   assignmentStart:  z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   assignmentEnd:    z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   externalId:       z.string().optional(),
+  role:             z.string().nullable().optional(),
+  initials:         z.string().min(1).max(4).nullable().optional(),
 })
 
 // ── AppError → TRPCError conversion ───────────────────────────────────────────
@@ -82,10 +92,28 @@ export function createMembersRouter(db: DrizzleDb) {
           .where(eq(members.projectId, input.projectId))
       }),
 
-    // ── members.create (Req 4.1, 4.5, 4.6) ──────────────────────────────────
+    // ── members.create (Req 4.1, 4.5, 4.6, 2.3-2.7, 6.2, 6.4) ───────────────
+    // Task 4.2: role / initials のハンドリング
+    // - initials === undefined かつ name 非空: generateInitials(name) で補完 (Req 2.6, 2.7)
+    // - initials === null: NULL を保存
+    // - initials が文字列: そのまま保存
+    // - role は null / undefined / string をそのまま通す (undefined は NULL になる)
     create: t.procedure
       .input(createMemberSchema)
       .mutation(async ({ input }): Promise<Member> => {
+        // initials 自動生成ロジック
+        let initialsToSave: string | null
+        if (input.initials === undefined) {
+          // 未指定: name から自動生成 (name は createMemberSchema で min(1) を保証)
+          initialsToSave = input.name.length > 0 ? generateInitials(input.name) : null
+        } else {
+          // null または文字列はそのまま保存
+          initialsToSave = input.initials
+        }
+
+        // role: undefined → null として保存、null / 文字列はそのまま
+        const roleToSave: string | null = input.role ?? null
+
         const rows = await db
           .insert(members)
           .values({
@@ -95,6 +123,8 @@ export function createMembersRouter(db: DrizzleDb) {
             assignmentStart:  input.assignmentStart,
             assignmentEnd:    input.assignmentEnd,
             externalId:       input.externalId,
+            role:             roleToSave,
+            initials:         initialsToSave,
           })
           .returning()
         const member = rows[0]
@@ -116,12 +146,19 @@ export function createMembersRouter(db: DrizzleDb) {
           )
         }
 
+        // Task 4.2: update でも role / initials を受け付ける
+        // - undefined: 既存値を維持 (updateData にセットしない)
+        // - null: NULL で上書き
+        // - 文字列: そのまま上書き
+        // create と異なり autogen は行わない (Req 2.3, 2.4, 2.5)
         const updateData: Partial<{
           name: string
           availabilityRate: number
           assignmentStart: string
           assignmentEnd: string
           externalId: string
+          role: string | null
+          initials: string | null
           updatedAt: Date
         }> = {
           updatedAt: new Date(),
@@ -132,6 +169,8 @@ export function createMembersRouter(db: DrizzleDb) {
         if (input.assignmentStart !== undefined)  updateData.assignmentStart  = input.assignmentStart
         if (input.assignmentEnd !== undefined)    updateData.assignmentEnd    = input.assignmentEnd
         if (input.externalId !== undefined)       updateData.externalId       = input.externalId
+        if (input.role !== undefined)             updateData.role             = input.role
+        if (input.initials !== undefined)         updateData.initials         = input.initials
 
         const rows = await db
           .update(members)

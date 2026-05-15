@@ -79,7 +79,7 @@
   - _Boundary: api/projects.ts_
   - _Depends: 1.1_
 
-- [ ] 4.2 (P) `api/members.ts` の入力 Zod スキーマと出力型を拡張し、`initials` 自動生成を統合する
+- [x] 4.2 (P) `api/members.ts` の入力 Zod スキーマと出力型を拡張し、`initials` 自動生成を統合する
   - `createMemberSchema` / `updateMemberSchema` に `role: z.string().nullable().optional()` と `initials: z.string().min(1).max(4).nullable().optional()` を追加する
   - `members.create` ハンドラ内で `initials === undefined` かつ `name` が非空の場合に `generateInitials(name)` で補完する。`initials === null` のときは `null` を保存する
   - `members.listByProject` / `members.getById` のレスポンスが Drizzle 推論型 `Member` のまま `role` / `initials` を含むことを確認する
