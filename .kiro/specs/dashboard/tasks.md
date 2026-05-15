@@ -49,7 +49,7 @@
 ## Phase 2: 部品（shell / summary / alerts / gantt / charts / inspector）
 
 - [ ] 2. 中央領域・シェル・Inspector の各コンポーネントを追加
-- [ ] 2.1 `components/shell/TopBar.tsx` を追加 (P)
+- [x] 2.1 `components/shell/TopBar.tsx` を追加 (P)
   - 横並びヘッダー（ブランド + プロジェクトピッカー + 基準日ピッカー + 通知 + アバター）
   - プロジェクトピッカーは popover 開閉と prop で受領した `projectMenuOpen` を反映
   - 基準日ピッカーは `<input type="date">` + 3 プリセットチップ
@@ -60,7 +60,7 @@
   - _Boundary: components/shell/TopBar.tsx_
   - _Depends: 1.1, 1.4, 1.5_
 
-- [ ] 2.2 `components/shell/ProjectRail.tsx` を追加 (P)
+- [x] 2.2 `components/shell/ProjectRail.tsx` を追加 (P)
   - 左レール 232px 固定。Projects セクション + Members セクション
   - props: `projects`, `activeProjectId`, `members`, `assignees`, `alertCountByProject`, `inspectorMode`, `inspectorMemberId`, `onProjectChange`, `onMemberSelect`
   - アクティブ行は brand wash 背景 + 3px brand-deep 左ボーダー
@@ -69,7 +69,7 @@
   - _Boundary: components/shell/ProjectRail.tsx_
   - _Depends: 1.1, 1.4, 1.5_
 
-- [ ] 2.3 `components/summary/{SummaryStrip,SummaryStat}.tsx` を追加 (P)
+- [x] 2.3 `components/summary/{SummaryStrip,SummaryStat}.tsx` を追加 (P)
   - `SummaryStat.tsx`: label / value / sub / tone を props で受領し、モックアップ通りに表示する小コンポーネント
   - `SummaryStrip.tsx`: プロジェクトメタ + SPI/CPI/BAC/EV/AC/VAC + 前日比トグル
   - `compareMode` true/false で表示モード切替（current 値 ↔ 前日比 delta）
@@ -79,7 +79,7 @@
   - _Boundary: components/summary/_
   - _Depends: 1.1, 1.4, 1.5_
 
-- [ ] 2.4 `components/alerts/AlertStrip.tsx` を追加 (P)
+- [x] 2.4 `components/alerts/AlertStrip.tsx` を追加 (P)
   - props: `alerts`, `onJump`
   - 最高重大度に応じて background / heading を切替
   - 各チップクリックで `onJump(alert)` を呼ぶ
@@ -88,7 +88,7 @@
   - _Boundary: components/alerts/AlertStrip.tsx_
   - _Depends: 1.1, 1.4, 1.5_
 
-- [ ] 2.5 `components/gantt/GanttChart.tsx` を追加 (P)
+- [x] 2.5 `components/gantt/GanttChart.tsx` を追加 (P)
   - モックアップ `mockup/shared.jsx` 行 487–747 の `Gantt` 関数を TSX 化
   - props: `tasks`, `gantt` (range), `selectedTaskId`, `onTaskClick`, `onFullscreen`, `width`, `labelW`, `rowH`, `showInfoCols`
   - 基準日縦線・雷線・SPI トーン色分けバー・WBS インデントを実装
@@ -98,7 +98,7 @@
   - _Boundary: components/gantt/GanttChart.tsx_
   - _Depends: 1.1, 1.4, 1.5_
 
-- [ ] 2.6 `components/charts/{SpiTrendChart,FeverChart,Sparkline}.tsx` を追加 (P)
+- [x] 2.6 `components/charts/{SpiTrendChart,FeverChart,Sparkline}.tsx` を追加 (P)
   - `SpiTrendChart.tsx`: モックアップ `shared.jsx` 行 233–336 を TSX 化、`React.memo`
   - `FeverChart.tsx`: モックアップ `shared.jsx` 行 339–452 を TSX 化、`data === null` 時は「バッファタスク未定義」表示
   - `Sparkline.tsx`: モックアップ `shared.jsx` 行 455–467 を TSX 化
@@ -107,7 +107,7 @@
   - _Boundary: components/charts/_
   - _Depends: 1.1, 1.5_
 
-- [ ] 2.7 `components/inspector/{InspectorTaskMode,InspectorMemberMode,InspectorTeamMode}.tsx` を追加 (P)
+- [x] 2.7 `components/inspector/{InspectorTaskMode,InspectorMemberMode,InspectorTeamMode}.tsx` を追加 (P)
   - 3 ファイルそれぞれモックアップ `variation-a.jsx` 行 626–897 の Task / Member / Team ブロックを 1:1 で移植
   - 各モードは props で全データを受領（自前のデータフェッチなし）
   - `compareMode === true` のとき各メトリクスは `prevDay` 比較に切り替わる
@@ -116,7 +116,7 @@
   - _Boundary: components/inspector/_
   - _Depends: 1.1, 1.4, 1.5, 2.6_
 
-- [ ] 2.8 `components/shell/Inspector.tsx` シェルを追加
+- [x] 2.8 `components/shell/Inspector.tsx` シェルを追加
   - 上部に `TabBar` をレンダリングし、`mode` に応じて `InspectorTaskMode` / `InspectorMemberMode` / `InspectorTeamMode` のいずれかを描画
   - props: `mode`, `task`, `taskMetrics`, `taskTone`, `project`, `memberId`, `compareMode`, `onSwitchTask`, `onSwitchMember`, `onSwitchTeam`
   - _Requirements: 11.1, 11.4, 11.8_
