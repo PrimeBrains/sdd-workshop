@@ -6,3 +6,11 @@ dist/
 .env.local
 test-results/
 playwright-report/
+
+# tsc が src 配下に誤って吐いた成果物を再追跡しない
+client/src/**/*.js
+client/src/**/*.js.map
+client/src/**/*.d.ts
+server/src/**/*.js
+server/src/**/*.js.map
+server/src/**/*.d.ts

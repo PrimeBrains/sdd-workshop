@@ -2,7 +2,7 @@
 
 ## Tasks
 
-- [ ] 1. 基盤: スキーマ拡張とエラーコード追加
+- [x] 1. 基盤: スキーマ拡張とエラーコード追加
 - [x] 1.1 progress_snapshots テーブルに note カラムを追加する
   - `evm-studio/server/src/db/schema.ts` の `progressSnapshots` テーブル定義に `note: text('note')` を追加する（NULL 許容、デフォルト値なし、既存列は変更しない）
   - Drizzle 推論型 `ProgressSnapshot` に `note: string | null` が含まれることを TypeScript で確認する
@@ -24,7 +24,7 @@
   - _Requirements: 9.3_
   - _Boundary: ErrorCodes_
 
-- [ ] 2. Core: progress tRPC ルーター再実装
+- [x] 2. Core: progress tRPC ルーター再実装
 - [x] 2.1 recordProgressSchema と record プロシージャを実装する
   - `evm-studio/server/src/api/progress.ts` を再実装する。`recordProgressSchema` を Zod で定義する: `taskId: z.number().int().positive()`, `snapshotDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/)`, `progressPct: z.number().int().min(0).max(100)`, `acDays: z.number().min(0)`, `note: z.string().max(1000).nullable().optional()`
   - `progress.record` プロシージャを実装する:
@@ -92,7 +92,7 @@
   - _Depends: 2.1, 2.2, 2.3, 2.4, 2.4b_
   - _Boundary: HonoServer, ProgressRouter_
 
-- [ ] 3. Core: クライアント純関数とフック実装
+- [x] 3. Core: クライアント純関数とフック実装
 - [x] 3.1 (P) calculatePlannedPct 純関数を実装する
   - `evm-studio/client/src/services/planned-comparison.ts` を新規作成する
   - 関数シグネチャ: `export function calculatePlannedPct(input: { projectStartISO: string; snapshotDate: string; taskPlannedStart: string; taskPlannedEnd: string }): number`
@@ -121,7 +121,7 @@
   - _Depends: 2.6_
   - _Boundary: useProgress_
 
-- [ ] 4. Validation: 単体テスト実装
+- [x] 4. Validation: 単体テスト実装
 - [x] 4.1 progress ルーターの Vitest 単体テストを実装する
   - `evm-studio/server/tests/api/progress.test.ts`（または既存ファイル）を新仕様に書き換える
   - 以下のテストケースを実装する:
@@ -175,7 +175,7 @@
   - _Depends: 3.2_
   - _Boundary: AcUnit_
 
-- [ ] 5. Core: ProgressInputPanel コンポーネント実装
+- [x] 5. Core: ProgressInputPanel コンポーネント実装
 - [x] 5.1 ProgressInputPanel の型定義を作成する
   - `evm-studio/client/src/components/gantt/progress-input-panel-types.ts` を新規作成する
   - `ProgressInputTask` interface を定義する: `id: number; code: string; name: string; assigneeName: string | null; plannedStart: string; plannedEnd: string; bac: number; spi: number | null; ancestors: Array<{ id: number; name: string }>`
@@ -250,7 +250,7 @@
   - _Depends: 3.3, 5.6_
   - _Boundary: ProgressInputPanel_
 
-- [ ] 6. 統合確認
+- [x] 6. 統合確認
 - [x] 6.1 progress-tracking スペックの全体動作を検証する
   - `npm test`（サーバー単体テスト）を実行し、`progress.test.ts` / `planned-comparison.test.ts` / `ac-unit.test.ts` の全テストが PASS することを確認する
   - `npm start` でサーバー + クライアントを起動し、`evm-studio/server/seeds/seed.ts` 等で投入したテストプロジェクトに対し、ブラウザの DevTools で `trpc.progress.record.useMutation` を直接呼び出して正常応答を確認する（または既存ページから一時的に `ProgressInputPanel` をマウントする検証コードで動作確認）

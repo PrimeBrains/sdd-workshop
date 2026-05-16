@@ -1,6 +1,6 @@
 # Implementation Plan
 
-- [ ] 1. 基盤整備: エラーコードと型エクスポートの確認
+- [x] 1. 基盤整備: エラーコードと型エクスポートの確認
 - [x] 1.1 EVM エラーコードを `errors/codes.ts` に整備する
   - `server/src/errors/codes.ts` の `ErrorCode` オブジェクトに `EVM_INVALID_BASE_DATE` / `EVM_INVALID_AVAILABILITY_RATE` / `EVM_CIRCULAR_DEPENDENCY` が存在することを確認し、不足があれば追加する
   - 文字列リテラル直書き禁止規約に従い、`as const` でリテラル型を維持する
@@ -15,7 +15,7 @@
   - _Requirements: 10.1, 10.4_
   - _Boundary: DataLayer_
 
-- [ ] 2. コア計算: `evm-engine.ts` の拡張
+- [x] 2. コア計算: `evm-engine.ts` の拡張
 - [x] 2.1 既存の純粋関数を確認しテストファイル骨格を準備する
   - `server/src/services/evm-engine.ts` の `countWorkingDays` / `calculateTaskPv` / `calculateProjectPv` / `calculateEvmMetrics` の現状シグネチャを確認する
   - 不足している入力（`Project.startDate` 等）がある場合は `EvmInput` 型を拡張する
@@ -52,7 +52,7 @@
   - _Boundary: EvmEngine_
   - _Depends: 2.1_
 
-- [ ] 3. 担当者別集計: `evm-assignees.ts`
+- [x] 3. 担当者別集計: `evm-assignees.ts`
 - [x] 3.1 (P) `aggregateAssignees` を実装する
   - `server/src/services/evm-assignees.ts` に `aggregateAssignees({ baseDate, members, tasks, snapshots, holidays })` を実装する
   - メンバーごとに担当タスクをグループ化し、`bac` / `ev` / `pv`（`calculateTaskPv` を再利用）/ `ac` を合計する
@@ -72,7 +72,7 @@
   - _Boundary: EvmAssignees_
   - _Depends: 3.1_
 
-- [ ] 4. SPI トレンド: `evm-trend.ts`
+- [x] 4. SPI トレンド: `evm-trend.ts`
 - [x] 4.1 (P) `buildSpiTrend` を実装する
   - `server/src/services/evm-trend.ts` に `buildSpiTrend({ baseDate, trendWindowDays?, project, tasks, members, holidays, snapshots })` を実装する
   - スナップショット日付の集合 `D` を `[start, baseDate]` 範囲（`trendWindowDays` 指定時はそれで絞る）で抽出し、昇順に並べる
@@ -83,7 +83,7 @@
   - _Boundary: EvmTrend_
   - _Depends: 2.1_
 
-- [ ] 5. フィーバーチャート: `evm-fever.ts`
+- [x] 5. フィーバーチャート: `evm-fever.ts`
 - [x] 5.1 (P) `calculateFever` を実装する
   - `server/src/services/evm-fever.ts` に `calculateFever({ baseDate, tasks, dependencies, snapshots, holidays, trendWindowDays? })` を実装する
   - `critical-path.ts` の `findCriticalChain(tasks, dependencies)` でクリティカルチェーンを特定する
@@ -97,7 +97,7 @@
   - _Boundary: EvmFever_
   - _Depends: 2.1_
 
-- [ ] 6. タスクロールアップとアラート: `evm-tasks.ts`
+- [x] 6. タスクロールアップとアラート: `evm-tasks.ts`
 - [x] 6.1 `rollupTasks` を実装する
   - `server/src/services/evm-tasks.ts` に `rollupTasks({ project, tasks, members, snapshots, holidays, baseDate })` を実装する
   - 各タスクについて `start = days(plannedStart - project.startDate)`、`end = days(plannedEnd - project.startDate)` を整数で返す
@@ -128,7 +128,7 @@
   - _Boundary: EvmTasks_
   - _Depends: 6.1_
 
-- [ ] 7. ガントメタデータ: `evm-gantt.ts`
+- [x] 7. ガントメタデータ: `evm-gantt.ts`
 - [x] 7.1 (P) `buildGanttMeta` を実装する
   - `server/src/services/evm-gantt.ts` に `buildGanttMeta({ project, baseDate })` を実装する
   - `totalDays = (endISO - startISO) + 1`（両端含む暦日数）として算出する
@@ -138,7 +138,7 @@
   - _Requirements: 8.1-8.6_
   - _Boundary: EvmGantt_
 
-- [ ] 8. tRPC ルーター: `api/evm.ts`
+- [x] 8. tRPC ルーター: `api/evm.ts`
 - [x] 8.1 Zod 入力スキーマと型エクスポートを定義する
   - `server/src/api/evm.ts` に `evmCalculateSchema = z.object({ projectId, baseDate, options? })` を定義する
   - `EvmCalculateInput` / `EvmCalculateOutput` 型をエクスポートする
@@ -160,7 +160,7 @@
   - _Boundary: EvmRouter_
   - _Depends: 2.2, 2.3, 3.1, 3.2, 4.1, 5.1, 6.1, 6.2, 6.3, 7.1, 8.1_
 
-- [ ] 9. 統合テストと性能検証
+- [x] 9. 統合テストと性能検証
 - [x] 9.1 `evm.calculate` 統合テストを実装する
   - `server/src/api/evm.test.ts` を新規作成する
   - モックアップ `mockup/projects-data.jsx` の `PROJECT_DATA[0]`（NXP-002）相当のフィクスチャを `__fixtures__/nxp-002.ts` に配置する（プロジェクト・タスク・メンバー・スナップショット・休日）

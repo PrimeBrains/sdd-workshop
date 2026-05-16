@@ -6,7 +6,7 @@
 
 ## Phase 1: 基盤（tokens + atoms + formatters）
 
-- [ ] 1. 基盤レイヤーを追加
+- [x] 1. 基盤レイヤーを追加
 - [x] 1.1 デザイントークン `tokens/evm-tokens.ts` を追加 (P)
   - `client/src/tokens/evm-tokens.ts` を新規作成
   - モックアップ `mockup/shared.jsx` 行 24–50 の `EVM` 定数を完全移植
@@ -48,7 +48,7 @@
 
 ## Phase 2: 部品（shell / summary / alerts / gantt / charts / inspector）
 
-- [ ] 2. 中央領域・シェル・Inspector の各コンポーネントを追加
+- [x] 2. 中央領域・シェル・Inspector の各コンポーネントを追加
 - [x] 2.1 `components/shell/TopBar.tsx` を追加 (P)
   - 横並びヘッダー（ブランド + プロジェクトピッカー + 基準日ピッカー + 通知 + アバター）
   - プロジェクトピッカーは popover 開閉と prop で受領した `projectMenuOpen` を反映
@@ -125,7 +125,7 @@
 
 ## Phase 3: ページ統合（hooks/useEvm + WorkbenchPage + App.tsx 差し替え）
 
-- [ ] 3. データフェッチフックとページを統合
+- [x] 3. データフェッチフックとページを統合
 - [x] 3.1 `hooks/useEvm.ts` を追加
   - `trpc.evm.calculate.useQuery` をラップ
   - 入力 `{ projectId: number | null, baseDate: string }`、`enabled: projectId !== null && validIsoDate(baseDate)`
@@ -160,7 +160,7 @@
 
 ## Phase 4: モーダル統合（GanttFullscreen + ChartFullscreen + ProgressInputPanel ホスト）
 
-- [ ] 4. モーダル群を統合
+- [x] 4. モーダル群を統合
 - [x] 4.1 `components/charts/ChartFullscreen.tsx` を追加 (P)
   - `ReactDOM.createPortal` で `document.body` 直下にマウント
   - props: `type` (`'trend' | 'fever'`), `project`, `onClose`
@@ -224,7 +224,7 @@
 
 ## Phase 5: 旧画面の削除
 
-- [ ] 5. 旧ページファイルを削除
+- [x] 5. 旧ページファイルを削除
 - [x] 5.1 `pages/DashboardPage.tsx` を削除
   - 削除前に WorkbenchPage が `/` で動作確認済みであること
   - 削除後 `npm run build` が成功する *(observable: tsc + vite build 成功、未参照ファイル削除によるエラーゼロ)*
@@ -240,7 +240,7 @@
 
 ## Phase 6: 旧コンポーネントの削除
 
-- [ ] 6. 旧 components/ 直下のレガシーファイルを削除
+- [x] 6. 旧 components/ 直下のレガシーファイルを削除
 - [x] 6.1 旧コンポーネント 6 ファイルを削除 (P)
   - `client/src/components/AlertBanner.tsx`
   - `client/src/components/AssigneeTable.tsx`
@@ -256,7 +256,7 @@
 
 ## Phase 7: 依存削除
 
-- [ ] 7. recharts 依存をクリーンアップ
+- [x] 7. recharts 依存をクリーンアップ
 - [x] 7.1 `package.json` から recharts を削除
   - `client/package.json` の `dependencies` から `recharts` を削除
   - `npm install` を実行して `package-lock.json` を更新
@@ -267,7 +267,7 @@
 
 ## Phase 8: E2E テスト追加
 
-- [ ] 8. Playwright E2E テストを追加
+- [x] 8. Playwright E2E テストを追加
 - [x] 8.1 `e2e/workbench.spec.ts` を追加（8 シナリオ）
   - シナリオ 1: TopBar プロジェクトピッカーで切替 → SummaryStrip のプロジェクト名が変わる
   - シナリオ 2: 基準日変更 → SummaryStrip の SPI/CPI 数値が変わる
@@ -284,9 +284,10 @@
   - _Boundary: e2e/workbench.spec.ts_
   - _Depends: 7.1_
 
-- [ ]* 8.2 視覚的なモックアップ準拠を手動で確認
+- [~]* 8.2 視覚的なモックアップ準拠を手動で確認 — **スキップ受け入れ (2026-05-16)**
   - `(projectId=1, baseDate='2026-05-13')` で `localhost:5173` を開き、`mockup/evm-app.html` と並べて比較
   - 色・フォント・余白・トランジションの差異を目視で確認し、必要なら微調整
+  - **判断**: 任意マーク `*` 項目であり、Playwright E2E 8.1（8 シナリオ）がグリーンのため機能保証は確保済み。視覚回帰が必要になった時点で手動実施 or VRT 追加で対応する
   - _Requirements: 20.4_
   - _Boundary: pages/WorkbenchPage.tsx_
   - _Depends: 8.1_
