@@ -358,4 +358,7 @@
   - `ChartFullscreen.tsx` の portal root に `data-testid="chart-fullscreen"` を付与
   - `workbench.spec.ts` の `ganttRowByText` を `[data-testid="gantt-row"]` スコープに限定、シナリオ 8 を `getByTestId('chart-fullscreen')` で portal 限定検出に変更
   - 結果: workbench.spec.ts シナリオ 1-9 が **9/9 GREEN** (`npm run test:e2e -- --grep シナリオ`)
-- **2026-05-18 残る別 issue**: `smoke.spec.ts:10` (トップページ表示) は Phase 9 スコープ外で独立。dashboard の責務外の可能性が高いため、別途調査して bugfix。
+- **2026-05-18 smoke.spec.ts と workbench シナリオ 7 のフルラン回帰も解消**: e2e 全 16 件を最終的に green 化:
+  - `smoke.spec.ts:10`: `getByText('EVM Studio')` が TopBar の BrandMark の `<span>` と wordmark の `<div>` の 2 箇所にヒットして strict mode violation。`.first()` を付与して限定
+  - `workbench.spec.ts` シナリオ 7: フルランで前回保存した進捗値が DB に残ると `fill('75')` しても「未変更」扱いで「保存」ボタンが disabled になる。現在値を読んで必ず変化させる (>=90 なら -5、それ未満は +5) ロジックに変更し、入力アサートも `toHaveValue` で決定論的に
+  - 最終結果: `npm run test:e2e` で **16 passed** (smoke 2 + workbench 9 + import 5)

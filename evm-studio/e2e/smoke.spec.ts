@@ -9,5 +9,8 @@ test('サーバーヘルスチェック', async ({ request }) => {
 
 test('トップページが表示される', async ({ page }) => {
   await page.goto('/')
-  await expect(page.getByText('EVM Studio')).toBeVisible()
+  // TopBar には BrandMark の <span aria-label="Prime Brains"> と
+  // wordmark の <div> の 2 箇所に "EVM STUDIO" が並ぶ。
+  // strict mode 違反を避けるため .first() で先頭の 1 件に限定する。
+  await expect(page.getByText('EVM Studio').first()).toBeVisible()
 })
