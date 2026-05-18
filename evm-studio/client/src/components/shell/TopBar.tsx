@@ -1,13 +1,12 @@
 /**
  * Task 2.1: TopBar
  *
- * 横並びヘッダー: ブランド + プロジェクトピッカー + 基準日ピッカー + 通知 + アバター。
+ * 横並びヘッダー: ブランド + プロジェクトピッカー + 基準日ピッカー + 通知。
  * モックアップ `variation-a.jsx` 行 83-227 を 1:1 で TSX 移植。
  */
 
 import React, { useEffect } from 'react'
 import { EVM } from '@/tokens/evm-tokens'
-import { Avatar } from '@/components/atoms/Avatar'
 import { BrandMark } from '@/components/atoms/BrandMark'
 import { Chevron } from '@/components/atoms/Chevron'
 import { Dot, type DotTone } from '@/components/atoms/Dot'
@@ -34,8 +33,6 @@ export interface TopBarProps {
   baseDate: string
   projectMenuOpen: boolean
   datePickerOpen: boolean
-  /** ユーザーアバター用イニシャル (任意・デフォルト '田美') */
-  userInitials?: string
   onProjectChange: (id: number) => void
   onBaseDateChange: (iso: string) => void
   onToggleProjectMenu: () => void
@@ -55,7 +52,6 @@ export const TopBar = React.memo(function TopBar({
   baseDate,
   projectMenuOpen,
   datePickerOpen,
-  userInitials = '田美',
   onProjectChange,
   onBaseDateChange,
   onToggleProjectMenu,
@@ -365,7 +361,6 @@ export const TopBar = React.memo(function TopBar({
           />
         </svg>
       </div>
-      <Avatar initials={userInitials} tone="brand" size={30} />
     </header>
   )
 })
