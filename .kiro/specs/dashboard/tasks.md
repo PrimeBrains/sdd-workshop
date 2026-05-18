@@ -353,10 +353,9 @@
 
 - **2026-05-18 Phase 9 後 (初期メモ、9.5 で部分対応済み)**: 9/9 化に向け、`server/seeds/seed.ts` の DB パス整合と `sqlite_sequence` リセットを直接実装で対応 (`server/evm-studio.db` 配下を見るよう `defaultDbPath = ../evm-studio.db` に変更し、transaction 前に `sqlite_sequence` を `exec` で削除)。`WorkbenchPage.tsx:81` の `useState(1)` ハードコードは要件 12.2 通りのため不変、seed 側で `projects.id` が 1 始まりとなることで整合が取れる。
 - **2026-05-18 Phase 9.5 (data-testid 導入)**: `SummaryStat` / `SummaryStrip` / `Inspector` に `data-testid` を追加し、e2e ヘルパ (`readSummaryStat` / `readSummaryStatSub` / `readInspectorTaskStat`) を `getByTestId` ベースに統一。Playwright の `text=` セレクターが case-insensitive substring 一致のため、`text=EV` が TopBar の "EVM STUDIO" などに衝突する脆弱性を解消。シナリオ 2 / 3 がこの修正でグリーン化。
-- **2026-05-18 Phase 9 + 9.5 後の e2e 残課題 (別 bugfix issue)**: 以下は Phase 9 の主目的 (数値整合) のスコープ外であり、別 issue で対応する:
-  - シナリオ 4 (Gantt 行クリック → Inspector が Task モードで更新): ハードコードされた固定タスク名 `'ユースケース整理'` が seed の実データに存在しない可能性。テストフィクスチャ前提の見直しが必要。
-  - シナリオ 7 (進捗保存 → Gantt 更新): 9.5 修正前は pass、9.5 後に回帰。`data-testid` 追加で DOM 上の locator が変化した可能性。要再現確認。
-  - シナリオ 8 (ChartFullscreen 閉じる): `'SPI / CPI 推移'` テキストが portal 閉じ後も検出される。ChartFullscreen の unmount セマンティクスか、テキスト一致 locator の scope の問題。
-  - シナリオ 9 後段 (Inspector Task モード値の検証): Gantt 行クリック後の `selectedTaskId` 反映がテストで観測できず、Inspector に対象タスク名が現れない。シナリオ 4 と同根。
-  - `smoke.spec.ts:10` (トップページ表示): Phase 9 スコープ外。
-  - **Phase 9 の主目的 (SummaryStrip BAC/EV/AC/PV-sub の API 値整合)** は シナリオ 9 前半が green であることで達成済み。formatters の単位スケールバグ・Inspector 固定 BAC 文字列・seed の DB パス / sqlite_sequence は本 Phase で解消。
+- **2026-05-18 Phase 9 + 9.5 後の e2e 残課題 (即座に直接修正で解消済み)**: 当初は別 bugfix issue としていたが、共通の根本原因 (Playwright の `text=` セレクター + `<div>` first 戦略の脆弱性) を `data-testid` ベースに揃えることで一括解消した:
+  - `GanttChart.tsx` の行 `<div>` に `data-testid="gantt-row"` + `data-task-id={t.id}` を付与
+  - `ChartFullscreen.tsx` の portal root に `data-testid="chart-fullscreen"` を付与
+  - `workbench.spec.ts` の `ganttRowByText` を `[data-testid="gantt-row"]` スコープに限定、シナリオ 8 を `getByTestId('chart-fullscreen')` で portal 限定検出に変更
+  - 結果: workbench.spec.ts シナリオ 1-9 が **9/9 GREEN** (`npm run test:e2e -- --grep シナリオ`)
+- **2026-05-18 残る別 issue**: `smoke.spec.ts:10` (トップページ表示) は Phase 9 スコープ外で独立。dashboard の責務外の可能性が高いため、別途調査して bugfix。

@@ -344,6 +344,8 @@ export const GanttChart = React.memo(function GanttChart({
           return (
             <div
               key={t.id}
+              data-testid="gantt-row"
+              data-task-id={t.id}
               onClick={clickable ? () => onTaskClick!(t) : undefined}
               className={clickable ? 'evm-gantt-row' : undefined}
               style={{

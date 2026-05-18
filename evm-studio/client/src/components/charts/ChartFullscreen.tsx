@@ -93,6 +93,7 @@ export function ChartFullscreen({
 
   return ReactDOM.createPortal(
     <div
+      data-testid="chart-fullscreen"
       onClick={onClose}
       style={{
         position: 'fixed',
