@@ -81,6 +81,7 @@ export const InspectorTaskMode = React.memo(function InspectorTaskMode({
   const dTaskEV = prevTaskMetrics ? taskMetrics.ev - prevTaskMetrics.ev : 0
   const dTaskPV = prevTaskMetrics ? taskMetrics.pv - prevTaskMetrics.pv : 0
   const dTaskAC = prevTaskMetrics ? taskMetrics.ac - prevTaskMetrics.ac : 0
+  const dTaskBAC = prevTaskMetrics ? taskMetrics.bac - prevTaskMetrics.bac : 0
   const dTaskCpi =
     prevTaskMetrics && taskMetrics.cpi != null && prevTaskMetrics.cpi != null
       ? taskMetrics.cpi - prevTaskMetrics.cpi
@@ -248,8 +249,8 @@ export const InspectorTaskMode = React.memo(function InspectorTaskMode({
             />
             <SummaryStat
               label="BAC"
-              value="±0.0 MD"
-              tone="na"
+              value={fmtDeltaMD(dTaskBAC)}
+              tone={deltaTone(dTaskBAC)}
               sub={`現在 ${fmtMD(taskMetrics.bac)}`}
             />
           </>

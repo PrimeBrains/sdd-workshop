@@ -91,3 +91,68 @@
 - progress-tracking 設計書: `.kiro/specs/progress-tracking/design.md`
 - domain.md アラート閾値定義: `.kiro/steering/domain.md`
 - recharts 公式サイト: https://recharts.org/en-US/api
+
+---
+
+## 追補（2026-05-18）: 数値整合性バグの RCA と設計反映
+
+### Discovery Scope（追加分）
+
+- **トリガー**: 実装稼働後のスクリーンショット (FireShot Capture 288, `projectId=39`, `baseDate=2026-05-18`) で SummaryStrip / Inspector の BAC / EV / PV / AC が全て `0.0 MD` 表示。一方で SPI は 0.88 と正常表示。DB 側は健全（84 タスク・estimate_days 合計 70.0 MD・スナップショット 84 件 / `2026-05-14`）。
+- **分類**: Extension（既存 spec の表示層バグ + 仕様補強）/ Light Discovery。
+
+### Research Log（追加分）
+
+#### 数値表示パスのトレース
+
+- **Context**: 「API は正しい値を返しているが UI 表示が `0.0 MD`」という症状の原因特定。
+- **Sources Consulted**: `server/src/services/evm-engine.ts`, `server/src/api/evm.ts`, `client/src/lib/formatters.ts`, `client/src/components/summary/SummaryStrip.tsx`, `client/src/components/inspector/InspectorTaskMode.tsx`, `e2e/workbench.spec.ts`。
+- **Findings**:
+  - サーバ側 `calculateEvmMetrics` は `bac = nonBufferTasks.reduce(sum + estimateDays)` で正しく人日単位の合計 70.0 を返す。SPI / CPI は別経路で `.toFixed(2)` 直接呼び出しのため正常表示。
+  - `client/src/lib/formatters.ts:1` の `fmtMD` 実装が `(n / 1_000_000).toFixed(1) + ' MD'` となっており、人日単位の数値を **100 万で割って** いた。`70 / 1_000_000 = 0.00007` → `'0.0 MD'` 表示の直接原因。
+  - `client/src/components/inspector/InspectorTaskMode.tsx:251` の Inspector Task モード「前日比 BAC」が `value="±0.0 MD"` のハードコード固定文字列。`fmtDeltaMD(dTaskBAC)` が呼ばれていない実装漏れ。
+  - 同表示は EV/PV/AC/VAC/EAC/ETC で共通の `fmtMD` を経由するため、サマリー全体・Inspector・GanttChart 系すべてに波及していた。
+- **Implications**: 個別バグ修正に加え、要件 4.7 が `(n / 1_000_000).toFixed(1)` を「仕様レベルで」明文化していたことが、レビューおよびテストでの検知をすり抜けた一因。要件側で実装詳細を排除し、人日単位そのまま表示の不変則として書き直す必要がある。
+
+#### テストカバレッジ・ギャップ分析
+
+- **Context**: 「なぜユニットテスト / E2E / コードレビューで検知されなかったか」。
+- **Findings**:
+  - `client/src/lib/formatters.test.ts` ファイル自体が **存在しなかった**。設計書 (旧 Testing Strategy) で「自明な変換のみで ROI が低い」と省略判断していた。同じ単位系を扱う `client/src/services/ac-unit.test.ts`（`1 MD === 8 h`）は厳密にテスト済みだが、表示フォーマッタは素通りだった。
+  - SummaryStrip / Inspector のコンポーネントテストは `tech.md` 方針により不採用 → React Testing Library での検知パスは元から無し。
+  - `e2e/workbench.spec.ts` の `readSummaryStat` ヘルパは BAC / EV / PV / AC を **読み取る** が、「値が期待 MD と一致するか」のアサートは皆無。前日比モードの記号 (`▲ / ▼ / ±0`) 検出ロジックは `'0.0 MD'` を正常扱いとして通過させていた。
+  - サーバ側計算ロジックは `evm-engine.test.ts` / `evm.test.ts` で網羅的にテストされており、API レスポンスまでは保証済み → サーバーから UI 表示までの「最後の 1 マイル」にテスト断絶があった。
+- **Implications**: 「ピュア関数で自明だからテスト不要」という ROI 判断は、定数掛け・単位変換の混入に対しては安全とは言えない。本スペックでは方針を反転し、表示層の単位不変則は Vitest で常時アサートする。
+
+### Design Decisions（追加分）
+
+#### Decision: 人日 (Man-Day) 単位の不変則を `formatters.ts` の契約として明文化
+
+- **Context**: 旧要件 4.7 が `(n / 1_000_000).toFixed(1) + ' MD'` を仕様化していたため、実装者・レビュワー双方が「割算は仕様通り」と誤認した。
+- **Alternatives Considered**:
+  1. 要件は変えず、実装の `fmtMD` だけ修正する（ピンポイント修正）。
+  2. 要件 4.7 から実装詳細 (数式) を排除し、「API 値を人日単位そのまま表示」を不変則として明示。`formatters.ts` 側で同契約を再表現し、`formatters.test.ts` でアサートする。
+- **Selected Approach**: Option 2。
+- **Rationale**: 要件側の数式記述が誤りの源だったため、表面の実装だけ直しても spec ↔ impl 一貫性は回復しない。Generalization の観点でも、BAC / EV / PV / AC / VAC / EAC / ETC は「Man-Day 単位の `number` を `toFixed(1)` で表示」という同一パターンに集約できる。
+- **Trade-offs**: 要件再生成 → 下流 (design, tasks) 再承認のオーバーヘッドが発生するが、再発防止のためには必須コスト。
+- **Follow-up**: 新規 Requirement 21 として「API レスポンス値と UI 表示値の整合」を ubiquitous 要件化済み。
+
+#### Decision: Build vs Adopt — ピュア関数テストは既存 Vitest を採用
+
+- **Context**: formatter ピュア関数のテストランナー選定。
+- **Selected Approach**: Vitest（既に `evm-studio/client/` で `vitest.config.ts` および `client/src/services/ac-unit.test.ts` 等で稼働中）を採用。新規ライブラリ追加なし。
+- **Rationale**: 既存テスト基盤との一貫性。Playwright と用途を切り分け、ピュア関数の決定性テストはピュア関数テストランナーで担う。
+- **Trade-offs**: なし。
+
+#### Decision: 「自明な変換だからテスト省略」アンチパターンの撤回
+
+- **Context**: 旧 Testing Strategy の `lib/formatters.ts` 省略根拠 (「自明な変換のみで ROI が低い」)。
+- **Selected Approach**: 撤回。Vitest による pure-function テストを必須化し、設計書 Testing Strategy に「自明だから省略してはならない」根拠を明記。
+- **Rationale**: 過去の `1_000_000` 割算混入事例が、まさにこの判断の安全性反証となった。ピュア関数のテストはコスト極小（1 関数 1-3 アサート）に対し、リグレッション検知効果は単位スケール混入を完全に防ぐ。
+- **Trade-offs**: テストファイル維持の最小コスト（変更時に追従が必要）。
+
+### Risks & Mitigations（追加分）
+
+- **「自明な変換」省略リスク**: 今後別の formatter 拡張時にも同種の誤りが入りうる。Requirement 21.5 を ubiquitous（将来追加にも適用）として書くことで、新規追加 formatter にも自動的に単位整合要件が適用される。
+- **要件再承認の連鎖**: dashboard requirements の変更により design / tasks の再承認が必要。本ターンで design → tasks の連鎖を実施することで対応。
+- **既存 e2e の前提崩れ**: 旧 `workbench.spec.ts` の `readSummaryStat` ヘルパは保持しつつ、新シナリオ (i) を追加する形で互換性を確保。既存 8 シナリオは破壊しない。

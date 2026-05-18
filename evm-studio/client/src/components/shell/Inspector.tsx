@@ -129,6 +129,7 @@ export const Inspector = React.memo(function Inspector({
 
   return (
     <aside
+      data-testid={`inspector-${mode}`}
       style={{
         width: 380,
         flex: '0 0 auto',

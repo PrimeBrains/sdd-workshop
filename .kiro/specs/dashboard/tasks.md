@@ -292,9 +292,71 @@
   - _Boundary: pages/WorkbenchPage.tsx_
   - _Depends: 8.1_
 
+## Phase 9: 数値整合性バグ修正と再発防止テスト（2026-05-18 追補）
+
+### 背景
+
+実装稼働後の検証で、SummaryStrip / Inspector の BAC / EV / PV / AC が常に `0.0 MD` 表示になる症状を確認。原因は `lib/formatters.ts:1` の `fmtMD` が `(n / 1_000_000).toFixed(1) + ' MD'` と人日数値を 100 万で割っていた点、および `InspectorTaskMode.tsx:251` の前日比 BAC が `±0.0 MD` 固定文字列だった点（要件 4.7・11.9・21.1-21.5 を参照）。Phase 9 はこのバグを修正し、再発防止のためのテストを追加する。修正は Phase 1.4 と 2.7 の成果物を上書きする形で行うが、構造変更はない。
+
+- [ ] 9. 数値整合性バグ修正と再発防止テストを追加
+
+- [x] 9.1 `lib/formatters.test.ts` を新規追加（Vitest 単体テスト・RED 確認まで）
+  - `client/src/lib/formatters.test.ts` を新規作成し、既存の `client/vitest.config.ts` 配下で実行可能にする
+  - 単位不変則の境界例: `fmtMD(0) === '0.0 MD'`、`fmtMD(70) === '70.0 MD'`、`fmtMD(0.05) === '0.1 MD'`
+  - 符号付き表示: `fmtSignedMD(+1.5)` → `'+1.5 MD'`、`fmtSignedMD(-0.8)` → `'−0.8 MD'`、`fmtSignedMD(0)` → `'±0.0 MD'`
+  - delta 指数: `fmtDeltaIdx(+0.02)` → `'▲0.02'`、`fmtDeltaIdx(-0.03)` → `'▼0.03'`、`fmtDeltaIdx(0)` → `'±0.00'`
+  - delta MD: `fmtDeltaMD(+1.5)` → `'▲1.5 MD'`（モックアップ表現に合わせる。実装と齟齬があれば 9.2 で吸収）、`fmtDeltaMD(0)` → `'±0.0 MD'`
+  - SPI tone 境界: `spiTone(null) === 'na'`、`spiTone(0.79) === 'critical'`、`spiTone(0.85) === 'warning'`、`spiTone(0.95) === 'normal'`
+  - `deltaTone(d, posGood?)` で `posGood = false` 時の符号反転を 1 ケースで検証
+  - 初回 `npm test -- formatters` 実行で `fmtMD(70)` 系のアサートが現行実装に対して **RED で失敗** し、他は green であることを記録 *(observable: Vitest report に少なくとも 1 件の falsified assertion)*
+  - _Requirements: 20.4, 21.1, 21.2, 21.3, 21.4_
+  - _Boundary: lib/formatters.test.ts_
+
+- [x] 9.2 `lib/formatters.ts` の単位スケールバグを修正して 9.1 をグリーン化
+  - `fmtMD` を `(n: number) => n.toFixed(1) + ' MD'` に修正（人日マグニチュードそのまま）
+  - `fmtSignedMD` / `fmtDeltaMD` / `fmtDeltaPct` 内に `1_000_000` 等のスケール係数が混入していないかを目視・grep で確認し、検出すれば除去
+  - `npm test -- formatters` で 9.1 のテストがすべてグリーンになる *(observable: Vitest report に all passed)*
+  - 開発サーバを起動し seed プロジェクトで SummaryStrip の BAC が `0.0 MD` ではなく実値（例 `70.0 MD`）で表示される *(observable: ブラウザ DevTools のテキストノードに非ゼロ値)*
+  - _Requirements: 4.7, 21.1, 21.2_
+  - _Boundary: lib/formatters.ts_
+  - _Depends: 9.1_
+
+- [x] 9.3 `components/inspector/InspectorTaskMode.tsx` の BAC 固定文字列を削除
+  - 前日比モードの `<SummaryStat label="BAC" value="±0.0 MD" ... />` ハードコードを撤去し、`dTaskBAC = (prevTask?.bac != null ? task.bac - prevTask.bac : 0)` を `fmtDeltaMD(dTaskBAC)` で描画
+  - `tone` は他 metric と同じ `deltaTone(dTaskBAC)` で算出
+  - 通常モードの `value={fmtMD(taskMetrics.bac)}` 行は変更しない（9.2 の修正で値が連動）
+  - 前日比モードで Inspector Task の BAC が動的計算結果を反映し、定数文字列ではなくなる *(observable: 任意の `selectedTaskId` + `compareMode=true` 状態でテキストが入力に応じて変化)*
+  - _Requirements: 11.9_
+  - _Boundary: components/inspector/InspectorTaskMode.tsx_
+  - _Depends: 9.2_
+
+- [x] 9.4 `e2e/workbench.spec.ts` にシナリオ 9: API ↔ UI 数値整合 を追加
+  - 既存 8 シナリオは変更せず、9 番目として追加（要件 20.3 の (i) 項）
+  - 固定 seed プロジェクト (`projectId=1`, `baseDate='2026-05-13'`) で `trpc.evm.calculate` を Playwright の `request` フィクスチャ or `page.evaluate` で直接呼び、レスポンスを取得
+  - 同じパラメータで描画した WorkbenchPage の SummaryStrip と Inspector Task モードの BAC / EV / PV / AC のテキストノードを `readSummaryStat` 互換ヘルパで抽出
+  - 各値が `response.summary.{bac,ev,pv,ac}.toFixed(1) + ' MD'` と完全一致することをアサート
+  - Inspector Task モード側は、最初の葉タスクを選択した状態で `tasks[0].{bac,ev,pv,ac}.toFixed(1) + ' MD'` と一致することをアサート
+  - `npm run test:e2e` で 9 シナリオすべてグリーン *(observable: Playwright HTML report に 9/9 passed)*
+  - _Requirements: 20.3, 21.1, 21.2, 21.3_
+  - _Boundary: e2e/workbench.spec.ts_
+  - _Depends: 9.2, 9.3_
+
 ## 注釈
 
 - すべての P 印のサブタスクは Phase 内で並列実行可能。Phase 間は順序依存があるため必ず順次進める
+- Phase 9 は同一ファイル (`lib/formatters.ts`) の RED → GREEN サイクルおよび表示層の連鎖修正のため、並列マークなしで順次実施する
 - 各 Phase の終わりで `npm run build` が成功することを必ず確認する（要件 16.6）
 - `progress-tracking` spec の `ProgressInputPanel.tsx` が未実装の場合、Phase 4.3 で一時的なスタブを置き、`progress-tracking` 完成後に置き換える運用も可（ただし最終リリース時には正式版に差し替えること）
-- 本計画は 8 Phase / 21 タスクで構成される。一部 (P) 印のタスクは並列実行で実装時間を短縮できる
+- 本計画は 9 Phase / 25 タスクで構成される。一部 (P) 印のタスクは並列実行で実装時間を短縮できる
+
+## Implementation Notes
+
+- **2026-05-18 Phase 9 後 (初期メモ、9.5 で部分対応済み)**: 9/9 化に向け、`server/seeds/seed.ts` の DB パス整合と `sqlite_sequence` リセットを直接実装で対応 (`server/evm-studio.db` 配下を見るよう `defaultDbPath = ../evm-studio.db` に変更し、transaction 前に `sqlite_sequence` を `exec` で削除)。`WorkbenchPage.tsx:81` の `useState(1)` ハードコードは要件 12.2 通りのため不変、seed 側で `projects.id` が 1 始まりとなることで整合が取れる。
+- **2026-05-18 Phase 9.5 (data-testid 導入)**: `SummaryStat` / `SummaryStrip` / `Inspector` に `data-testid` を追加し、e2e ヘルパ (`readSummaryStat` / `readSummaryStatSub` / `readInspectorTaskStat`) を `getByTestId` ベースに統一。Playwright の `text=` セレクターが case-insensitive substring 一致のため、`text=EV` が TopBar の "EVM STUDIO" などに衝突する脆弱性を解消。シナリオ 2 / 3 がこの修正でグリーン化。
+- **2026-05-18 Phase 9 + 9.5 後の e2e 残課題 (別 bugfix issue)**: 以下は Phase 9 の主目的 (数値整合) のスコープ外であり、別 issue で対応する:
+  - シナリオ 4 (Gantt 行クリック → Inspector が Task モードで更新): ハードコードされた固定タスク名 `'ユースケース整理'` が seed の実データに存在しない可能性。テストフィクスチャ前提の見直しが必要。
+  - シナリオ 7 (進捗保存 → Gantt 更新): 9.5 修正前は pass、9.5 後に回帰。`data-testid` 追加で DOM 上の locator が変化した可能性。要再現確認。
+  - シナリオ 8 (ChartFullscreen 閉じる): `'SPI / CPI 推移'` テキストが portal 閉じ後も検出される。ChartFullscreen の unmount セマンティクスか、テキスト一致 locator の scope の問題。
+  - シナリオ 9 後段 (Inspector Task モード値の検証): Gantt 行クリック後の `selectedTaskId` 反映がテストで観測できず、Inspector に対象タスク名が現れない。シナリオ 4 と同根。
+  - `smoke.spec.ts:10` (トップページ表示): Phase 9 スコープ外。
+  - **Phase 9 の主目的 (SummaryStrip BAC/EV/AC/PV-sub の API 値整合)** は シナリオ 9 前半が green であることで達成済み。formatters の単位スケールバグ・Inspector 固定 BAC 文字列・seed の DB パス / sqlite_sequence は本 Phase で解消。

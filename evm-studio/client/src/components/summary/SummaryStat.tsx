@@ -35,8 +35,12 @@ export const SummaryStat = React.memo(function SummaryStat({
   big = false,
 }: SummaryStatProps) {
   const fg = TONE_FG[tone]
+  const testId = `summary-stat-${label}`
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
+    <div
+      data-testid={testId}
+      style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}
+    >
       <div
         style={{
           fontFamily: EVM.font,
@@ -50,6 +54,7 @@ export const SummaryStat = React.memo(function SummaryStat({
         {label}
       </div>
       <div
+        data-testid={`${testId}-value`}
         style={{
           fontFamily: EVM.fontSerif,
           fontWeight: 400,
@@ -63,7 +68,10 @@ export const SummaryStat = React.memo(function SummaryStat({
         {value}
       </div>
       {sub && (
-        <div style={{ fontFamily: EVM.font, fontSize: 11, color: EVM.ink3 }}>
+        <div
+          data-testid={`${testId}-sub`}
+          style={{ fontFamily: EVM.font, fontSize: 11, color: EVM.ink3 }}
+        >
           {sub}
         </div>
       )}

@@ -41,6 +41,7 @@
 - `client/src/tokens/evm-tokens.ts` — モックアップ `EVM` オブジェクトの完全移植
 - `client/src/hooks/useEvm.ts` — `trpc.evm.calculate.useQuery` ラッパー
 - `client/src/lib/formatters.ts` — `fmtMD` / `fmtPct` / `fmtSignedMD` / `fmtDeltaIdx` / `fmtDeltaMD` / `fmtDeltaPct` / `spiTone` / `statusColor` / `statusJp` / `initialsOf` / `deltaTone`
+- `client/src/lib/formatters.test.ts` — `formatters.ts` 純関数群の Vitest 単体テスト（人日 (Man-Day) 単位の不変則・delta 表示・null/0 区別・SPI tone 境界）
 - `client/src/App.tsx` のルーティング再定義（`/` → `WorkbenchPage` のみ）
 - `client/index.html` の Google Fonts CDN リンク追加
 - `client/src/styles/workbench.css`（モックアップ `<style>` ブロック移植：hover 等）
@@ -76,6 +77,7 @@
 - モックアップ `mockup/variation-a.jsx` の意匠変更（モックアップ正典原則のため、本スペックを再生成する必要あり）
 - TanStack Query / tRPC バージョンアップによる API 破壊的変更
 - Vite / React のメジャーバージョンアップ（特に React 20 の `use` API 等が `useEvm` の実装方針を変える場合）
+- `evm.calculate` レスポンスの数値単位契約変更（既定: BAC / PV / EV / AC / VAC / EAC / ETC は Man-Day = 人日）。単位定義が変わる場合は `formatters.ts` の表示前提と `formatters.test.ts` の期待値、および E2E 数値整合シナリオを連動で再評価する
 
 ## Architecture
 
@@ -203,7 +205,8 @@ evm-studio/client/
     ├── main.tsx                            # 変更なし
     ├── lib/
     │   ├── trpc.ts                         # 既存（core-data-model 所有）変更なし
-    │   ├── formatters.ts                   # 新規: fmtMD / spiTone / statusJp 等
+    │   ├── formatters.ts                   # 新規: fmtMD / spiTone / statusJp 等（人日単位前提・スケール変換禁止）
+    │   ├── formatters.test.ts              # 新規: 上記純関数の Vitest 単体テスト（単位不変則 + 境界）
     │   └── task-tree.ts                    # 新規: deriveAncestors（task.code 階層から祖先を導出）
     ├── tokens/
     │   └── evm-tokens.ts                   # 新規: EVM 色・フォント定数
@@ -250,7 +253,7 @@ evm-studio/client/
             └── Chevron.tsx                 # 新規
 
 evm-studio/e2e/
-└── workbench.spec.ts                       # 新規: Playwright 8 シナリオ
+└── workbench.spec.ts                       # 新規: Playwright 9 シナリオ（うち 1 つが API ↔ UI 数値整合）
 ```
 
 ### Modified Files
@@ -370,13 +373,13 @@ flowchart TD
 | 1.1-1.6 | WorkbenchPage 単一ページ構成 | `pages/WorkbenchPage.tsx`, `App.tsx` | React Router | 初期マウント |
 | 2.1-2.8 | TopBar とピッカー | `components/shell/TopBar.tsx`, `atoms/{BrandMark,Dot,Chevron,Avatar}.tsx` | Props: `project`, `projects`, `baseDate`, `onProjectChange`, `onBaseDateChange` | プロジェクト切替 |
 | 3.1-3.7 | ProjectRail | `components/shell/ProjectRail.tsx`, `atoms/{Dot,Avatar,Eyebrow}.tsx` | Props: `projects`, `activeProjectId`, `members`, `assignees`, `inspectorMode`, `inspectorMemberId`, `onProjectChange`, `onMemberSelect` | プロジェクト切替, Inspector 遷移 |
-| 4.1-4.7 | SummaryStrip + 前日比トグル | `components/summary/{SummaryStrip,SummaryStat}.tsx`, `lib/formatters.ts` | Props: `project`, `summary`, `prevDay`, `compareMode`, `onCompareModeChange` | — |
+| 4.1-4.7 | SummaryStrip + 前日比トグル（4.7 は API 値を人日単位そのまま表示する不変則） | `components/summary/{SummaryStrip,SummaryStat}.tsx`, `lib/formatters.ts` | Props: `project`, `summary`, `prevDay`, `compareMode`, `onCompareModeChange` | — |
 | 5.1-5.5 | AlertStrip | `components/alerts/AlertStrip.tsx`, `atoms/Pill.tsx` | Props: `alerts`, `onJump` | Inspector 遷移 |
 | 6.1-6.8 | GanttChart（埋め込み版） | `components/gantt/GanttChart.tsx`, `lib/formatters.ts` | Props: `tasks`, `gantt`, `selectedTaskId`, `onTaskClick`, `onFullscreen` | Inspector 遷移 |
 | 7.1-7.11, 8.1-8.7 | GanttFullscreen + ProgressInputPanel ホスト | `components/gantt/GanttFullscreen.tsx`, ProgressInputPanel | Props: `project`, `tasks`, `assignees`, `selectedTaskId`, `filter`, `onSelectTask`, `onFilterChange`, `onClose`, `baseDate` | モーダル開閉, 保存→更新 |
 | 9.1-9.7 | チャート（SpiTrend / Fever）+ Sparkline | `components/charts/{SpiTrendChart,FeverChart,Sparkline}.tsx` | Props: `data`, `w`, `h` | — |
 | 10.1-10.5 | ChartFullscreen | `components/charts/ChartFullscreen.tsx` | Props: `type`, `project`, `onClose` | モーダル開閉 |
-| 11.1-11.8 | Inspector 3 モード | `components/shell/Inspector.tsx`, `inspector/{InspectorTaskMode,InspectorMemberMode,InspectorTeamMode}.tsx` | Props: `mode`, `task`, `taskMetrics`, `project`, `memberId`, `compareMode`, `onSwitchTask`, `onSwitchMember`, `onSwitchTeam` | Inspector 遷移 |
+| 11.1-11.9 | Inspector 3 モード（11.9 は BAC/EV/PV/AC を `tasks[]` 由来の値で描画し定数文字列を禁止） | `components/shell/Inspector.tsx`, `inspector/{InspectorTaskMode,InspectorMemberMode,InspectorTeamMode}.tsx` | Props: `mode`, `task`, `taskMetrics`, `project`, `memberId`, `compareMode`, `onSwitchTask`, `onSwitchMember`, `onSwitchTeam` | Inspector 遷移 |
 | 12.1-12.5 | WorkbenchPage 状態管理 | `pages/WorkbenchPage.tsx` | `useState` × 11 | — |
 | 13.1-13.7 | useEvm フック | `hooks/useEvm.ts` | `useEvm({ projectId, baseDate })` | 初期マウント, プロジェクト切替, 保存→更新 |
 | 14.1-14.5 | デザイントークン + SVG チャート | `tokens/evm-tokens.ts`, `client/index.html`, `client/package.json`, `styles/workbench.css` | `EVM` 定数 | — |
@@ -385,7 +388,8 @@ flowchart TD
 | 17.1-17.5 | Esc キー + body スクロールロック | `gantt/GanttFullscreen.tsx`, `charts/ChartFullscreen.tsx`, `shell/TopBar.tsx` | `document.addEventListener('keydown')` | モーダル開閉 |
 | 18.1-18.5 | ロード/エラー/空データ | `pages/WorkbenchPage.tsx`, `gantt/GanttChart.tsx`, `inspector/InspectorTeamMode.tsx` | `isLoading` / `error` / `data` ガード | — |
 | 19.1-19.4 | パフォーマンス | `pages/WorkbenchPage.tsx`, `charts/*` | `React.memo`, queryKey 設計 | — |
-| 20.1-20.4 | テスト方針 | `e2e/workbench.spec.ts` | Playwright | — |
+| 20.1-20.5 | テスト方針（20.3 E2E 9 シナリオ・20.4 formatter ピュア関数 Vitest・20.5 視覚一致） | `e2e/workbench.spec.ts`, `lib/formatters.test.ts` | Playwright + Vitest | — |
+| 21.1-21.5 | API レスポンス値と UI 表示値の整合（人日単位そのまま・null/0 区別・delta 符号整合） | `lib/formatters.ts`, `components/summary/SummaryStrip.tsx`, `components/inspector/InspectorTaskMode.tsx`, `lib/formatters.test.ts`, `e2e/workbench.spec.ts`（シナリオ i） | Pure function contracts + E2E assertions | — |
 
 ## Components and Interfaces
 
@@ -412,9 +416,10 @@ flowchart TD
 | `components/charts/ChartFullscreen.tsx` | UI / Modal | トレンド / フィーバー全画面 | 10.1-10.5, 17.2, 17.4 | `SpiTrendChart` / `FeverChart` (P0), `createPortal` (P0) | State |
 | `components/atoms/{Card,Pill,Dot,Eyebrow,Avatar,BrandMark,FilterChip,Chevron}.tsx` | UI / Atom | 共通プリミティブ | 14.1-14.5, 15.8 | tokens (P0) | State |
 | `tokens/evm-tokens.ts` | Config | `EVM` 色・フォント定数 | 14.1, 15.* | — | State |
-| `lib/formatters.ts` | Utility | 数値・日付・SPI tone ユーティリティ純関数 | 4.7, 6.4, 11.2, 11.3 | — | Service |
+| `lib/formatters.ts` | Utility | 数値・日付・SPI tone ユーティリティ純関数（API 値を人日単位そのまま表示、スケール変換禁止） | 4.7, 6.4, 11.2-11.3, 11.9, 21.1-21.5 | — | Service |
+| `lib/formatters.test.ts` | Test | `formatters.ts` の Vitest 単体テスト（単位不変則・delta 符号・null/0 区別） | 20.4, 21.1-21.5 | Vitest (P0) | Service |
 | `lib/task-tree.ts` | Utility | `TaskEvm.code` から祖先タスク `{id,name}` 配列を導出する純関数 `deriveAncestors` | 8.2 | — | Service |
-| `e2e/workbench.spec.ts` | Test | Playwright 8 シナリオ | 20.3 | Playwright (P0) | Service |
+| `e2e/workbench.spec.ts` | Test | Playwright 9 シナリオ（うち 1 つが API ↔ UI 数値整合） | 20.3, 21.1-21.2 | Playwright (P0) | Service |
 
 ### Data Hook Layer
 
@@ -803,7 +808,22 @@ export type EvmToken = keyof typeof EVM;
 | `statusJp(s)` | `(s: 'active' \| 'paused' \| 'draft' \| 'archived') => string` | variation-a.jsx 22 |
 | `initialsOf(name)` | `(name: string) => string` | variation-a.jsx 18 |
 
-すべて純関数。Vitest で単体テスト可能だが本スペックではテスト追加対象外（要件 20.2）。
+**単位契約と不変則** (要件 4.7, 21.1-21.5)
+
+- `evm.calculate` のレスポンス値（`summary.bac/pv/ev/ac/vac/eac/etc`, `tasks[*].bac/pv/ev/ac`, `assignees[*].bac/pv/ev/ac`, `prevDay.*` 同様）は **人日 (Man-Day)** 単位の `number`。`formatters.ts` の `fmt*MD` 系関数は **スケール変換を行わない** — 例えば `fmtMD(70) === '70.0 MD'` であり、定数による除算（`1_000_000` など）や時間（h）への暗黙変換を導入してはならない。
+- `fmtMD(n) === n.toFixed(1) + ' MD'`、`fmtSignedMD(n)` は符号文字 `+` / `−` / `±` を前置、`fmtDeltaMD(d)` は delta 0 のとき `±0.0 MD` を返す（API レスポンス値が `0` の現在値表示と区別される）。
+- `fmtDeltaIdx(d)` は SPI/CPI 差分を `▲0.02` / `▼0.03` / `±0.00` で表現。`d === 0` と `null` は別表現とし、null は `'N/A'` を返す呼び出し側責務。
+- 全関数は純関数。副作用・I/O・乱数・`Date.now()` 依存禁止。同入力で同出力（テストの決定性保証）。
+
+**テスト要件** (要件 20.4, 21.1-21.5)
+
+- `lib/formatters.test.ts` を Vitest で実装し、以下の境界を最低限カバーする:
+  - `fmtMD(0)` → `'0.0 MD'`、`fmtMD(70)` → `'70.0 MD'`、`fmtMD(0.05)` → `'0.1 MD'`
+  - `fmtSignedMD(+1.5)` → `'+1.5 MD'`、`fmtSignedMD(-0.8)` → `'−0.8 MD'`、`fmtSignedMD(0)` → `'±0.0 MD'`
+  - `fmtDeltaIdx(+0.02)` → `'▲0.02'`、`fmtDeltaIdx(-0.03)` → `'▼0.03'`、`fmtDeltaIdx(0)` → `'±0.00'`
+  - `spiTone(null)` → `'na'`、`spiTone(0.79)` → `'critical'`、`spiTone(0.85)` → `'warning'`、`spiTone(0.95)` → `'normal'`
+  - `deltaTone(d, posGood?)` の `posGood = false` 時に符号反転していること
+- 「自明な変換のみ」という理由でユニットテストを省略してはならない（過去にこの判断で `fmtMD` の `1_000_000` 割算が混入し未検出となった経緯がある — 詳細は `research.md`）。
 
 #### `lib/task-tree.ts`
 
@@ -949,11 +969,10 @@ const panelTask: ProgressInputTask = {
 
 ### Unit Tests
 
-本スペックでは新規ユニットテストを追加しない（要件 20.1, 20.2）。
-
-- `lib/formatters.ts` の純関数群は自明な変換のみで、テストの ROI が低いため省略
-- `useEvm` フックは TanStack Query / tRPC のラッパーで、両者は十分にテストされているため省略
-- React コンポーネントテストは `.kiro/steering/tech.md` の方針により採用しない
+- **`lib/formatters.test.ts`（必須・要件 20.4, 21.1-21.5）**: `formatters.ts` の純関数群を Vitest でテスト。境界例 (zero / positive / negative / 小数) と単位不変則 (`fmtMD(70) === '70.0 MD'`) を網羅し、過去の `1_000_000` 割算ミス相当の単位スケール混入が起きていないことを保証する。
+- サーバーサイドのユニットテストは追加しない（計算ロジックは `evm-engine` spec が担当・要件 20.1）。
+- React コンポーネントテストは `.kiro/steering/tech.md` の方針により採用しない（要件 20.2）。ピュア関数の単体テスト (`formatters.test.ts`) はコンポーネントテストではないため、20.2 と矛盾しない。
+- `useEvm` フックは TanStack Query / tRPC のラッパーで、両者は十分にテストされているため省略。
 
 ### Integration Tests
 
@@ -961,7 +980,7 @@ const panelTask: ProgressInputTask = {
 
 ### E2E Tests
 
-`e2e/workbench.spec.ts`（Playwright 4 既存環境）に以下 8 シナリオを追加（要件 20.3）:
+`e2e/workbench.spec.ts`（Playwright 4 既存環境）に以下 9 シナリオを追加（要件 20.3, 21.1-21.2）:
 
 1. **プロジェクト切替**: TopBar のプロジェクトピッカーで別プロジェクトを選ぶ → SummaryStrip のプロジェクト名が変わる
 2. **基準日変更**: TopBar の基準日ピッカーで前日を選ぶ → SummaryStrip の SPI/CPI が変わる
@@ -971,6 +990,7 @@ const panelTask: ProgressInputTask = {
 6. **ProgressInputPanel 開閉**: GanttFullscreen 内で葉タスククリック → 右に ProgressInputPanel が開く、Esc でパネルのみ閉じる
 7. **進捗保存 → 更新**: ProgressInputPanel で進捗率変更 → 保存 → モーダル背景の Gantt 行の進捗バーが更新される
 8. **ChartFullscreen 開閉**: SPI トレンドの「全画面で見る」クリック → ChartFullscreen 開く、背景クリックで閉じる
+9. **API ↔ UI 数値整合（要件 21.1-21.2）**: 固定 seed プロジェクト (`projectId=1`, `baseDate='2026-05-13'`) で `trpc.evm.calculate` を直接叩いてレスポンスを取得 → 同じパラメータで描画された WorkbenchPage の SummaryStrip と Inspector Task モードの BAC / EV / PV / AC 表示文字列が、レスポンス値の `toFixed(1) + ' MD'` と一致することをアサート（非ゼロ値が `'0.0 MD'` と表示される単位スケール混入を検出するリグレッションテスト）
 
 ### Performance / Load
 

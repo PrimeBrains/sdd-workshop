@@ -88,7 +88,7 @@ EVM Studio のフロントエンドを、モックアップ `mockup/variation-a.
 4. While `compareMode === true`, the SummaryStrip shall color each delta with status tone (positive-good metrics like SPI / CPI / EV / VAC use green for positive deltas and red for negative; PV / AC are tone-neutral `na`).
 5. The SummaryStrip shall render a toggle switch on the right end labeled "前日比"; when clicked, the toggle shall flip `compareMode` and shall visually indicate the active state by changing the track color to brand-deep and the thumb position.
 6. If `summary.spiDelta` or `summary.cpiDelta` is 0 and `compareMode === false`, the SummaryStrip shall display the sub-line as "横ばい"; otherwise it shall display `vs先週 +0.02` style text.
-7. The SummaryStrip shall format all MD values using the `fmtMD` helper (`(n / 1_000_000).toFixed(1) + ' MD'`) and signed MD values using `fmtSignedMD`.
+7. The SummaryStrip shall display each MD-unit value (BAC / EV / PV / AC / VAC / EAC / ETC) using the same man-day magnitude returned by `evm.calculate` without applying any unit conversion, rounded to one decimal place and suffixed with `" MD"` (e.g., an API value of `70.0` shall be rendered as `"70.0 MD"`); signed deltas shall be prefixed with `+` / `−` / `±` per the same magnitude rule.
 
 ### Requirement 5: AlertStrip
 
@@ -189,6 +189,7 @@ EVM Studio のフロントエンドを、モックアップ `mockup/variation-a.
 6. While `inspectorMode === 'member'` and `inspectorMemberId === null`, the Inspector shall render an empty state with the message "左レールまたはタスクの担当者カードからメンバーを選択してください".
 7. While `inspectorMode === 'team'`, the Inspector shall render a scrollable list of all assignees with avatar, name, role, and (when `compareMode === false`) the SPI value, or (when `compareMode === true`) the SPI / CPI / EV deltas vs `prevDay.assignees`.
 8. When the user clicks an assignee row in Team mode, the Inspector shall switch to Member mode for that assignee.
+9. The Inspector in Task mode shall render BAC / EV / PV / AC for the selected task using the per-task values from `tasks[]` (or `prevDay.tasks[]` while `compareMode === true`); the Inspector shall NOT render any of these metric fields with a hard-coded constant string.
 
 ### Requirement 12: WorkbenchPage 状態管理
 
@@ -300,5 +301,18 @@ EVM Studio のフロントエンドを、モックアップ `mockup/variation-a.
 
 1. The dashboard spec shall NOT add new server-side unit tests; calculation correctness is covered by `evm-engine` tests.
 2. The dashboard spec shall NOT add new React component tests per the project's testing policy (`.kiro/steering/tech.md`).
-3. The dashboard spec shall add Playwright E2E tests under `e2e/` covering the following user flows: (a) project switching via TopBar updates SummaryStrip, (b) base date change refetches metrics, (c) compareMode toggle switches SummaryStrip into delta view, (d) GanttChart row click highlights row and updates Inspector, (e) "全画面で見る" opens GanttFullscreen, (f) leaf task click inside GanttFullscreen opens ProgressInputPanel, (g) saving a snapshot in ProgressInputPanel updates the Gantt progress without reload, (h) Esc key closes the modal layer-by-layer (panel → modal → none).
-4. The dashboard spec shall verify that the visual snapshot of the WorkbenchPage at a fixed `(projectId=1, baseDate='2026-05-13')` state matches the mockup `mockup/variation-a.jsx` by manual comparison; no automated visual regression tool is required.
+3. The dashboard spec shall add Playwright E2E tests under `e2e/` covering the following user flows: (a) project switching via TopBar updates SummaryStrip, (b) base date change refetches metrics, (c) compareMode toggle switches SummaryStrip into delta view, (d) GanttChart row click highlights row and updates Inspector, (e) "全画面で見る" opens GanttFullscreen, (f) leaf task click inside GanttFullscreen opens ProgressInputPanel, (g) saving a snapshot in ProgressInputPanel updates the Gantt progress without reload, (h) Esc key closes the modal layer-by-layer (panel → modal → none), (i) for a fixed seed project (`projectId=1`, `baseDate='2026-05-13'`), the SummaryStrip and the Inspector in Task mode shall display BAC / EV / PV / AC values that numerically match the `evm.calculate` response (man-day magnitude, one-decimal rounding).
+4. The dashboard spec shall add Vitest unit tests for the pure formatter helpers in `client/src/lib/formatters.ts` (`fmtMD`, `fmtSignedMD`, `fmtDeltaMD`, `fmtDeltaIdx`); the tests shall cover zero, positive, negative, and decimal inputs, and shall assert that `fmtMD(70)` returns `"70.0 MD"` and that no helper introduces an unintended scale factor. These formatter tests are pure-function tests, not React component tests, and therefore do not violate criterion 2.
+5. The dashboard spec shall verify that the visual snapshot of the WorkbenchPage at a fixed `(projectId=1, baseDate='2026-05-13')` state matches the mockup `mockup/variation-a.jsx` by manual comparison; no automated visual regression tool is required.
+
+### Requirement 21: API レスポンス値と UI 表示値の整合
+
+**Objective:** PM および実装者として、API が返した EVM メトリクスがそのまま画面に反映され、表示と内部値の単位ズレや欠落に気付かず誤った状況判断を下すことを防ぎたい。
+
+#### Acceptance Criteria
+
+1. The WorkbenchPage shall display each numeric value returned by `evm.calculate` (`summary.{bac, pv, ev, ac, vac, eac, etc}`, `assignees[*].{bac, pv, ev, ac}`, `tasks[*].{bac, pv, ev, ac}`, `prevDay.summary.*`, `prevDay.assignees[*]`, `prevDay.tasks[*]`) without applying any unit conversion; MD-unit magnitudes shall equal the API value rounded to one decimal place, and SPI / CPI / 指数値 shall equal the API value rounded to two decimal places.
+2. While the API returns a non-zero MD-unit value `X`, the SummaryStrip, the Inspector, and any other consumer in this spec shall render text whose numeric portion equals `X.toFixed(1)`; no consumer shall render `"0.0 MD"` when the underlying API value rounds to a non-zero one-decimal magnitude.
+3. If the API returns `null` for an index metric (e.g., `summary.cpi === null`), the corresponding display shall be `"N/A"`; if the API returns `0` for the same metric, the display shall be `"0.00"` for index values or `"0.0 MD"` for MD-unit values, and shall NOT be replaced with `"N/A"`.
+4. While `compareMode === true`, the SummaryStrip and the Inspector shall compute deltas as `current - previous` using the same numeric values returned by the API with no scaling applied; the rendered sign prefix (`+` / `−` / `±`) shall match the sign of the difference, and `±0.0 MD` shall only appear when the computed delta rounds to zero.
+5. Where the implementation adds a new component or formatter in this spec that renders an EVM metric from `evm.calculate`, the new component or formatter shall comply with criteria 1–4 (this requirement is intentionally ubiquitous to cover later additions within the spec scope).

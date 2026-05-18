@@ -1,12 +1,12 @@
-export const fmtMD = (n: number) => (n / 1_000_000).toFixed(1) + ' MD'
+export const fmtMD = (n: number) => n.toFixed(1) + ' MD'
 export const fmtPct = (n: number) => (n * 100).toFixed(1) + '%'
 export const fmtNum = (n: number | null, d: number = 2) => n == null ? 'N/A' : n.toFixed(d)
 export const fmtSignedMD = (n: number) =>
-  (n >= 0 ? '+' : '−') + (Math.abs(n) / 1_000_000).toFixed(1) + ' MD'
+  n === 0 ? '±0.0 MD' : (n > 0 ? '+' : '−') + Math.abs(n).toFixed(1) + ' MD'
 export const fmtDeltaIdx = (d: number) =>
   d === 0 ? '±0.00' : (d > 0 ? '▲' : '▼') + Math.abs(d).toFixed(2)
 export const fmtDeltaMD = (d: number) =>
-  d === 0 ? '±0.0 MD' : (d > 0 ? '+' : '−') + (Math.abs(d) / 1_000_000).toFixed(1) + ' MD'
+  d === 0 ? '±0.0 MD' : (d > 0 ? '▲' : '▼') + Math.abs(d).toFixed(1) + ' MD'
 export const fmtDeltaPct = (d: number) =>
   d === 0 ? '±0pp' : (d > 0 ? '+' : '−') + Math.abs(d) + 'pp'
 

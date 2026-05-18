@@ -59,6 +59,7 @@ export const SummaryStrip = React.memo(function SummaryStrip({
 
   return (
     <div
+      data-testid="summary-strip"
       style={{
         background: EVM.card,
         borderBottom: `1px solid ${EVM.rule}`,
