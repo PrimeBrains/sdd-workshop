@@ -62,7 +62,9 @@ const migrationsFolder = path.resolve(__dirname, '../src/db/migrations')
 
 // `evm-studio/server/seeds/seed.ts` から見て `../../evm-studio.db` が
 // `evm-studio/evm-studio.db` に解決される。
-const defaultDbPath = path.resolve(__dirname, '../../evm-studio.db')
+// server runtime (`server/src/db/index.ts`) は cwd=server で `./evm-studio.db` を開く。
+// seed もそれと同じ `server/evm-studio.db` を target にし、root に重複 DB が生まれないようにする。
+const defaultDbPath = path.resolve(__dirname, '../evm-studio.db')
 const dbPath = process.env['DB_PATH'] ?? defaultDbPath
 const sqlite = new Database(dbPath)
 sqlite.pragma('foreign_keys = ON')
@@ -103,6 +105,12 @@ const counts: Counts = {
 }
 
 try {
+  // SQLite の AUTOINCREMENT は通常の DELETE では `sqlite_sequence` を巻き戻さないため
+  // 明示的にリセットし、re-seed のたびに `projects.id` 等が 1 始まりに戻ることを保証する。
+  // better-sqlite3 では transaction 内での `sqlite_sequence` DML が後続 INSERT に反映されない
+  // ケースがあるため、transaction の外側で先に実行する（rollback リスクは開発用 seed では許容）。
+  sqlite.exec('DELETE FROM sqlite_sequence')
+
   // better-sqlite3 のトランザクション API は同期関数を要求する。
   // drizzle-orm のメソッドは内部的に同期で動くため安全に組み合わせられる。
   const runSeed = sqlite.transaction(() => {
