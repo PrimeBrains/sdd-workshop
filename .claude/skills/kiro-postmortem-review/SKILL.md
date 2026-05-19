@@ -77,37 +77,59 @@ Try 候補抽出ロジック:
    - Try Content (steering ファイルに書き込まれる本文の draft)
    - Rationale (motivating evidence、各 entry の根本要因詳細と Try 抜粋)
 
-### Step 6: Render Report
+### Step 6: Render Summary + Per-Bug Walkthrough
 
-`templates/review-report.md` テンプレを展開してユーザーに提示:
-- Summary (counts, status breakdown, malformed)
-- Frequency (4 axes tables)
-- Clusters
-- Try Candidates (with source entry IDs and proposed steering target)
+まず Summary (counts, status breakdown, malformed, 4 軸 frequency, clusters) を **簡潔に** 提示。次に **バグ 1 件ずつ** 以下のフォーマットで要因分析を説明し、各 Try に対する verdict をその場で求める:
 
-### Step 7: User Verdict Collection
+```
+# Bug #{ID}: {title}
 
-各 Try 候補について、ユーザーに verdict を求める:
-- `approved`: steering 化する
-- `rejected`: steering 化しない (entry の Status は後で `reviewed` に更新)
-- `pending`: 判断保留 (entry の Status は `recorded` のまま、次回 review で再評価)
+## 何が起きた
+(1-2 段落の本質的記述、技術詳細は ledger 参照)
 
-### Step 8: Hand-off Approved Tries
+## 要因分析の 4 軸読み
+(発生機能 / 要因分類 / 検知工程ペア / 根本要因 を表形式で)
 
-承認された Try ごとに:
+## 根本要因の本質
+(なぜそのメカニズムが発動したか、1-2 段落)
 
-1. `templates/steering-handoff.md` を展開して構造化された hand-off ドキュメントを生成
-2. ユーザーに「次に `/kiro-steering-custom` を起動して以下の内容を steering に反映してください」と提示し、構造化された hand-off ドキュメントをそのまま提示
-3. ユーザーが `/kiro-steering-custom` を起動 (本 skill は `disable-model-invocation` 等の制約があるため、ユーザー手動起動を前提とする)
-4. `/kiro-steering-custom` の実行結果 (成功 / 失敗) をユーザーから受け取る:
-   - 成功: Step 9 へ進む
-   - 失敗 / 却下: Step 10 へ (該当 entries の Status 変更なし)
+## 抽出される Try
+(Rule + 提案 steering ファイル名)
 
-### Step 9: Post-Reflection Back-reference
+## 判定
+(AskUserQuestion で approved / rejected / pending)
+```
 
-steering 反映成功時:
+ユーザーが N 件のバグについて 1 件ずつ判定する。**この段階では ledger も steering も書き換えない** (Step 8 でまとめて反映)。
 
-1. `.kiro/postmortem/defects.md` の `## Steering 反映ログ` セクション末尾に back-reference を Edit で append:
+### Step 7: Verdict Collection (skip — Step 6 で同時収集)
+
+Step 6 のバグ別 walkthrough の中で verdict が収集されるため、独立した Step 7 は不要。
+
+### Step 8: Batch Hand-off (全 verdict 集約後に一括反映)
+
+全バグの verdict が出揃ったら、以下を **まとめて 1 回で実施**:
+
+1. **Approved Tries の hand-off (順次・大カテゴリへ集約)**:
+   - **集約方針**: PDCA Try は **大カテゴリの 1 ファイル** に H2 セクションとして append する。新規ファイル作成は新しい大カテゴリが立つ時のみ
+   - 主な大カテゴリ steering ファイル例:
+     - `testing-conventions.md` ← assumption-error / verification-gap / preventing-false-pass / integration-test 等のテスト戦略系
+     - `structure.md` ← Single Source of Truth / boundary 設計 / ファイル配置原則 等の構造系
+     - `tooling-traps.md` (将来) ← ライブラリ / ツール固有の落とし穴
+   - 各 Approved Try について:
+     1. Try のカテゴリを判定 (既存大カテゴリ or 新規)
+     2. 既存カテゴリなら該当ファイルに H2 セクション (`## {Try title}`) を **append**
+     3. 新規カテゴリなら `/kiro-steering-custom` で新ファイル作成 (慎重に判断、横並びの細粒度ファイル乱立を避ける)
+   - steering ファイルは **必要十分に簡潔** に保つ (Rule + Evidence 短文中心、各セクション 20-40 行目安)
+   - `/kiro-steering-custom` の成功 / 失敗を記録
+
+2. **Ledger 一括更新 (1 トランザクション相当)**:
+   - Approved + steering 化成功: 該当 entry の `Status:` → `steered`、`## Steering 反映ログ` に back-reference を append
+   - Approved + steering 化失敗: Status 変更せず (`recorded` 保持)、Try は次回再提示
+   - Rejected: 該当 entry の `Status:` → `reviewed`
+   - Pending: Status 変更せず (`recorded` 保持)
+
+3. **`## Steering 反映ログ` の append フォーマット**:
 
 ```markdown
 ### {{TIMESTAMP_ISO_8601}}
@@ -118,18 +140,25 @@ steering 反映成功時:
 - Handoff result: success
 ```
 
-2. 該当 entries の `Status:` 行を `recorded` → `steered` に Edit
+複数 Try を同セッションで反映した場合、各 Try ごとに 1 ブロックずつ append (時系列順)。
 
-### Step 10: Reviewed but Not Steered
+### Step 9: Final Report
 
-`rejected` の Try については、該当 entries の `Status:` を `recorded` → `reviewed` に Edit。
-`pending` の Try については、該当 entries の `Status:` を変更しない (`recorded` のまま)。
-失敗した Try (Step 8 で `/kiro-steering-custom` が失敗) についても Status 変更しない。
+ユーザーに以下サマリーを 1 回で提示:
+
+```
+✅ Steered entries: #..., #... → .kiro/steering/{...}.md, ...
+↩️ Reviewed (rejected) entries: #...
+⏸ Pending entries: #...
+❌ Failed handoff: #... (再評価可能)
+```
 
 ## Critical Constraints
 
 - **Read-mostly**: ledger entry 本体 (10 項目) は本 skill から変更しない (R6.5)
 - **Status と `## Steering 反映ログ` のみ Edit**: ledger 内で書き換える対象はこの 2 種類だけ
+- **Batch reflection**: バグごとに個別 verdict を集めるが、ledger / steering への書き込みは **全 verdict が出揃ってから 1 回でまとめて反映** する (途中で書き込まない)
+- **Steering ファイルは必要十分に短く**: Rule + Evidence 短文を中心に 20-40 行目安。詳細記述は ledger entry に残し、steering 側で重複させない
 - **`.kiro/steering/` への直接書き込み禁止**: 必ず `/kiro-steering-custom` 経由 (R6.6, R7.1)
 - **Back-reference は append-only**: `## Steering 反映ログ` の既存エントリは編集しない (R7.4)
 - **失敗 Try は ledger 保持**: 反映失敗 / 却下時に entry status は `recorded` のまま、Try は次回再提示可能 (R7.3)

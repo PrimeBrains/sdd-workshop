@@ -144,3 +144,13 @@ docs: domain.md にバッファ管理の計算式を追記
 - **UI 仕様の正典は `mockup/variation-a.jsx`**。実装中に判断に迷ったらモックアップを参照する
 - **コンポーネントの責務単位** はモックアップのセクションに対応させる（例: AlertStrip / SummaryStrip / Inspector などはモックアップの境界をそのまま採用）
 - グローバル状態の最小化: 選択中プロジェクト ID・基準日・Inspector モード・フィルター以外は React Query キャッシュに任せる
+
+## Single Source of Truth (defect-pdca #0002 由来)
+
+同一リソース (DB ファイルパス / 環境変数 / ポート / 設定値) を複数箇所で独立に解決すると、解決基準のズレで分裂する。
+
+- **DB パス / 環境変数 / ポート / config 値は 1 箇所で定義し、他は import 経由で参照** する
+- **相対パスは解決基準 (`__dirname` vs cwd) が異なるプロセスを跨ぐと壊れる**。CLI とサーバの両方が使うパスは絶対パス or 環境変数で統一
+- **ライブラリ固有の落とし穴** (SQLite AUTOINCREMENT / WAL モード / better-sqlite3 transaction 等) は design.md の Allowed Dependencies / Revalidation Triggers で明示文書化
+
+Evidence: `.kiro/postmortem/defects.md` #0002 — `seed.ts` (root 起点) と `server/src/db/index.ts` (cwd 起点) が別ファイルの `evm-studio.db` を独立に作っていた。
