@@ -298,7 +298,7 @@
 
 実装稼働後の検証で、SummaryStrip / Inspector の BAC / EV / PV / AC が常に `0.0 MD` 表示になる症状を確認。原因は `lib/formatters.ts:1` の `fmtMD` が `(n / 1_000_000).toFixed(1) + ' MD'` と人日数値を 100 万で割っていた点、および `InspectorTaskMode.tsx:251` の前日比 BAC が `±0.0 MD` 固定文字列だった点（要件 4.7・11.9・21.1-21.5 を参照）。Phase 9 はこのバグを修正し、再発防止のためのテストを追加する。修正は Phase 1.4 と 2.7 の成果物を上書きする形で行うが、構造変更はない。
 
-- [ ] 9. 数値整合性バグ修正と再発防止テストを追加
+- [x] 9. 数値整合性バグ修正と再発防止テストを追加
 
 - [x] 9.1 `lib/formatters.test.ts` を新規追加（Vitest 単体テスト・RED 確認まで）
   - `client/src/lib/formatters.test.ts` を新規作成し、既存の `client/vitest.config.ts` 配下で実行可能にする

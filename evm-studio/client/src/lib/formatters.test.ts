@@ -1,5 +1,5 @@
 /**
- * Task 9.1: formatters.ts 純関数群の Vitest 単体テスト（RED 段階）
+ * Task 9.1 / 9.2: formatters.ts 純関数群の Vitest 単体テスト
  *
  * 単位契約と不変則（人日 = Man-Day をそのまま表示。スケール変換禁止）を
  * テストで固定し、過去に混入した `1_000_000` 割算系のスケールバグや
@@ -7,10 +7,10 @@
  *
  * Requirements: 20.4, 21.1, 21.2, 21.3, 21.4
  *
- * 注意: 本タスク (9.1) は意図的に RED 段階。現行 `formatters.ts` には
- * `fmtMD(n) = (n / 1_000_000).toFixed(1) + ' MD'` のスケールバグが残存しており、
- * `fmtMD(70) === '70.0 MD'` 系のアサートは故意に失敗させる。
- * GREEN 化は task 9.2 で `formatters.ts` 側を修正して達成する。
+ * 状態: GREEN。task 9.1 で RED として追加し、task 9.2 で `formatters.ts` の
+ * `fmtMD(n) = (n / 1_000_000).toFixed(1) + ' MD'` スケールバグを
+ * `n.toFixed(1) + ' MD'` に修正してグリーン化済み。
+ * `fmtMD(70) === '70.0 MD'` 系のアサートが当該リグレッションを直接ガードする。
  */
 
 import { describe, it, expect } from 'vitest'
