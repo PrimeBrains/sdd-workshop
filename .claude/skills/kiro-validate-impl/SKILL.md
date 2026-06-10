@@ -1,7 +1,7 @@
 ---
 name: kiro-validate-impl
 description: Validate feature-level integration after all tasks are implemented. Checks cross-task consistency, full test suite, and overall spec coverage.
-allowed-tools: Read, Bash, Grep, Glob, Agent
+allowed-tools: Read, Write, Bash, Grep, Glob, Agent
 argument-hint: <feature-name> [task-numbers]
 ---
 
@@ -177,6 +177,25 @@ Provide summary in the language specified in spec.json:
 ```
 
 If NO-GO, REMEDIATION is mandatory — identify the exact issue and what needs to change. Vague feedback is not acceptable.
+
+### Step 5: Persist Validation Report
+
+Write the full Validation Report to `.kiro/specs/{feature}/validation-impl.md` (overwrite if it exists; prior runs live in git history). This file is consumed by GUI tooling (SDD Dashboard) — keep the frontmatter keys exactly as shown:
+
+```markdown
+---
+type: impl
+feature: {feature}
+date: YYYY-MM-DD
+decision: GO | NO-GO | MANUAL_VERIFY_REQUIRED
+---
+
+# Implementation Validation: {feature}
+
+[the complete Validation Report block from Step 4, unchanged]
+```
+
+Use the language specified in spec.json for the body. Write the file for every decision, including NO-GO and MANUAL_VERIFY_REQUIRED.
 
 ## Important Constraints
 - **Strict Final Gate**: Return `GO` only when all integration checks passed; return `NO-GO` for concrete failures and `MANUAL_VERIFY_REQUIRED` when mandatory validation could not be completed

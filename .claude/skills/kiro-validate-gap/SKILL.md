@@ -63,6 +63,31 @@ After all parallel research completes, synthesize findings for gap analysis.
 - If the file already exists, append the new analysis (separated by a horizontal rule `---`) rather than overwriting previous research
 - Verify the file was written by reading it back
 
+### Step 6: Persist Validation Report
+
+Write a machine-readable summary to `.kiro/specs/{feature}/validation-gap.md` (overwrite if it exists; prior runs live in git history). This file is consumed by GUI tooling (SDD Dashboard) — keep the frontmatter keys exactly as shown:
+
+```markdown
+---
+type: gap
+feature: {feature}
+date: YYYY-MM-DD
+---
+
+# Gap Analysis Summary: {feature}
+
+## Summary
+[3-5 bullets: scope, gap size, key challenges]
+
+## Key Gaps
+[missing capabilities and integration challenges, referencing requirement IDs per trace-notation.md]
+
+## Recommended Approach
+[extend / new / hybrid and why]
+```
+
+Detailed analysis remains in `research.md`; this file is the reviewable summary. Use the language specified in spec.json for the body.
+
 ## Important Constraints
 - **Information over Decisions**: Provide analysis and options, not final implementation choices
 - **Multiple Options**: Present viable alternatives when applicable

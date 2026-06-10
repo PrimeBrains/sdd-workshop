@@ -1,7 +1,7 @@
 ---
 name: kiro-validate-design
 description: Interactive technical design quality review and validation. Use when reviewing design before implementation.
-allowed-tools: Read, Grep, Glob, AskUserQuestion
+allowed-tools: Read, Write, Grep, Glob, AskUserQuestion
 argument-hint: <feature-name>
 metadata:
   shared-rules: "design-review.md"
@@ -51,6 +51,35 @@ After all parallel research completes, synthesize findings for review.
 ### Step 3: Decision and Next Steps
 - Clear GO/NO-GO decision with rationale
 - Provide specific actionable next steps (see Next Phase below)
+
+### Step 4: Persist Validation Report
+
+Write the review result to `.kiro/specs/{feature}/validation-design.md` (overwrite if it exists; prior runs live in git history). This file is consumed by GUI tooling (SDD Dashboard) — keep the frontmatter keys exactly as shown:
+
+```markdown
+---
+type: design
+feature: {feature}
+date: YYYY-MM-DD
+decision: GO | NO-GO
+---
+
+# Design Validation: {feature}
+
+## Review Summary
+[2-3 sentences]
+
+## Critical Issues
+[max 3, with requirement/design references per trace-notation.md; "None" if clean]
+
+## Strengths
+[1-2 positive aspects]
+
+## Rationale
+[why GO / NO-GO, and agreed follow-ups]
+```
+
+Use the language specified in spec.json for the body. Write the file even on NO-GO — the open issues are the value.
 
 ## Important Constraints
 - **Quality assurance, not perfection seeking**: Accept acceptable risk
