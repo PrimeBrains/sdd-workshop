@@ -91,7 +91,7 @@
   - フィクスチャ spec に対し、要件→設計→タスクの両方向でノード対応が完全列挙されたグラフが返ることが厳密値で検証される
   - _Requirements: 6.1, 6.2, 6.6_
   - _Depends: 3.2, 3.3, 3.4, 4.1_
-- [ ] 5.2 グラフ診断（欠損・リンク切れ・旧表記照合）を実装する
+- [x] 5.2 グラフ診断（欠損・リンク切れ・旧表記照合）を実装する
   - 旧範囲表記の展開後 ID を含む全参照を requirements の実在 ID と照合し、不在参照を broken-link 診断として position 付きで報告する
   - どの設計行にも現れない要件 ID を design-uncovered、どのタスク注記にも現れない要件 ID を task-uncovered として全 AC を母集合に算出する
   - unparsable トークンを unparsable-ref 診断へ転記し、診断があってもグラフ構築が完了する
@@ -190,3 +190,4 @@
 - 4.2 → 6.1 への申し送り: スキルディレクトリのパス解決は skill-service.ts の `resolveSkillsDir(context)` が唯一の解決点。watcher（6.1）が import すると watcher→service 依存になり design の依存表に反するため、その時点で config.ts へ移設すること（レビュアー advisory）
 - 4.3 → 8.1 への申し送り: ①SpecService の readValidations へ ValidationService.listForSpec を本配線すること（契約互換はコンパイル + テストで証明済み）②`GET /api/adr/:id` の :id は拡張子なしファイル名（例 0001-sdd-dashboard-local-web-app）として実装済み — ルート実装時に踏襲
 - 5.1 → 5.2 への申し送り: nodes.requirements にはローカル AC ID とクロス spec 修飾 ID（beta/1.2）が混在する。uncovered 診断の母集合は nodes.requirements ではなく `collectCriterionIds`（ローカル基準）を使うこと（ヘルパーは実装済み）
+- 5.2: design-uncovered の被覆判定はトレーサビリティ行のみ（AC 6.5 の文言どおり。コンポーネント Requirements フィールドは被覆に数えない）。ソース内の文字列セパレータに生 NUL バイトを使うと git が binary 扱いするため ` ` エスケープ表記を使うこと（修正済み）
