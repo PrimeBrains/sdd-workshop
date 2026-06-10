@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "concurrently -n server,client -c green,cyan \"npm run dev:server\" \"npm run dev:client\"",
-    "dev:server": "tsx server/index.ts",
+    "dev:server": "tsx skeleton-server.ts",
     "dev:client": "vite",
     "build": "vite build && tsc --noEmit"
   },
