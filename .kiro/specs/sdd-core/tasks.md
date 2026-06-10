@@ -147,7 +147,7 @@
   - フィクスチャリポジトリへの全読取エンドポイント呼び出しが契約型どおりの JSON を返すことが統合テストで検証される
   - _Requirements: 2.1, 2.2, 6.1, 7.1, 7.2, 7.3, 7.4_
   - _Depends: 4.1, 4.2, 4.3, 5.1_
-- [ ] 8.2 書込ルートを実装する
+- [x] 8.2 書込ルートを実装する
   - `PUT /api/specs/:feature/approvals` / `POST /api/specs/:feature/rollback` / `POST /api/adr` を zod スキーマ検証（フィールド単位エラー）付きで実装し、ADR の requirements 参照はクロス spec 形式を RefListParser で検証する
   - すべての書込はセーフパスガードを経由する
   - 不正ボディが 422 + fieldErrors、正常ボディが更新後メタデータ / 作成済み ADR を返すことが統合テストで検証される
@@ -195,3 +195,4 @@
 - 7.2: 実リポジトリの core-data-model / evm-engine / progress-tracking の spec.json は approvals 全 true + ready=true なのに phase=tasks-generated の内部不整合（手書き管理の名残）。derivePhase は「フラグが真実」原則で正規化するため、これらは書込時に tasks-approved へ自動修正される
 - 7.4: exclusive 書込はパス一意性のみ保証（番号一意性ではない）。マルチプロセス競合の同番号別スラッグは設計が単一ユーザー前提で許容済み（design「最後の書込が勝つ」）。将来マルチライターが必要になったら lockfile か書込後再スキャンで強化
 - 8.1 → 8.3 への申し送り: app.ts 組立時に `readValidations: validationService.listForSpec` を本配線すること（specs.test.ts の makeApp が手本）。エラーミドルウェアは specs/resources テスト内の薄い onError（ApiError 形 + ERROR_HTTP_STATUS）と同じ契約で実装すること
+- 8.2 → 8.3 への申し送り: ①writes サブアプリは /api にマウント（パスは /specs/:feature/approvals 形式）②エラーミドルウェアは AppError.details.fieldErrors → ApiError.error.fieldErrors のマッピングを実装すること③ADR title/slug に .max() がなく長大入力は 500（安全側）— 422 化したければ zod .max(200) 追加が候補
