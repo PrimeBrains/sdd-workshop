@@ -3,6 +3,8 @@ name: kiro-postmortem-add
 description: Append a defect entry to .kiro/postmortem/defects.md with 10 mandatory fields (発生機能 / 発生した不具合 / 検知した工程 / 検知すべき工程 / 検知できなかった理由 / 要因分類 / 根本要因分類 / 根本要因詳細 / 同件調査 / 次回からの対応策). Use when a defect is identified and its root cause is clarified, either proactively by the AI or on user demand.
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash
 argument-hint: <one-line defect summary, optional>
+metadata:
+  origin: "custom"
 ---
 
 # kiro-postmortem-add Skill

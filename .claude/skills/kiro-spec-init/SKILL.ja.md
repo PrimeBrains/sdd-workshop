@@ -3,6 +3,8 @@ name: kiro-spec-init
 description: Initialize a new specification with detailed project description
 allowed-tools: Bash, Read, Write, Glob, AskUserQuestion
 argument-hint: <project-description>
+metadata:
+  origin: "cc-sdd"
 ---
 
 # スペック初期化

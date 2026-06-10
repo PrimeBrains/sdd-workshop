@@ -3,6 +3,7 @@ name: kiro-steering-custom
 description: Create custom steering documents for specialized project contexts. Use when creating domain-specific steering files.
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash
 metadata:
+  origin: "cc-sdd"
   shared-rules: "steering-principles.md"
 ---
 

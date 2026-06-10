@@ -3,6 +3,7 @@ name: kiro-steering
 description: Maintain .kiro/steering/ as persistent project memory (bootstrap/sync). Use when initializing or updating steering documents.
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash
 metadata:
+  origin: "cc-sdd"
   shared-rules: "steering-principles.md"
 ---
 

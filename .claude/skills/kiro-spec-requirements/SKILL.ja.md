@@ -3,6 +3,7 @@ name: kiro-spec-requirements
 description: Generate EARS-format requirements based on project description and steering context. Use when generating requirements from project description.
 allowed-tools: Read, Write, Edit, Glob, Grep, Agent, WebSearch, WebFetch, AskUserQuestion
 metadata:
+  origin: "cc-sdd"
   shared-rules: "ears-format.md, requirements-review-gate.md"
 ---
 

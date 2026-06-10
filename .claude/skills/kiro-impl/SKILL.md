@@ -4,6 +4,8 @@ description: Implement approved tasks using TDD with native subagent dispatch. R
 disable-model-invocation: true
 allowed-tools: Read, Write, Edit, MultiEdit, Bash, Glob, Grep, Agent, WebSearch, WebFetch
 argument-hint: <feature-name> [task-numbers]
+metadata:
+  origin: "cc-sdd"
 ---
 
 # kiro-impl Skill

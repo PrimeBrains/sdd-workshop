@@ -4,6 +4,7 @@ description: Generate implementation tasks from requirements and design. Use whe
 allowed-tools: Read, Write, Edit, Glob, Grep, Agent
 argument-hint: <feature-name> [-y] [--sequential]
 metadata:
+  origin: "cc-sdd"
   shared-rules: "tasks-generation.md, tasks-parallel-analysis.md"
 ---
 

@@ -3,6 +3,8 @@ name: kiro-spec-status
 description: Show specification status and progress
 allowed-tools: Read, Glob, Grep
 argument-hint: <feature-name>
+metadata:
+  origin: "cc-sdd"
 ---
 
 # kiro-spec-status Skill

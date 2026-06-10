@@ -2,6 +2,8 @@
 name: kiro-spec-batch
 description: Create complete specs (requirements, design, tasks) for all features in roadmap.md using parallel subagent dispatch by dependency wave.
 allowed-tools: Read, Glob, Grep, Agent
+metadata:
+  origin: "cc-sdd"
 ---
 
 # kiro-spec-batch スキル

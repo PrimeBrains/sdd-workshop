@@ -4,6 +4,8 @@ description: Entry point for new work. Determines the best action path or work d
 disable-model-invocation: true
 allowed-tools: Read, Write, Glob, Grep, Agent, WebSearch, WebFetch, AskUserQuestion
 argument-hint: <idea-or-request>
+metadata:
+  origin: "cc-sdd"
 ---
 
 # kiro-discovery Skill

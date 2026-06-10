@@ -4,6 +4,7 @@ description: Analyze implementation gap between requirements and existing codeba
 allowed-tools: Read, Write, Grep, Glob, WebSearch, WebFetch
 argument-hint: <feature-name>
 metadata:
+  origin: "cc-sdd"
   shared-rules: "gap-analysis.md"
 ---
 

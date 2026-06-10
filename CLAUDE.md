@@ -41,6 +41,7 @@ Kiro-style Spec-Driven Development on an agentic SDLC
 ## Skills Structure
 Skills are located in `.claude/skills/kiro-*/SKILL.md`
 - Each skill is a directory with a `SKILL.md` file
+- `metadata.origin` in SKILL.md frontmatter is the canonical classifier: `"cc-sdd"` (framework-standard) vs `"custom"` (project-original). New custom skills MUST set `origin: "custom"`. Keep SKILL.ja.md frontmatter in sync
 - Skills run inline with access to conversation context
 - Skills may delegate parallel research to subagents for efficiency
 - Additional files (templates, examples) can be added to skill directories

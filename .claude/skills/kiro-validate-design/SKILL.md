@@ -4,6 +4,7 @@ description: Interactive technical design quality review and validation. Use whe
 allowed-tools: Read, Write, Grep, Glob, AskUserQuestion
 argument-hint: <feature-name>
 metadata:
+  origin: "cc-sdd"
   shared-rules: "design-review.md"
 ---
 

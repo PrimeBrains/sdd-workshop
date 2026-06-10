@@ -3,6 +3,8 @@ name: kiro-validate-impl
 description: Validate feature-level integration after all tasks are implemented. Checks cross-task consistency, full test suite, and overall spec coverage.
 allowed-tools: Read, Write, Bash, Grep, Glob, Agent
 argument-hint: <feature-name> [task-numbers]
+metadata:
+  origin: "cc-sdd"
 ---
 
 # kiro-validate-impl Skill

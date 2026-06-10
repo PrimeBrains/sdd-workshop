@@ -7,6 +7,8 @@ description: >
   「why-sdd のドラフト化をお願い」「抽出フェーズをやりたい」「draft して」
   「Module X のドラフトを書いて」などのフレーズで起動する。
   dialogue-session スキルの終了後に自然な続きとして呼び出すことも多い。
+metadata:
+  origin: "custom"
 ---
 
 # 抽出フェーズ（atelier-draft）

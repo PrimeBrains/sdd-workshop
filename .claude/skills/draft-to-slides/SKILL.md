@@ -6,6 +6,8 @@ description: >
   「発表資料を作って」「スライドにして」「ドラフトをプレゼン化」「スライド化したい」
   「発表用の md を作りたい」「Module X のスライドを出して」などのフレーズで積極的に起動する。
   dialogue-session → atelier-draft の後に自然な続きとして呼び出すことも多い。
+metadata:
+  origin: "custom"
 ---
 
 # Draft to Slides

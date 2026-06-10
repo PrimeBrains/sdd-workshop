@@ -3,6 +3,8 @@ name: kiro-postmortem-review
 description: Aggregate all entries in .kiro/postmortem/defects.md, produce a 4-axis frequency report (要因分類 × 検知工程 × 発生機能 × 根本要因分類) and clusters, extract Try candidates, and hand them off to /kiro-steering-custom for steering reflection. Invoke at /kiro-impl completion, new spec init, when same root-cause label crosses 2 unreviewed entries, or on user demand.
 allowed-tools: Read, Edit, Glob, Grep, Bash
 argument-hint: <scope filter, optional. e.g. "since:2026-05-01" or "feature:dashboard">
+metadata:
+  origin: "custom"
 ---
 
 # kiro-postmortem-review Skill

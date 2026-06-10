@@ -4,6 +4,7 @@ description: Generate comprehensive technical design translating requirements (W
 allowed-tools: Read, Write, Edit, Grep, Glob, WebSearch, WebFetch, Agent
 argument-hint: <feature-name> [-y]
 metadata:
+  origin: "cc-sdd"
   shared-rules: "design-principles.md, design-discovery-full.md, design-discovery-light.md, design-synthesis.md, design-review-gate.md"
 ---
 

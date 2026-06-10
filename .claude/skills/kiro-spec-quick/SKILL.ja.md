@@ -3,6 +3,8 @@ name: kiro-spec-quick
 description: Quick spec generation with interactive or automatic mode
 allowed-tools: Read, Skill, Bash, Write, Glob, Agent
 argument-hint: <project-description> [--auto]
+metadata:
+  origin: "cc-sdd"
 ---
 
 # クイックスペックジェネレーター
