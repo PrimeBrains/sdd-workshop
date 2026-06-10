@@ -64,7 +64,7 @@
   - _Boundary: TasksParser_
 
 - [ ] 4. 読取サービス
-- [ ] 4.1 .kiro スキャナとスペックサービスを実装する
+- [x] 4.1 .kiro スキャナとスペックサービスを実装する
   - `.kiro/specs/` を走査して spec ディレクトリと成果物ファイルの有無をインベントリ化し、一覧（メタデータ + 成果物有無）と詳細（全成果物の構造化表現）を返す
   - キャッシュを持たず毎リクエストでファイルを読み直し、ディスク変更が次のレスポンスへ即時反映される
   - フィクスチャツリーに対し、一覧の件数・成果物有無フラグと、ファイル書き換え後の再取得で内容が変わることが統合テストで検証される
@@ -186,3 +186,4 @@
 - 1.3 への申し送り: config.ts の "REPO_INVALID" 文字列リテラルを errors/codes.ts の ErrorCode 定数へ集約すること（レビュアー advisory）。デフォルトポートは 7411（クライアント vite proxy と一致、config.ts が唯一の定義場所）
 - 2.1: MarkdownEngine は design の interface 形でなくモジュール関数 `parseMarkdown` / `coverGaps` / `nodeToPosition` / `buildSectionTree` としてエクスポート（純粋関数制約に従った同等契約）。後続パーサーはこの名前で compose すること
 - 2.2 → 4.3 への申し送り: AdrFrontmatter の supersedes/superseded_by は string|null 型。実 ADR が YAML 数値（supersedes: 3）で書くと invalid-key 診断になる。4.3 の fixture 作成時は文字列表記で書くか、数値許容の要否を判断すること
+- 4.1 → 4.3 への申し送り: SpecService は `readValidations` 注入点（デフォルト []）を公開済み。ValidationService 実装後にこの seam へ配線すること（8.1 の組み立て時でも可）
