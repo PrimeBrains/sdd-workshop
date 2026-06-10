@@ -112,7 +112,7 @@
   - _Depends: 6.1_
 
 - [ ] 7. 書込操作
-- [ ] 7.1 セーフパスガード・アトミック書込・監査ログを実装する
+- [x] 7.1 セーフパスガード・アトミック書込・監査ログを実装する
   - 書込候補パスを正規化 + realpath 解決し `.kiro/` プレフィックス外を拒否するガードを実装する
   - 同一ディレクトリ temp + rename のアトミック書込（exclusive オプション付き）を実装する
   - 全書込試行（拒否含む）をタイムスタンプ・操作種別・対象パス・結果付きの構造化 JSON 行として記録する
@@ -190,4 +190,5 @@
 - 4.2 → 6.1 への申し送り: スキルディレクトリのパス解決は skill-service.ts の `resolveSkillsDir(context)` が唯一の解決点。watcher（6.1）が import すると watcher→service 依存になり design の依存表に反するため、その時点で config.ts へ移設すること（レビュアー advisory）
 - 4.3 → 8.1 への申し送り: ①SpecService の readValidations へ ValidationService.listForSpec を本配線すること（契約互換はコンパイル + テストで証明済み）②`GET /api/adr/:id` の :id は拡張子なしファイル名（例 0001-sdd-dashboard-local-web-app）として実装済み — ルート実装時に踏襲
 - 5.1 → 5.2 への申し送り: nodes.requirements にはローカル AC ID とクロス spec 修飾 ID（beta/1.2）が混在する。uncovered 診断の母集合は nodes.requirements ではなく `collectCriterionIds`（ローカル基準）を使うこと（ヘルパーは実装済み）
-- 5.2: design-uncovered の被覆判定はトレーサビリティ行のみ（AC 6.5 の文言どおり。コンポーネント Requirements フィールドは被覆に数えない）。ソース内の文字列セパレータに生 NUL バイトを使うと git が binary 扱いするため ` ` エスケープ表記を使うこと（修正済み）
+- 5.2: design-uncovered の被覆判定はトレーサビリティ行のみ（AC 6.5 の文言どおり。コンポーネント Requirements フィールドは被覆に数えない）。ソース内の文字列セパレータに生 NUL バイトを使うと git が binary 扱いするため `` エスケープ表記を使うこと（修正済み）
+- 7.1 → 7.2/7.3/7.4 への申し送り: ①AC 12.3「拒否含む全試行の監査記録」は writer 側の責務 — 各 writer は throw の前/同時に audit.record(outcome:"rejected") を必ず発行すること ②exclusive 書込は生 EEXIST を投げる — AdrWriter は ADR_NUMBER_CONFLICT へマップすること
