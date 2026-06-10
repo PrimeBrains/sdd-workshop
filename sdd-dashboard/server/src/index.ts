@@ -1,13 +1,16 @@
 /**
  * sdd-core サーバーのエントリポイント。
- * CLI 引数解決 → RepoContext 生成 → HTTP サーバー起動・終了制御を担う。
- * パス・ポートの定義は config.ts（RepoContext）に集約し、ここでは保持しない。
- * ルート定義は暫定（タスク 8.3 で HonoApp 本実装に置き換える）。
+ * CLI 引数解決 → RepoContext 生成 → EventBus/watcher/HonoApp の配線 → 起動・終了制御を担う。
+ * パス・ポートの定義は config.ts（RepoContext）、ルート・サービスの組み立ては
+ * api/app.ts（createApp）に集約し、ここでは保持しない。
  */
 import { serve, type ServerType } from "@hono/node-server";
-import { Hono } from "hono";
+import type { Hono } from "hono";
 import { pathToFileURL } from "node:url";
+import { createApp } from "./api/app.js";
 import { createRepoContext, type RepoContext } from "./config.js";
+import { createEventBus } from "./watcher/event-bus.js";
+import { startKiroWatcher } from "./watcher/kiro-watcher.js";
 
 export const PACKAGE_NAME = "sdd-core-server" as const;
 
@@ -51,15 +54,11 @@ export interface ServerHandle {
   readonly close: () => Promise<void>;
 }
 
-/** 暫定ルートで HTTP サーバーを localhost に起動する（タスク 8.3 で全ルートに置き換え）。 */
-export function startServer(context: RepoContext): Promise<ServerHandle> {
-  const app = new Hono();
-  app.get("/api/health", (c) =>
-    c.json({ status: "ok", name: PACKAGE_NAME, repoRoot: context.repoRoot }),
-  );
+/** Hono アプリを 127.0.0.1 にバインドして待ち受ける（非ローカル到達の遮断。1.5 の外周） */
+function listen(app: Hono, port: number): Promise<ServerHandle> {
   return new Promise((resolvePromise, rejectPromise) => {
     const server = serve(
-      { fetch: app.fetch, hostname: "127.0.0.1", port: context.port },
+      { fetch: app.fetch, hostname: "127.0.0.1", port },
       (info) => {
         resolvePromise({
           server,
@@ -73,6 +72,31 @@ export function startServer(context: RepoContext): Promise<ServerHandle> {
     );
     server.once("error", rejectPromise);
   });
+}
+
+/**
+ * EventBus・KiroWatcher・全ルート（createApp）を配線して HTTP サーバーを起動する。
+ * Postcondition: 戻り値の close() で watcher と HTTP サーバーの両方が解放される。
+ */
+export async function startServer(context: RepoContext): Promise<ServerHandle> {
+  const bus = createEventBus();
+  const app = createApp({ context, bus });
+  const watcher = await startKiroWatcher(context, bus);
+  try {
+    const handle = await listen(app, context.port);
+    return {
+      server: handle.server,
+      port: handle.port,
+      close: async () => {
+        await watcher.close();
+        await handle.close();
+      },
+    };
+  } catch (error) {
+    // 待受に失敗した場合も watcher をリークさせない
+    await watcher.close();
+    throw error;
+  }
 }
 
 export interface CliIo {
@@ -126,5 +150,12 @@ if (isDirectRun) {
   const result = await runCli(process.argv.slice(2));
   if (result.kind === "error") {
     process.exit(result.exitCode);
+  } else {
+    // 終了制御: シグナル受信で watcher + HTTP サーバーを解放してから終了する
+    const shutdown = (): void => {
+      void result.close().finally(() => process.exit(0));
+    };
+    process.once("SIGINT", shutdown);
+    process.once("SIGTERM", shutdown);
   }
 }

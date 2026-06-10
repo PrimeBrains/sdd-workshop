@@ -109,10 +109,10 @@ describe("runCli", () => {
     expect(result.context.repoRoot).toBe(repo);
     expect(stdoutLines.join("\n")).toContain(String(result.port));
 
-    const response = await fetch(`http://127.0.0.1:${result.port}/api/health`);
+    // 実ルート（GET /api/repo）で配線済みサーバーが応答する
+    const response = await fetch(`http://127.0.0.1:${result.port}/api/repo`);
     expect(response.status).toBe(200);
-    const body = (await response.json()) as { status: string; repoRoot: string };
-    expect(body.status).toBe("ok");
+    const body = (await response.json()) as { repoRoot: string; name: string };
     expect(body.repoRoot).toBe(repo);
   });
 });
