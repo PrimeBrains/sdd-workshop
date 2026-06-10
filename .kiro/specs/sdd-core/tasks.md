@@ -20,7 +20,7 @@
   - _Requirements: 13.1_
 
 - [ ] 2. markdown パース基盤
-- [ ] 2.1 MarkdownEngine（mdast 変換と情報無欠落フォールバック）を実装する
+- [x] 2.1 MarkdownEngine（mdast 変換と情報無欠落フォールバック）を実装する
   - remark（remark-parse + remark-gfm + remark-frontmatter）で markdown 文字列を position 付き mdast とセクションツリーへ変換する純粋関数を実装する
   - 構造化済み position 群の補集合から raw ブロックを切り出す `coverGaps` を実装し、どんな入力でも例外を投げない
   - 単体テストで「全ブロックの position 連結 = 元文書全体」の不変則が破損 markdown 入力でも成立する
@@ -184,3 +184,4 @@
 - 1.1: ローカル Node が 21.7.3 のため vite を ^7 に固定（vite 8 の rolldown ネイティブバインディングは Node ^20.19||>=22.12 必須で Vitest が起動不能になる）。Node 22 へ更新したら固定解除可
 - 1.2: yaml パッケージは ISC ライセンス（MIT ではないが OSI 承認・実質同等）。design.md の「すべて MIT」は厳密には不正確
 - 1.3 への申し送り: config.ts の "REPO_INVALID" 文字列リテラルを errors/codes.ts の ErrorCode 定数へ集約すること（レビュアー advisory）。デフォルトポートは 7411（クライアント vite proxy と一致、config.ts が唯一の定義場所）
+- 2.1: MarkdownEngine は design の interface 形でなくモジュール関数 `parseMarkdown` / `coverGaps` / `nodeToPosition` / `buildSectionTree` としてエクスポート（純粋関数制約に従った同等契約）。後続パーサーはこの名前で compose すること
