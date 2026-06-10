@@ -5,6 +5,7 @@
  */
 import { statSync } from "node:fs";
 import { join, resolve } from "node:path";
+import { ErrorCode } from "./errors/codes.js";
 
 /**
  * デフォルトポート（Requirement 1.3 の「文書化されたデフォルトポート」）。
@@ -26,7 +27,12 @@ export interface RepoContext {
 
 export type RepoContextResult =
   | { readonly ok: true; readonly context: RepoContext }
-  | { readonly ok: false; readonly message: string };
+  | {
+      readonly ok: false;
+      /** ErrorCode 語彙の定数（errors/codes.ts が唯一の定義場所。リテラル直書きは型エラー） */
+      readonly code: ErrorCode;
+      readonly message: string;
+    };
 
 function isDirectory(path: string): boolean {
   try {
@@ -51,14 +57,16 @@ export function createRepoContext(
   if (!isDirectory(repoRoot)) {
     return {
       ok: false,
-      message: `REPO_INVALID: repository path does not exist or is not a directory: ${repoRoot}`,
+      code: ErrorCode.REPO_INVALID,
+      message: `${ErrorCode.REPO_INVALID}: repository path does not exist or is not a directory: ${repoRoot}`,
     };
   }
   const kiroDir = join(repoRoot, ".kiro");
   if (!isDirectory(kiroDir)) {
     return {
       ok: false,
-      message: `REPO_INVALID: repository has no .kiro/ directory: ${repoRoot} (expected ${kiroDir})`,
+      code: ErrorCode.REPO_INVALID,
+      message: `${ErrorCode.REPO_INVALID}: repository has no .kiro/ directory: ${repoRoot} (expected ${kiroDir})`,
     };
   }
   return {

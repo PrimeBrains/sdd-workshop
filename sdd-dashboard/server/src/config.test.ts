@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { isAbsolute, join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { DEFAULT_PORT, createRepoContext } from "./config.js";
+import { ErrorCode } from "./errors/codes.js";
 
 const tempDirs: string[] = [];
 
@@ -63,6 +64,7 @@ describe("createRepoContext", () => {
     const result = createRepoContext(missing, undefined, repo);
     expect(result.ok).toBe(false);
     if (result.ok) return;
+    expect(result.code).toBe(ErrorCode.REPO_INVALID);
     expect(result.message).toContain(missing);
   });
 
@@ -81,6 +83,7 @@ describe("createRepoContext", () => {
     const result = createRepoContext(repo, undefined, repo);
     expect(result.ok).toBe(false);
     if (result.ok) return;
+    expect(result.code).toBe(ErrorCode.REPO_INVALID);
     expect(result.message).toContain(repo);
     expect(result.message).toContain(".kiro");
   });

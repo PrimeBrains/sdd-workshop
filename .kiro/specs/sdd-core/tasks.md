@@ -13,7 +13,7 @@
   - パス不在・`.kiro/` 不在の場合は不正パスを明示するメッセージとともに非ゼロ終了する
   - 正常リポジトリを指定すると指定ポートで HTTP サーバーが待ち受け、不正パスでは exit code 1 とエラーメッセージが出力される
   - _Requirements: 1.1, 1.2, 1.3_
-- [ ] 1.3 エラーコード基盤と API 契約型を定義する
+- [x] 1.3 エラーコード基盤と API 契約型を定義する
   - ErrorCode 定数 + AppError クラス（design.md のエラー表に対応する全コード）を唯一の定義場所として実装する
   - `types/` 配下に Position / DocBlock / SpecSummary / TraceGraph / ChangeEvent / ApiError 等の公開契約型を定義する（下流 UI スペックが import する正典）
   - 全契約型が `tsc --noEmit` を通過し、ErrorCode に未定義の文字列リテラルを使うとコンパイルエラーになる
