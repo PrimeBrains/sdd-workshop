@@ -30,7 +30,7 @@
   - frontmatter が欠落・不正な場合は本文全体を診断付き raw markdown として返す
   - 正常 frontmatter・キー欠落・YAML 構文エラーの 3 系統の単体テストが厳密値で pass する
   - _Requirements: 7.5_
-- [ ] 2.3 参照リストパーサー（RefListParser）を実装する
+- [x] 2.3 参照リストパーサー（RefListParser）を実装する
   - trace-notation.md の ref-list 文法（カンマ区切り全列挙）を解釈し、トークンごとに id / range / cross-spec / unparsable を判別する
   - 旧範囲表記は同一 major・整数 minor の場合のみ閉区間で連番展開し legacy フラグを付け、major 跨ぎ・非整数・ワイルドカード・括弧付き注記は unparsable として返す（例外を投げない）
   - `1.1-1.6` が 6 個の ID へ厳密一致で展開され、`15.*` と `1.6-2.3` が unparsable になる単体テストが pass する
