@@ -141,7 +141,7 @@
   - _Boundary: AdrWriter_
 
 - [ ] 8. HTTP API 組み立て
-- [ ] 8.1 読取ルートを実装する
+- [x] 8.1 読取ルートを実装する
   - `GET /api/repo` / `/api/specs` / `/api/specs/:feature` / `/api/specs/:feature/trace` / `/api/steering(:name)` / `/api/skills(:name)` / `/api/adr(:id)` を design.md のエンドポイント表どおりに実装する（ルートはサービス委譲のみでロジックを持たない）
   - パスパラメータは英数字 + `-` `_` のみ許可し、不在リソースは 404 の構造化エラーを返す
   - フィクスチャリポジトリへの全読取エンドポイント呼び出しが契約型どおりの JSON を返すことが統合テストで検証される
@@ -194,3 +194,4 @@
 - 7.1 → 7.2/7.3/7.4 への申し送り: ①AC 12.3「拒否含む全試行の監査記録」は writer 側の責務 — 各 writer は throw の前/同時に audit.record(outcome:"rejected") を必ず発行すること ②exclusive 書込は生 EEXIST を投げる — AdrWriter は ADR_NUMBER_CONFLICT へマップすること
 - 7.2: 実リポジトリの core-data-model / evm-engine / progress-tracking の spec.json は approvals 全 true + ready=true なのに phase=tasks-generated の内部不整合（手書き管理の名残）。derivePhase は「フラグが真実」原則で正規化するため、これらは書込時に tasks-approved へ自動修正される
 - 7.4: exclusive 書込はパス一意性のみ保証（番号一意性ではない）。マルチプロセス競合の同番号別スラッグは設計が単一ユーザー前提で許容済み（design「最後の書込が勝つ」）。将来マルチライターが必要になったら lockfile か書込後再スキャンで強化
+- 8.1 → 8.3 への申し送り: app.ts 組立時に `readValidations: validationService.listForSpec` を本配線すること（specs.test.ts の makeApp が手本）。エラーミドルウェアは specs/resources テスト内の薄い onError（ApiError 形 + ERROR_HTTP_STATUS）と同じ契約で実装すること
