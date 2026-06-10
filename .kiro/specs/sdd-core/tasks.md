@@ -69,7 +69,7 @@
   - キャッシュを持たず毎リクエストでファイルを読み直し、ディスク変更が次のレスポンスへ即時反映される
   - フィクスチャツリーに対し、一覧の件数・成果物有無フラグと、ファイル書き換え後の再取得で内容が変わることが統合テストで検証される
   - _Requirements: 1.4, 2.1, 2.2, 2.4_
-- [ ] 4.2 (P) steering / スキル読取サービスを実装する
+- [x] 4.2 (P) steering / スキル読取サービスを実装する
   - `.kiro/steering/` 配下の全 markdown を内容 + セクション構造付きで返す
   - スキルディレクトリを走査し、SKILL.md と（存在すれば）SKILL.ja.md を英日ペアとして返す（ja 欠落時は null）
   - SKILL.md frontmatter の `metadata.origin`（`"cc-sdd"` | `"custom"`）を `origin: string | null` として公開する（欠落時 null）
@@ -187,3 +187,4 @@
 - 2.1: MarkdownEngine は design の interface 形でなくモジュール関数 `parseMarkdown` / `coverGaps` / `nodeToPosition` / `buildSectionTree` としてエクスポート（純粋関数制約に従った同等契約）。後続パーサーはこの名前で compose すること
 - 2.2 → 4.3 への申し送り: AdrFrontmatter の supersedes/superseded_by は string|null 型。実 ADR が YAML 数値（supersedes: 3）で書くと invalid-key 診断になる。4.3 の fixture 作成時は文字列表記で書くか、数値許容の要否を判断すること
 - 4.1 → 4.3 への申し送り: SpecService は `readValidations` 注入点（デフォルト []）を公開済み。ValidationService 実装後にこの seam へ配線すること（8.1 の組み立て時でも可）
+- 4.2 → 6.1 への申し送り: スキルディレクトリのパス解決は skill-service.ts の `resolveSkillsDir(context)` が唯一の解決点。watcher（6.1）が import すると watcher→service 依存になり design の依存表に反するため、その時点で config.ts へ移設すること（レビュアー advisory）
