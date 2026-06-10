@@ -25,6 +25,14 @@ export interface RepoContext {
   readonly port: number;
 }
 
+/**
+ * スキルディレクトリの絶対パス（`repoRoot/.claude/skills`）。パス解決の唯一の入口。
+ * SkillService と KiroWatcher の双方がここを参照する（services への依存方向違反を避ける）。
+ */
+export function resolveSkillsDir(context: RepoContext): string {
+  return join(context.repoRoot, ".claude", "skills");
+}
+
 export type RepoContextResult =
   | { readonly ok: true; readonly context: RepoContext }
   | {

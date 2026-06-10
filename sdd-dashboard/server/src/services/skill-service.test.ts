@@ -2,9 +2,9 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import type { RepoContext } from "../config.js";
+import { resolveSkillsDir, type RepoContext } from "../config.js";
 import { AppError, ErrorCode } from "../errors/codes.js";
-import { createSkillService, resolveSkillsDir } from "./skill-service.js";
+import { createSkillService } from "./skill-service.js";
 
 const tempDirs: string[] = [];
 

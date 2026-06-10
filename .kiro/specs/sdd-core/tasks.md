@@ -99,7 +99,7 @@
   - _Requirements: 6.3, 6.4, 6.5, 6.7_
 
 - [ ] 6. ファイル監視と SSE
-- [ ] 6.1 イベントバスと chokidar 監視を実装する
+- [x] 6.1 イベントバスと chokidar 監視を実装する
   - 型付き pub/sub（subscribe が unsubscribe 関数を返す）を実装する
   - chokidar v4 で `.kiro/` とスキルディレクトリを監視し、ignored 関数フィルタ（dotfile・`.tmp-*`・md/json 以外）で除外、100ms デバウンスでバーストを集約し、パスからカテゴリと feature を分類した ChangeEvent を発行する
   - 一時ファイル作成ではイベントが発行されず、spec ファイル変更で category=spec / feature 付きイベントが発行されることがテストで検証される

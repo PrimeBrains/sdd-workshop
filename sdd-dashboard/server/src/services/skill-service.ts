@@ -5,14 +5,14 @@
  * 制約:
  * - キャッシュなし。毎呼び出しでディスクを読み直す（1.4, 2.4 と同じ鮮度保証）
  * - スキルディレクトリは `repoRoot/.claude/skills/`（design.md「読取対象」）。
- *   パス解決は `resolveSkillsDir` に集約し、watcher 等も同関数を参照すること
+ *   パス解決は config.ts の `resolveSkillsDir` に集約し、watcher 等も同関数を参照すること
  * - SKILL.md を含むディレクトリのみをスキルとして扱う（7.2）。SKILL.ja.md 欠落時は ja: null
  * - `metadata.origin` が欠落（frontmatter なし・metadata なし・非 string 含む）なら origin: null（7.7）
  * - パス区切りを含む name は skills/ 外へ解決せず「不在」として扱う
  */
 import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
-import type { RepoContext } from "../config.js";
+import { resolveSkillsDir, type RepoContext } from "../config.js";
 import { AppError, ErrorCode } from "../errors/codes.js";
 import { extractFrontmatter } from "../parsers/frontmatter.js";
 import { parseMarkdown } from "../parsers/markdown.js";
@@ -23,11 +23,6 @@ import type { SkillDoc, SkillSummary } from "../types/resources.js";
 export const SKILL_EN_FILE = "SKILL.md";
 /** SKILL.ja.md（日本語版、任意）のファイル名 */
 export const SKILL_JA_FILE = "SKILL.ja.md";
-
-/** スキルディレクトリの絶対パス（`repoRoot/.claude/skills`）。パス解決の唯一の入口 */
-export function resolveSkillsDir(context: RepoContext): string {
-  return join(context.repoRoot, ".claude", "skills");
-}
 
 /** スキル読取インターフェース（GET /api/skills, /api/skills/:name） */
 export interface SkillService {
