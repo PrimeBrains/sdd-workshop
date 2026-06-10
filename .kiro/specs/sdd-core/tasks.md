@@ -43,7 +43,7 @@
   - 不正 JSON 入力で diagnostics に parse-failure が入り、正常入力でフェーズ・承認フラグ・言語・タイムスタンプ・`app`（あり / なし両方）が厳密値で取れる単体テストが pass する
   - _Requirements: 2.3, 2.5_
   - _Boundary: SpecJsonParser_
-- [ ] 3.2 (P) requirements パーサーを実装する
+- [x] 3.2 (P) requirements パーサーを実装する
   - 数値 ID 付き要件見出しから ID・タイトル・Objective を、番号付きリストから `N.M` 形式の受入基準を抽出する
   - 受入基準直後のインデント `- 和訳:` 箇条書きを当該基準の和訳として関連付ける
   - 本スペック自身の requirements.md を fixture に、要件数 13・AC 数 65・和訳付与が厳密値で検証される単体テストが pass する
