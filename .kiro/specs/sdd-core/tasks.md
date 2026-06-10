@@ -76,7 +76,7 @@
   - fixture で steering 件数・skill の en/ja ペア解決（ja あり / なし両方）・origin（あり / なし両方）が厳密値で検証される
   - _Requirements: 7.1, 7.2, 7.7_
   - _Boundary: SteeringService, SkillService_
-- [ ] 4.3 (P) ADR / validation レポート読取サービスを実装する
+- [x] 4.3 (P) ADR / validation レポート読取サービスを実装する
   - `.kiro/adr/` の全 ADR を frontmatter 9 キー（`app` 含む）のパース + 本文構造化付きで返す（template.md は一覧から除外）
   - frontmatter の `app` を `app: string | null` として公開する（欠落時 null = リポジトリ横断の決定）
   - スペックディレクトリの validation-{gap,design,impl}.md を type / feature / date / decision（存在時）付きで返す
@@ -188,3 +188,4 @@
 - 2.2 → 4.3 への申し送り: AdrFrontmatter の supersedes/superseded_by は string|null 型。実 ADR が YAML 数値（supersedes: 3）で書くと invalid-key 診断になる。4.3 の fixture 作成時は文字列表記で書くか、数値許容の要否を判断すること
 - 4.1 → 4.3 への申し送り: SpecService は `readValidations` 注入点（デフォルト []）を公開済み。ValidationService 実装後にこの seam へ配線すること（8.1 の組み立て時でも可）
 - 4.2 → 6.1 への申し送り: スキルディレクトリのパス解決は skill-service.ts の `resolveSkillsDir(context)` が唯一の解決点。watcher（6.1）が import すると watcher→service 依存になり design の依存表に反するため、その時点で config.ts へ移設すること（レビュアー advisory）
+- 4.3 → 8.1 への申し送り: ①SpecService の readValidations へ ValidationService.listForSpec を本配線すること（契約互換はコンパイル + テストで証明済み）②`GET /api/adr/:id` の :id は拡張子なしファイル名（例 0001-sdd-dashboard-local-web-app）として実装済み — ルート実装時に踏襲
