@@ -130,7 +130,7 @@
   - tasks-approved 状態から requirements への巻き戻しで期待どおりのフラグ集合になり、成果物 md の mtime が変化しないことがテストで検証される
   - _Requirements: 10.1, 10.2, 10.3, 10.4_
   - _Depends: 7.2_
-- [ ] 7.4 (P) ADR 作成を実装する
+- [x] 7.4 (P) ADR 作成を実装する
   - `.kiro/adr/` の既存最大番号 + 1 を 4 桁ゼロ埋めで採番し、タイトル由来の kebab-case スラッグでファイル名を構成する
   - adr.md 規約準拠の frontmatter（9 キー、`app` 含む）と必須セクション Context / Decision / Consequences（+ 任意 Alternatives）を持つ本文を生成し、status 省略時は proposed・date は当日をデフォルトとする
   - `CreateAdrInput` の任意 `app` を frontmatter `app` キーへ書き込み、省略時は null とする
@@ -193,3 +193,4 @@
 - 5.2: design-uncovered の被覆判定はトレーサビリティ行のみ（AC 6.5 の文言どおり。コンポーネント Requirements フィールドは被覆に数えない）。ソース内の文字列セパレータに生 NUL バイトを使うと git が binary 扱いするため `` エスケープ表記を使うこと（修正済み）
 - 7.1 → 7.2/7.3/7.4 への申し送り: ①AC 12.3「拒否含む全試行の監査記録」は writer 側の責務 — 各 writer は throw の前/同時に audit.record(outcome:"rejected") を必ず発行すること ②exclusive 書込は生 EEXIST を投げる — AdrWriter は ADR_NUMBER_CONFLICT へマップすること
 - 7.2: 実リポジトリの core-data-model / evm-engine / progress-tracking の spec.json は approvals 全 true + ready=true なのに phase=tasks-generated の内部不整合（手書き管理の名残）。derivePhase は「フラグが真実」原則で正規化するため、これらは書込時に tasks-approved へ自動修正される
+- 7.4: exclusive 書込はパス一意性のみ保証（番号一意性ではない）。マルチプロセス競合の同番号別スラッグは設計が単一ユーザー前提で許容済み（design「最後の書込が勝つ」）。将来マルチライターが必要になったら lockfile か書込後再スキャンで強化
