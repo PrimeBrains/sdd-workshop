@@ -85,7 +85,7 @@
   - _Boundary: AdrService, ValidationService_
 
 - [ ] 5. トレーサビリティグラフ
-- [ ] 5.1 双方向グラフ構築を実装する
+- [x] 5.1 双方向グラフ構築を実装する
   - 構造化済み requirements / design / tasks から、design Traceability 行・コンポーネント Requirements フィールド・タスク `_Requirements:_` 注記の 3 源泉でエッジを構築する
   - クロス spec 形式の参照は参照先スペックの requirements に対して解決する
   - フィクスチャ spec に対し、要件→設計→タスクの両方向でノード対応が完全列挙されたグラフが返ることが厳密値で検証される
@@ -189,3 +189,4 @@
 - 4.1 → 4.3 への申し送り: SpecService は `readValidations` 注入点（デフォルト []）を公開済み。ValidationService 実装後にこの seam へ配線すること（8.1 の組み立て時でも可）
 - 4.2 → 6.1 への申し送り: スキルディレクトリのパス解決は skill-service.ts の `resolveSkillsDir(context)` が唯一の解決点。watcher（6.1）が import すると watcher→service 依存になり design の依存表に反するため、その時点で config.ts へ移設すること（レビュアー advisory）
 - 4.3 → 8.1 への申し送り: ①SpecService の readValidations へ ValidationService.listForSpec を本配線すること（契約互換はコンパイル + テストで証明済み）②`GET /api/adr/:id` の :id は拡張子なしファイル名（例 0001-sdd-dashboard-local-web-app）として実装済み — ルート実装時に踏襲
+- 5.1 → 5.2 への申し送り: nodes.requirements にはローカル AC ID とクロス spec 修飾 ID（beta/1.2）が混在する。uncovered 診断の母集合は nodes.requirements ではなく `collectCriterionIds`（ローカル基準）を使うこと（ヘルパーは実装済み）
