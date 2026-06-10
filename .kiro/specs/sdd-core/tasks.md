@@ -25,7 +25,7 @@
   - 構造化済み position 群の補集合から raw ブロックを切り出す `coverGaps` を実装し、どんな入力でも例外を投げない
   - 単体テストで「全ブロックの position 連結 = 元文書全体」の不変則が破損 markdown 入力でも成立する
   - _Requirements: 3.4, 13.2, 13.3_
-- [ ] 2.2 frontmatter パーサーを実装する
+- [x] 2.2 frontmatter パーサーを実装する
   - 先頭 `---` ブロックを YAML としてパースし、ADR / validation レポートの既知キーを検証しつつ未知キーも保持する
   - frontmatter が欠落・不正な場合は本文全体を診断付き raw markdown として返す
   - 正常 frontmatter・キー欠落・YAML 構文エラーの 3 系統の単体テストが厳密値で pass する
@@ -185,3 +185,4 @@
 - 1.2: yaml パッケージは ISC ライセンス（MIT ではないが OSI 承認・実質同等）。design.md の「すべて MIT」は厳密には不正確
 - 1.3 への申し送り: config.ts の "REPO_INVALID" 文字列リテラルを errors/codes.ts の ErrorCode 定数へ集約すること（レビュアー advisory）。デフォルトポートは 7411（クライアント vite proxy と一致、config.ts が唯一の定義場所）
 - 2.1: MarkdownEngine は design の interface 形でなくモジュール関数 `parseMarkdown` / `coverGaps` / `nodeToPosition` / `buildSectionTree` としてエクスポート（純粋関数制約に従った同等契約）。後続パーサーはこの名前で compose すること
+- 2.2 → 4.3 への申し送り: AdrFrontmatter の supersedes/superseded_by は string|null 型。実 ADR が YAML 数値（supersedes: 3）で書くと invalid-key 診断になる。4.3 の fixture 作成時は文字列表記で書くか、数値許容の要否を判断すること
