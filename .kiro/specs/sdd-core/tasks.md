@@ -104,7 +104,7 @@
   - chokidar v4 で `.kiro/` とスキルディレクトリを監視し、ignored 関数フィルタ（dotfile・`.tmp-*`・md/json 以外）で除外、100ms デバウンスでバーストを集約し、パスからカテゴリと feature を分類した ChangeEvent を発行する
   - 一時ファイル作成ではイベントが発行されず、spec ファイル変更で category=spec / feature 付きイベントが発行されることがテストで検証される
   - _Requirements: 8.1, 8.3_
-- [ ] 6.2 SSE エンドポイントを実装する
+- [x] 6.2 SSE エンドポイントを実装する
   - Hono streamSSE で `GET /api/events` を実装し、接続時に EventBus を subscribe して ChangeEvent を `event: change` として配信する
   - 15 秒間隔の keepalive ping を送信し、onAbort で unsubscribe とタイマー解除を行う
   - 複数同時接続クライアントが同一イベントを受信し、ファイル変更から 2 秒以内に受信完了し、切断後に subscriber 数が 0 へ戻ることが結合テストで検証される

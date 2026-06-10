@@ -13,6 +13,8 @@ export interface EventBus {
   publish(event: ChangeEvent): void;
   /** listener を登録し、解除関数を返す（二重呼び出しは no-op） */
   subscribe(listener: (event: ChangeEvent) => void): () => void;
+  /** 現在登録中の subscriber 数（切断時のリソース解放検証用。8.5） */
+  subscriberCount(): number;
 }
 
 /**
@@ -41,6 +43,10 @@ export function createEventBus(): EventBus {
       return () => {
         subscriptions.delete(subscription);
       };
+    },
+
+    subscriberCount(): number {
+      return subscriptions.size;
     },
   };
 }
