@@ -118,7 +118,7 @@
   - 全書込試行（拒否含む）をタイムスタンプ・操作種別・対象パス・結果付きの構造化 JSON 行として記録する
   - `../` 連鎖・絶対パス・symlink 経由の脱出がすべて拒否され、書込失敗時に対象ファイルが旧内容のまま残ることが単体テストで検証される
   - _Requirements: 12.1, 12.2, 12.3, 12.4_
-- [ ] 7.2 承認フラグ更新を実装する
+- [x] 7.2 承認フラグ更新を実装する
   - spec.json の読取 → 変換 → アトミック書込の共通基盤（未知フィールド保持・updated_at 更新・approvals からの phase / ready_for_implementation 決定的導出）を実装する
   - generated=false のフェーズへの承認、先行フェーズ未承認での承認をバリデーションエラーとして拒否する
   - 3 フェーズ承認で ready_for_implementation=true / phase=tasks-approved になり、違反 2 系統が 409 相当の AppError になる全分岐単体テストが pass する
@@ -192,3 +192,4 @@
 - 5.1 → 5.2 への申し送り: nodes.requirements にはローカル AC ID とクロス spec 修飾 ID（beta/1.2）が混在する。uncovered 診断の母集合は nodes.requirements ではなく `collectCriterionIds`（ローカル基準）を使うこと（ヘルパーは実装済み）
 - 5.2: design-uncovered の被覆判定はトレーサビリティ行のみ（AC 6.5 の文言どおり。コンポーネント Requirements フィールドは被覆に数えない）。ソース内の文字列セパレータに生 NUL バイトを使うと git が binary 扱いするため `` エスケープ表記を使うこと（修正済み）
 - 7.1 → 7.2/7.3/7.4 への申し送り: ①AC 12.3「拒否含む全試行の監査記録」は writer 側の責務 — 各 writer は throw の前/同時に audit.record(outcome:"rejected") を必ず発行すること ②exclusive 書込は生 EEXIST を投げる — AdrWriter は ADR_NUMBER_CONFLICT へマップすること
+- 7.2: 実リポジトリの core-data-model / evm-engine / progress-tracking の spec.json は approvals 全 true + ready=true なのに phase=tasks-generated の内部不整合（手書き管理の名残）。derivePhase は「フラグが真実」原則で正規化するため、これらは書込時に tasks-approved へ自動修正される
