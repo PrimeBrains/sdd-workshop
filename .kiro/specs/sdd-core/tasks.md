@@ -49,7 +49,7 @@
   - 本スペック自身の requirements.md を fixture に、要件数 13・AC 数 65・和訳付与が厳密値で検証される単体テストが pass する
   - _Requirements: 3.1, 3.2, 3.3_
   - _Boundary: RequirementsParser_
-- [ ] 3.3 (P) design パーサーを実装する
+- [x] 3.3 (P) design パーサーを実装する
   - 見出し階層をタイトル・深さ・position 付きセクションツリーとして返す
   - Requirements Traceability テーブルの各行を参照 ID（RefToken）・Summary・Components・Interfaces・Flows に構造化し、コンポーネント詳細の Requirements フィールドと Req Coverage 列からも参照を抽出する
   - パースできない表行は raw テキスト + 診断で返しつつ残りの行の抽出を継続する
