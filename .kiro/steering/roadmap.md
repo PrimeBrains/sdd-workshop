@@ -40,9 +40,9 @@ UI の正典は `mockup/variation-a.jsx`。**3画面構成（旧）から1画面
 - [x] evm-engine -- PV/EV/AC/SPI/CPI/EAC/CCPM バッファ計算 + クリティカルパス + **前日比 (prevDay) 計算 + 担当者別 EVM**。Dependencies: core-data-model
 - [x] progress-tracking -- 日次進捗スナップショット + **過去日付指定 / 本日のAC追加（MD・h単位） / 計画線比較 / メモ**。Dependencies: core-data-model
 - [x] dashboard -- **mockup/variation-a.jsx を正典とする単一ワークベンチ画面**。トップバー / 左レール / サマリストリップ（前日比トグル）/ アラートストリップ / ガント / SPIトレンド / フィーバーチャート / Inspector (Task/Member/Team) / GanttFullscreen（検索・フィルター・進捗入力サブパネル）/ ChartFullscreen。Dependencies: evm-engine, progress-tracking
-- [ ] sdd-core -- .kiro/ 構造化パーサー + トレーサビリティグラフ + SSE 監視 + 承認/手戻り/ADR 書込 API（UI なし）。Dependencies: none
-- [ ] sdd-review-ui -- スペックドキュメントビューア + 相互リンクナビゲーション + トレーサビリティマトリクス + validation レポート表示。Dependencies: sdd-core
-- [ ] sdd-workflow-ui -- 開発フロー俯瞰ボード + 承認/手戻り操作 UI + ヘルプ + steering/スキル(英日)/ADR 閲覧。Dependencies: sdd-core, sdd-review-ui
+- [x] sdd-core -- .kiro/ 構造化パーサー + トレーサビリティグラフ + SSE 監視 + 承認/手戻り/ADR 書込 API（UI なし）。Dependencies: none
+- [x] sdd-review-ui -- スペックドキュメントビューア + 相互リンクナビゲーション + トレーサビリティマトリクス + validation レポート表示。Dependencies: sdd-core
+- [x] sdd-workflow-ui -- 開発フロー俯瞰ボード + 承認/手戻り操作 UI + ヘルプ + steering/スキル(英日)/ADR 閲覧。Dependencies: sdd-core, sdd-review-ui
 
 ## 既存 spec の再生成方針
 
