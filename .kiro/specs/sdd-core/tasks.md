@@ -56,7 +56,7 @@
   - 旧 spec `dashboard` の design.md（範囲表記入り）を fixture に、行構造化と raw フォールバックが厳密値で検証される単体テストが pass する
   - _Requirements: 4.1, 4.2, 4.3, 4.4_
   - _Boundary: DesignParser_
-- [ ] 3.4 (P) tasks パーサーを実装する
+- [x] 3.4 (P) tasks パーサーを実装する
   - チェックボックス行からタスク ID・説明・完了状態・`(P)` マーカー・`*` マーカーを抽出し、ID 形式から major / sub の親子階層を構築する
   - `_Requirements:_` / `_Depends:_` / `_Boundary:_` 注記と詳細箇条書きをタスクエントリに保持する
   - 既存 spec の tasks.md を fixture に、完了状態・並列マーカー・3 注記・詳細 bullet 保持が厳密値で検証される単体テストが pass する
