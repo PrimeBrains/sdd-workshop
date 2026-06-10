@@ -48,6 +48,8 @@ sdd-core は SDD Dashboard のデータ/API 層である。起動引数で指定
    - 和訳: スペックディレクトリに `spec.json` が無いか不正な JSON を含む場合でも、sdd-core サーバーはそのスペックを省略せず、パース失敗の診断情報を付けてレスポンスに含める。
 4. When an artifact file changes on disk, the sdd-core server shall reflect the new content in subsequent API responses without requiring a server restart.
    - 和訳: 成果物ファイルがディスク上で変更されたとき、sdd-core サーバーはサーバー再起動なしに、以降の API レスポンスへ新しい内容を反映する。
+5. When parsing a spec's `spec.json`, the sdd-core server shall expose the optional `app` field in the spec metadata as `app: string | null`, returning `null` when the field is absent so that clients can treat the spec as uncategorized.
+   - 和訳: スペックの `spec.json` をパースするとき、sdd-core サーバーは任意の `app` フィールドをスペックメタデータの `app: string | null` として公開し、フィールドが存在しない場合は `null` を返してクライアントがそのスペックを未分類として扱えるようにする。
 
 ### Requirement 3: requirements.md の構造化パース
 
@@ -131,6 +133,10 @@ sdd-core は SDD Dashboard のデータ/API 層である。起動引数で指定
    - 和訳: クライアントがスペックの validation レポートを要求したとき、sdd-core サーバーは存在する `validation-gap.md`・`validation-design.md`・`validation-impl.md` を、frontmatter フィールド（`type`・`feature`・`date`、および存在する場合 `decision`）をパースして返す。
 5. If the frontmatter of an ADR or validation report is missing or malformed, the sdd-core server shall return the file content as raw markdown with a parse-failure diagnostic.
    - 和訳: ADR または validation レポートの frontmatter が欠落または不正な場合、sdd-core サーバーはファイル内容をパース失敗の診断情報付きの生 markdown として返す。
+6. When a client requests ADRs, the sdd-core server shall parse the optional `app` frontmatter field and expose it as `app: string | null`, returning `null` when the field is absent to indicate a repository-cross-cutting decision.
+   - 和訳: クライアントが ADR を要求したとき、sdd-core サーバーは任意の `app` frontmatter フィールドをパースして `app: string | null` として公開し、フィールドが存在しない場合はリポジトリ横断の決定を示す `null` を返す。
+7. When a client requests skills, the sdd-core server shall parse the `metadata.origin` field (`"cc-sdd"` | `"custom"`) from the `SKILL.md` frontmatter and expose it as `origin: string | null`, returning `null` when the field is absent.
+   - 和訳: クライアントがスキルを要求したとき、sdd-core サーバーは `SKILL.md` frontmatter の `metadata.origin` フィールド（`"cc-sdd"` | `"custom"`）をパースして `origin: string | null` として公開し、フィールドが存在しない場合は `null` を返す。
 
 ### Requirement 8: ファイル監視と SSE プッシュ
 
@@ -199,6 +205,8 @@ sdd-core は SDD Dashboard のデータ/API 層である。起動引数で指定
    - 和訳: ADR 作成入力に必須フィールドが欠けている場合、または `requirements` 参照がクロス spec 参照形式に従っていない場合、sdd-core サーバーはフィールド単位のバリデーションエラーでリクエストを拒否する。
 5. If the computed ADR number collides with an existing file at write time, the sdd-core server shall fail the request without overwriting the existing file.
    - 和訳: 算出した ADR 番号が書込時に既存ファイルと衝突する場合、sdd-core サーバーは既存ファイルを上書きせずにリクエストを失敗させる。
+6. Where ADR creation input includes an optional `app` field, the sdd-core server shall write its value into the created ADR's `app` frontmatter key, and shall set the key to `null` when the input omits it.
+   - 和訳: ADR 作成入力に任意の `app` フィールドが含まれる場合、sdd-core サーバーはその値を作成された ADR の `app` frontmatter キーに書き込み、入力で省略された場合はキーを `null` に設定する。
 
 ### Requirement 12: 書込の安全性と監査
 

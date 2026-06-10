@@ -39,13 +39,14 @@
 - [ ] 3. 成果物パーサー
 - [ ] 3.1 (P) spec.json パーサーを実装する
   - spec.json の読取結果を構造化メタデータへ変換し、欠落・不正 JSON の場合は診断付きエントリとして返す（エントリを落とさない）
-  - 不正 JSON 入力で diagnostics に parse-failure が入り、正常入力でフェーズ・承認フラグ・言語・タイムスタンプが厳密値で取れる単体テストが pass する
-  - _Requirements: 2.3_
+  - 任意の `app` フィールドを `app: string | null` として公開し、欠落時は null（未分類）を返す
+  - 不正 JSON 入力で diagnostics に parse-failure が入り、正常入力でフェーズ・承認フラグ・言語・タイムスタンプ・`app`（あり / なし両方）が厳密値で取れる単体テストが pass する
+  - _Requirements: 2.3, 2.5_
   - _Boundary: SpecJsonParser_
 - [ ] 3.2 (P) requirements パーサーを実装する
   - 数値 ID 付き要件見出しから ID・タイトル・Objective を、番号付きリストから `N.M` 形式の受入基準を抽出する
   - 受入基準直後のインデント `- 和訳:` 箇条書きを当該基準の和訳として関連付ける
-  - 本スペック自身の requirements.md を fixture に、要件数 13・AC 数 61・和訳付与が厳密値で検証される単体テストが pass する
+  - 本スペック自身の requirements.md を fixture に、要件数 13・AC 数 65・和訳付与が厳密値で検証される単体テストが pass する
   - _Requirements: 3.1, 3.2, 3.3_
   - _Boundary: RequirementsParser_
 - [ ] 3.3 (P) design パーサーを実装する
@@ -71,14 +72,16 @@
 - [ ] 4.2 (P) steering / スキル読取サービスを実装する
   - `.kiro/steering/` 配下の全 markdown を内容 + セクション構造付きで返す
   - スキルディレクトリを走査し、SKILL.md と（存在すれば）SKILL.ja.md を英日ペアとして返す（ja 欠落時は null）
-  - fixture で steering 件数・skill の en/ja ペア解決（ja あり / なし両方）が厳密値で検証される
-  - _Requirements: 7.1, 7.2_
+  - SKILL.md frontmatter の `metadata.origin`（`"cc-sdd"` | `"custom"`）を `origin: string | null` として公開する（欠落時 null）
+  - fixture で steering 件数・skill の en/ja ペア解決（ja あり / なし両方）・origin（あり / なし両方）が厳密値で検証される
+  - _Requirements: 7.1, 7.2, 7.7_
   - _Boundary: SteeringService, SkillService_
 - [ ] 4.3 (P) ADR / validation レポート読取サービスを実装する
-  - `.kiro/adr/` の全 ADR を frontmatter 8 キーのパース + 本文構造化付きで返す（template.md は一覧から除外）
+  - `.kiro/adr/` の全 ADR を frontmatter 9 キー（`app` 含む）のパース + 本文構造化付きで返す（template.md は一覧から除外）
+  - frontmatter の `app` を `app: string | null` として公開する（欠落時 null = リポジトリ横断の決定）
   - スペックディレクトリの validation-{gap,design,impl}.md を type / feature / date / decision（存在時）付きで返す
-  - 実 ADR-0001 相当の fixture で frontmatter 全キーが厳密値で取得でき、decision を持たない gap レポートが正しく null になる
-  - _Requirements: 7.3, 7.4_
+  - 実 ADR-0001 相当の fixture で frontmatter 全キー（`app` あり / なし両方）が厳密値で取得でき、decision を持たない gap レポートが正しく null になる
+  - _Requirements: 7.3, 7.4, 7.6_
   - _Boundary: AdrService, ValidationService_
 
 - [ ] 5. トレーサビリティグラフ
@@ -129,10 +132,11 @@
   - _Depends: 7.2_
 - [ ] 7.4 (P) ADR 作成を実装する
   - `.kiro/adr/` の既存最大番号 + 1 を 4 桁ゼロ埋めで採番し、タイトル由来の kebab-case スラッグでファイル名を構成する
-  - adr.md 規約準拠の frontmatter（8 キー）と必須セクション Context / Decision / Consequences（+ 任意 Alternatives）を持つ本文を生成し、status 省略時は proposed・date は当日をデフォルトとする
+  - adr.md 規約準拠の frontmatter（9 キー、`app` 含む）と必須セクション Context / Decision / Consequences（+ 任意 Alternatives）を持つ本文を生成し、status 省略時は proposed・date は当日をデフォルトとする
+  - `CreateAdrInput` の任意 `app` を frontmatter `app` キーへ書き込み、省略時は null とする
   - exclusive 書込で番号衝突時に既存ファイルを上書きせず失敗する
-  - 作成されたファイルが FrontmatterParser で全キー厳密値読取でき、連続 2 回作成で番号が 1 ずつ増えることがテストで検証される
-  - _Requirements: 11.1, 11.2, 11.3, 11.5_
+  - 作成されたファイルが FrontmatterParser で全キー厳密値読取でき（`app` 指定 / 省略の両方）、連続 2 回作成で番号が 1 ずつ増えることがテストで検証される
+  - _Requirements: 11.1, 11.2, 11.3, 11.5, 11.6_
   - _Depends: 7.1_
   - _Boundary: AdrWriter_
 

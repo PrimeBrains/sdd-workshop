@@ -46,6 +46,14 @@
   - _Requirements: 2.5, 3.5, 4.2_
   - _Boundary: NextCommand_
 
+- [ ] 2.4 (P) app / origin グルーピング関数を実装する
+  - `model/grouping.ts` に `groupByApp` を実装する: `app: string | null` を持つ要素列を app 名昇順のグループ列に分割し、`app === null` のグループを末尾に置く（board の「未分類」/ ADR の「リポジトリ横断」が共用する純粋関数）
+  - `summarizeSpecGroup` を実装する: app セクションのスペック数・READY 数（`readyForImplementation === true`）・実装完了数（`phase === "implementation-complete"`）を集計する
+  - `groupSkillsByOrigin` を実装する: `SkillSummary.origin` で「`"cc-sdd"` → `"custom"` → `null`（未分類）」の固定順 3 グループ（空グループも省略しない）に分割し、各グループの件数を返す
+  - 完了条件: 複数 app + null 混在のスペック・ADR フィクスチャでグループ順序・所属・サマリー件数が、origin 混在スキルフィクスチャで 3 グループの固定順・件数が、それぞれ厳密値の単体テストで通る
+  - _Requirements: 1.6, 1.7, 1.8, 6.4, 6.5, 7.4, 7.5_
+  - _Boundary: GroupingModel_
+
 - [ ] 3. パイプライン俯瞰ボード
 - [ ] 3.1 ボードグラフ構築関数を実装する
   - `buildBoardGraph` を実装する: `SpecSummary[]` からスペックごとに 1 レーン（4 フェーズノード + 進行エッジ）と決定論的な格子座標を生成し、ノードデータに `PipelineView` と診断有無を埋め込む。spec.json 不正のスペックも省略せずレーンを生成する
@@ -56,8 +64,10 @@
 - [ ] 3.2 ボード画面を @xyflow/react で実装する
   - `@xyflow/react` ^12.11 を dependencies に追加し（CSS はローカル import・Pro 機能不使用）、`PipelineFlow` を読取専用設定（nodesDraggable / nodesConnectable 無効・fitView）でラップする。board ルートは `React.lazy` で遅延ロードする
   - `SpecPipelineNode` カスタムノードでフェーズ状態の色分け・現在フェーズ強調・ready バッジ・診断警告バッジを描画し、スペックラベルのクリックで `/specs/:feature` へ遷移させる。`BoardPage` は `useSpecs` でデータを取得し、エラー時は ErrorPanel を表示する
-  - 完了条件: フィクスチャスペックのレーンが全件描画されて各フェーズ状態・ready・診断バッジが厳密に表示される結合テストと、ノードクリックでレビュー画面へ遷移するテストが通る。バンドルに外部 URL 参照が含まれない
-  - _Requirements: 1.1, 1.2, 1.3, 1.4, 9.5, 9.6_
+  - `BoardPage` は `groupByApp` でスペックを app セクションに分割し、セクションごとに `AppSectionHeader`（app 名 + `summarizeSpecGroup` のスペック数・READY 数・実装完了数サマリー）とレーン群を app 名昇順で描画する。`app` が null のスペックは末尾の「未分類」セクションに表示する
+  - 完了条件: フィクスチャスペックのレーンが全件描画されて各フェーズ状態・ready・診断バッジが厳密に表示される結合テストと、ノードクリックでレビュー画面へ遷移するテストが通る。app 混在（null 含む）フィクスチャで app セクションが app 名順 + 未分類末尾で表示され、各セクションヘッダのサマリー件数が厳密値で表示される。バンドルに外部 URL 参照が含まれない
+  - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.6, 1.7, 1.8, 9.5, 9.6_
+  - _Depends: 2.4, 3.1_
 
 - [ ] 4. 承認・手戻り操作
 - [ ] 4.1 確認ダイアログ基盤と SpecActionSlot 登録を実装する
@@ -102,21 +112,23 @@
   - _Boundary: SteeringListPage, SteeringDocPage_
   - _Depends: 1.1, 1.3_
 
-- [ ] 6.2 (P) スキルビューア（英日タブ）を実装する
+- [ ] 6.2 (P) スキルビューア（英日タブ・origin グループ）を実装する
   - `SkillListPage` で `useSkillList` の全スキルを EN / JA 有無バッジ付きで一覧表示する。`SkillDocPage` は `SkillDoc.en` / `SkillDoc.ja` を URL クエリ `?lang=` で復元可能なタブとして切替表示する
   - `ja` が null のスキルは JA タブを無効化し「日本語版は未作成」の非エラー表示とともに英語版を表示する
-  - 完了条件: ja ありフィクスチャでタブ切替により本文テキストが厳密値で切り替わり、ja なしフィクスチャで JA タブ無効 + EN 表示 + 非エラー文言が表示されるテストが通る
-  - _Requirements: 6.1, 6.2, 6.3_
-  - _Boundary: SkillListPage, SkillDocPage_
-  - _Depends: 1.1, 1.3_
+  - 一覧は `groupSkillsByOrigin` で「cc-sdd 標準」→「独自スキル」→「未分類」の固定順 3 グループに分け、各グループ見出しに件数を併記する。`SkillDocPage` のヘッダに `SkillDoc.origin` の `OriginBadge`（cc-sdd 標準 / 独自スキル / 未分類）を表示する
+  - 完了条件: ja ありフィクスチャでタブ切替により本文テキストが厳密値で切り替わり、ja なしフィクスチャで JA タブ無効 + EN 表示 + 非エラー文言が表示されるテストが通る。origin 混在フィクスチャで一覧が固定順グループ + 件数付き見出しで描画され、詳細ヘッダに origin バッジが厳密値で表示されるテストが通る
+  - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5, 6.6_
+  - _Boundary: SkillListPage, SkillDocPage, OriginBadge_
+  - _Depends: 1.1, 1.3, 2.4_
 
 - [ ] 6.3 (P) ADR ビューアを実装する
   - `AdrListPage` で `useAdrList` の全 ADR を id・タイトル・`AdrStatusBadge`（proposed / accepted / deprecated / superseded の色分け）・date・関連 specs 付きで一覧表示し、選択で `/adr/:id` へ遷移する
-  - `AdrDetailPage` で frontmatter メタをヘッダ表示し、本文（Context / Decision / Consequences / Alternatives）を `MarkdownDoc` で散文描画する。frontmatter 不正の ADR は `RawBlockView` + 診断表示にフォールバックする
-  - 完了条件: フィクスチャ ADR の status バッジ・date・specs が厳密値で一覧表示され、本文セクションが描画されるテストと、frontmatter 破損 ADR が診断付き生表示になるテストが通る
-  - _Requirements: 7.1, 7.2, 7.3_
+  - 一覧は `groupByApp` で frontmatter `app` 別にグルーピングし（app 名昇順・各グループ内 id 昇順）、`app` が null の ADR は末尾の「リポジトリ横断」グループに表示する
+  - `AdrDetailPage` で frontmatter メタ（`app` 含む）をヘッダ表示し、本文（Context / Decision / Consequences / Alternatives）を `MarkdownDoc` で散文描画する。frontmatter 不正の ADR は `RawBlockView` + 診断表示にフォールバックする
+  - 完了条件: フィクスチャ ADR の status バッジ・date・specs が厳密値で一覧表示され、本文セクションが描画されるテストと、frontmatter 破損 ADR が診断付き生表示になるテストが通る。app 混在（null 含む）フィクスチャで一覧が app 別グループ + 末尾「リポジトリ横断」グループで描画されるテストが通る
+  - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5_
   - _Boundary: AdrListPage, AdrDetailPage, AdrStatusBadge_
-  - _Depends: 1.1, 1.3_
+  - _Depends: 1.1, 1.3, 2.4_
 
 - [ ] 7. 統合検証
 - [ ] 7.1 承認・手戻りワークフローの E2E テストを実装する

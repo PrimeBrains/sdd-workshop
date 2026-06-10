@@ -163,7 +163,7 @@ sdd-dashboard/
         │   ├── kiro-scanner.ts   # ディレクトリ走査 → ファイルインベントリ
         │   ├── spec-service.ts   # スペック一覧 / 詳細（毎リクエスト読取）
         │   ├── steering-service.ts
-        │   ├── skill-service.ts  # SKILL.md / SKILL.ja.md ペア解決
+        │   ├── skill-service.ts  # SKILL.md / SKILL.ja.md ペア解決 + metadata.origin 抽出
         │   ├── adr-service.ts
         │   ├── validation-service.ts
         │   ├── trace-graph.ts    # TraceGraphBuilder: グラフ構築 + 診断
@@ -246,6 +246,7 @@ flowchart TD
 | 2.2 | スペック詳細（全成果物構造化） | SpecService, 各パーサー | `GET /api/specs/:feature` | — |
 | 2.3 | spec.json 欠落/不正の診断付き応答 | SpecJsonParser | `SpecSummary.diagnostics` | — |
 | 2.4 | 再起動なしの最新反映 | SpecService（リクエスト時読取） | — | — |
+| 2.5 | spec.json `app` フィールドの公開（欠落時 null = 未分類） | SpecJsonParser | `SpecSummary.app` | — |
 | 3.1, 3.2, 3.3 | 要件・AC・和訳の構造化 | RequirementsParser | `RequirementsDoc` | — |
 | 3.4 | 全構造化要素への position 付与 | MarkdownEngine | `Position` | — |
 | 4.1 | セクションツリー | DesignParser, MarkdownEngine | `SectionTree` | — |
@@ -264,6 +265,8 @@ flowchart TD
 | 7.3 | ADR frontmatter + 本文の構造化 | AdrService, FrontmatterParser | `GET /api/adr`, `GET /api/adr/:id` | — |
 | 7.4 | validation レポートの構造化 | ValidationService, FrontmatterParser | `SpecDetail.validations` | — |
 | 7.5 | frontmatter 不正時の raw フォールバック | FrontmatterParser | `RawBlock` + 診断 | — |
+| 7.6 | ADR frontmatter `app` の公開（欠落時 null = リポジトリ横断） | AdrService, FrontmatterParser | `AdrFrontmatter.app` | — |
+| 7.7 | スキル `metadata.origin` の公開（欠落時 null） | SkillService | `SkillDoc.origin` | — |
 | 8.1 | `.kiro/` + スキルの監視 | KiroWatcher | chokidar watch | 監視 → SSE |
 | 8.2 | 2 秒以内の SSE プッシュ | KiroWatcher, EventBus, SseEndpoint | `GET /api/events`, `ChangeEvent` | 監視 → SSE |
 | 8.3 | 一時/無関係ファイルの除外 | KiroWatcher | ignored フィルタ | 監視 → SSE |
@@ -283,6 +286,7 @@ flowchart TD
 | 11.3 | status/date のデフォルト | AdrWriter | `CreateAdrInput` | — |
 | 11.4 | フィールド単位バリデーション | WritesRoute(zod), RefListParser | `ApiError`(422, fieldErrors) | 書込フロー |
 | 11.5 | 連番衝突時の非上書き失敗 | AdrWriter, SafePathGuard | `wx` フラグ書込 | 書込フロー |
+| 11.6 | ADR 作成入力の任意 `app` の frontmatter 反映（省略時 null） | AdrWriter | `CreateAdrInput.app` | 書込フロー |
 | 12.1, 12.2 | `.kiro/` 限定書込・トラバーサル拒否 | SafePathGuard | `assertWritablePath` | 書込フロー |
 | 12.3 | 書込監査ログ | AuditLog | `AuditEntry` | 書込フロー |
 | 12.4 | アトミック書込（部分書込防止） | SafePathGuard(atomic write) | temp + rename | 書込フロー |
@@ -304,26 +308,39 @@ flowchart TD
 | MarkdownEngine | Parser | md → mdast・セクションスライス・raw フォールバック | 3.4, 4.1, 13.2, 13.3 | remark (P0) | Service |
 | FrontmatterParser | Parser | YAML frontmatter 抽出（失敗時 raw + 診断） | 7.3, 7.4, 7.5 | yaml (P0) | Service |
 | RefListParser | Parser | 参照文法解釈の唯一の実装 | 6.2, 6.3, 6.6, 6.7 | — | Service |
-| SpecJsonParser | Parser | spec.json の構造化（不正時診断） | 2.3 | — | Service |
+| SpecJsonParser | Parser | spec.json の構造化（不正時診断・`app` 公開） | 2.3, 2.5 | — | Service |
 | RequirementsParser | Parser | 要件・AC・和訳の構造化 | 3.1, 3.2, 3.3 | MarkdownEngine (P0) | Service |
 | DesignParser | Parser | セクションツリー + Traceability 抽出 | 4.1, 4.2, 4.3, 4.4 | MarkdownEngine (P0), RefListParser (P0) | Service |
 | TasksParser | Parser | タスク階層・注記の構造化 | 5.1, 5.2, 5.3, 5.4 | MarkdownEngine (P0), RefListParser (P0) | Service |
 | KiroScanner | Service | `.kiro/` 走査・ファイルインベントリ | 2.1 | RepoContext (P0) | Service |
 | SpecService | Service | スペック一覧/詳細の合成 | 1.4, 2.1, 2.2, 2.4 | KiroScanner (P0), 各パーサー (P0) | Service |
-| SteeringService / SkillService / AdrService / ValidationService | Service | リソース別読取 | 7.1, 7.2, 7.3, 7.4 | MarkdownEngine (P0), FrontmatterParser (P0) | Service |
+| SteeringService / SkillService / AdrService / ValidationService | Service | リソース別読取 | 7.1, 7.2, 7.3, 7.4, 7.6, 7.7 | MarkdownEngine (P0), FrontmatterParser (P0) | Service |
 | TraceGraphBuilder | Service | 双方向グラフ + 診断 | 6.1, 6.3, 6.4, 6.5, 6.6 | RefListParser (P0), SpecService (P0) | Service |
 | SafePathGuard | Write | パスガード + アトミック書込 | 12.1, 12.2, 12.4 | RepoContext (P0) | Service |
 | AuditLog | Write | 書込監査ログ | 12.3 | — | Service |
 | SpecJsonWriter | Write | spec.json 読み書き共通 + derivePhase | 9.4, 9.5, 10.1 | SafePathGuard (P0) | Service |
 | ApprovalWriter | Write | 承認フラグ更新 | 9.1, 9.2, 9.3 | SpecJsonWriter (P0), AuditLog (P0) | Service |
 | RollbackWriter | Write | フェーズ巻き戻し | 10.1, 10.2, 10.3, 10.4 | SpecJsonWriter (P0), AuditLog (P0) | Service |
-| AdrWriter | Write | ADR 連番採番 + 生成 | 11.1, 11.2, 11.3, 11.5 | SafePathGuard (P0), AuditLog (P0) | Service |
+| AdrWriter | Write | ADR 連番採番 + 生成 | 11.1, 11.2, 11.3, 11.5, 11.6 | SafePathGuard (P0), AuditLog (P0) | Service |
 | EventBus | Watch | 型付き pub/sub | 8.2, 8.5, 8.6 | — | Event |
 | KiroWatcher | Watch | chokidar 監視 + 分類 + デバウンス | 8.1, 8.2, 8.3 | chokidar (P0), EventBus (P0) | Event |
 | HonoApp + Routes | API | ルーティング・CORS・エラーミドルウェア | 1.5, 2.1, 2.2, 6.1, 7.1, 7.2, 7.3, 7.4, 9.1, 10.3, 11.4, 13.1, 13.4 | Hono (P0), 全サービス (P0) | API |
 | SseEndpoint (`api/events.ts`) | API | SSE 配信・keepalive・後始末 | 8.2, 8.4, 8.5, 8.6 | EventBus (P0), Hono streamSSE (P0) | API, Event |
 
-以下、新しい境界を導入するコンポーネントの詳細。単純な読取サービス（Steering / Skill / Adr / Validation）はサマリー行 + API 契約表のみとする。
+以下、新しい境界を導入するコンポーネントの詳細。単純な読取サービス（Steering / Skill / Adr / Validation）はサマリー行 + API 契約表のみとする。ただしリソース DTO（`types/resources.ts`）のうち、所属アプリ・由来分類のフィールドは下流 UI のグルーピング契約となるためここで確定する:
+
+```typescript
+// types/resources.ts（所属アプリ・由来分類の関連フィールド抜粋）
+interface SkillDoc {
+  origin: string | null;  // SKILL.md frontmatter の metadata.origin（"cc-sdd" | "custom"）。欠落時 null（7.7）
+  // name / en / ja 等のその他フィールドは実装タスクで確定
+}
+
+interface AdrFrontmatter {
+  // id / title / status / date / specs / requirements / supersedes / superseded_by に加え:
+  app: string | null;     // 所属アプリ（spec.json の app と同語彙）。null = リポジトリ横断の決定（7.6）
+}
+```
 
 ### Parser 層
 
@@ -416,14 +433,14 @@ interface RefListParser {
 | Field | Detail |
 |-------|--------|
 | Intent | 成果物別の構造化（いずれも MarkdownEngine / RefListParser の合成。純粋関数） |
-| Requirements | 2.3, 3.1, 3.2, 3.3, 4.1, 4.2, 4.3, 4.4, 5.1, 5.2, 5.3, 5.4, 7.5 |
+| Requirements | 2.3, 2.5, 3.1, 3.2, 3.3, 4.1, 4.2, 4.3, 4.4, 5.1, 5.2, 5.3, 5.4, 7.5 |
 
 **Responsibilities & Constraints**
 
 - **RequirementsParser**: `Requirement <N>` 見出し → `{ id, title, objective }`、番号付きリスト → `{ id: "N.M", text }`。直後のインデント `- 和訳:` を `translationJa` に格納（3.3）。Boundary Context / Introduction はセクションとして保持
 - **DesignParser**: セクションツリー（4.1）に加え、`Requirements Traceability` テーブル行 → `{ refs: RefToken[], summary, components, interfaces, flows }`（4.2）、コンポーネント詳細 `| Requirements |` 行・`Req Coverage` 列 → `RefToken[]`（4.3）。行パース失敗は RawBlock + 診断で当該行のみ落とす（4.4）
 - **TasksParser**: `- [ ]` / `- [x]` / `- [ ]*` 行 → `{ id, description, checked, parallel, optional }`（5.1）。ID の `.` 有無で major/sub を判定し親子付け（5.2）。`_Requirements:_` / `_Depends:_` / `_Boundary:_` を抽出（5.3）。その他の詳細 bullet は `details: string[]` に保持（5.4）
-- **SpecJsonParser**: `JSON.parse` + スキーマ検証。失敗時は `{ raw, diagnostics }` を返しエントリ自体は残す（2.3）
+- **SpecJsonParser**: `JSON.parse` + スキーマ検証。失敗時は `{ raw, diagnostics }` を返しエントリ自体は残す（2.3）。任意の `app` フィールドは `app: string | null` として公開し、欠落時は null（UI は未分類として扱う）（2.5）
 - **FrontmatterParser**: 先頭 `---` ブロックを yaml でパース。欠落・不正時は本文全体を raw + 診断（7.5）。ADR / validation レポートのキーは検証するが、未知キーは保持する
 
 **Contracts**: Service [x]（代表シグネチャのみ。全 DTO は `types/spec.ts` / `types/resources.ts` に定義）
@@ -477,6 +494,7 @@ interface SpecService {
 
 interface SpecSummary {
   feature: string;
+  app: string | null;     // spec.json の app フィールド。欠落時 null（UI は未分類として扱う、2.5）
   phase: string | null;
   language: string | null;
   approvals: SpecApprovals | null;
@@ -635,12 +653,12 @@ interface RollbackWriter {
 | Field | Detail |
 |-------|--------|
 | Intent | ADR 規約準拠ファイルの採番・生成 |
-| Requirements | 11.1, 11.2, 11.3, 11.5 |
+| Requirements | 11.1, 11.2, 11.3, 11.5, 11.6 |
 
 **Responsibilities & Constraints**
 
 - `.kiro/adr/` を走査して既存最大番号 + 1 を 4 桁ゼロ埋めで採番（欠番を作らない）。スラッグはタイトルから kebab-case 導出（入力で上書き可）（11.1）
-- 生成内容は `.kiro/adr/template.md` と同形: frontmatter 8 キー + `## Context` / `## Decision` / `## Consequences`（+ 任意 `## Alternatives`）（11.2）。status デフォルト `proposed`、date は当日（11.3）
+- 生成内容は `.kiro/adr/template.md` と同形: frontmatter 9 キー（`app` 含む）+ `## Context` / `## Decision` / `## Consequences`（+ 任意 `## Alternatives`）（11.2）。status デフォルト `proposed`、date は当日（11.3）。入力の任意 `app` を frontmatter `app` キーへ書き込み、省略時は `null` とする（11.6）
 - 書込は `exclusive: true`（`wx`）で実行し、採番競合時は `AppError(ADR_NUMBER_CONFLICT, 409)` で既存ファイルを保護（11.5）
 
 **Contracts**: Service [x]
@@ -653,6 +671,7 @@ interface CreateAdrInput {
   consequences: string;
   alternatives?: string;
   status?: "proposed" | "accepted";
+  app?: string;            // 所属アプリ（spec.json の app と同語彙）。省略時は frontmatter app: null（11.6）
   specs?: string[];
   requirements?: string[]; // クロス spec 形式 "<feature>/<id>" を zod + RefListParser で検証 (11.4)
   slug?: string;
@@ -685,14 +704,14 @@ interface AdrWriter {
 | Method | Endpoint | Request | Response | Errors |
 |--------|----------|---------|----------|--------|
 | GET | `/api/repo` | — | `RepoInfo`（リポジトリ絶対パス・名前） | 500 |
-| GET | `/api/specs` | — | `SpecSummary[]` | 500 |
+| GET | `/api/specs` | — | `SpecSummary[]`（所属 `app` 付き。未設定は null） | 500 |
 | GET | `/api/specs/:feature` | — | `SpecDetail`（全成果物構造化 + validations） | 404, 500 |
 | GET | `/api/specs/:feature/trace` | — | `TraceGraph` | 404, 500 |
 | GET | `/api/steering` | — | `SteeringDocSummary[]` | 500 |
 | GET | `/api/steering/:name` | — | `SteeringDoc`（content + sections） | 404, 500 |
-| GET | `/api/skills` | — | `SkillSummary[]`（en/ja 有無付き） | 500 |
-| GET | `/api/skills/:name` | — | `SkillDoc`（`en` 必須・`ja` nullable） | 404, 500 |
-| GET | `/api/adr` | — | `AdrSummary[]`（frontmatter） | 500 |
+| GET | `/api/skills` | — | `SkillSummary[]`（en/ja 有無・`origin` 付き） | 500 |
+| GET | `/api/skills/:name` | — | `SkillDoc`（`en` 必須・`ja` nullable・`origin` nullable） | 404, 500 |
+| GET | `/api/adr` | — | `AdrSummary[]`（frontmatter、`app` 含む） | 500 |
 | GET | `/api/adr/:id` | — | `AdrDoc`（frontmatter + 構造化本文） | 404, 500 |
 | GET | `/api/events` | — | SSE ストリーム（`event: change`, data: `ChangeEvent`） | — |
 | PUT | `/api/specs/:feature/approvals` | `{ phase: PhaseName; approved: boolean }` | `SpecSummary` | 404, 409, 422, 500 |

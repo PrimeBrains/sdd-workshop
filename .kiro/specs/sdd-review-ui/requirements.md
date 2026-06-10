@@ -53,6 +53,10 @@ sdd-review-ui は SDD Dashboard のレビュアー体験を担う画面群であ
    - 和訳: sdd-review-ui クライアントは生フォールバックブロックを含むすべてのドキュメント内容を不活性なテキストと装飾要素として描画し、ドキュメント内容がスクリプトを実行したりビューア外のページを改変したりできないようにする。
 7. When displaying a brief or research document, the sdd-review-ui client shall render its section structure and content as readable formatted text.
    - 和訳: brief または research 文書を表示するとき、sdd-review-ui クライアントはそのセクション構造と内容を読みやすい整形済みテキストとして描画する。
+8. When a document contains a fenced `mermaid` code block, the sdd-review-ui client shall render the block as a diagram.
+   - 和訳: ドキュメントが `mermaid` フェンスコードブロックを含むとき、sdd-review-ui クライアントはそのブロックを図として描画する。
+9. If rendering of a `mermaid` code block fails, the sdd-review-ui client shall display the block's raw code together with a visible warning instead of silently dropping the block.
+   - 和訳: `mermaid` コードブロックの描画が失敗した場合、sdd-review-ui クライアントはそのブロックを黙って欠落させる代わりに、生のコード全文を目に見える警告とともに表示する。
 
 ### Requirement 3: 相互リンクナビゲーション
 
@@ -72,6 +76,14 @@ sdd-review-ui は SDD Dashboard のレビュアー体験を担う画面群であ
    - 和訳: 参照がトレーサビリティデータでリンク切れと報告されている場合、sdd-review-ui クライアントは存在しないジャンプ先を提示する代わりに、その参照をリンク切れと判別できる表示で示す。
 6. Where a reference uses the cross-spec form `<feature-name>/<ID>`, the sdd-review-ui client shall jump to the referenced requirement in the other spec's requirements document.
    - 和訳: 参照がクロス spec 形式 `<feature-name>/<ID>` を使用している場合、sdd-review-ui クライアントは参照先スペックの requirements 文書内の当該要件へジャンプする。
+7. The sdd-review-ui client shall encode the current navigation state — screen, selected spec, document, and focus target (such as a focused acceptance criterion, design section, traceability row, or task) — in the URL.
+   - 和訳: sdd-review-ui クライアントは現在のナビゲーション状態 — 画面・選択中のスペック・ドキュメント・フォーカス対象（フォーカス中の受入基準・design セクション・トレーサビリティ行・タスクなど）— を URL に符号化する。
+8. When the user activates the browser back or forward control, the sdd-review-ui client shall restore the corresponding navigation state, including the focus and scroll target.
+   - 和訳: ユーザーがブラウザの戻る / 進む操作を行ったとき、sdd-review-ui クライアントはフォーカス・スクロール対象を含む該当のナビゲーション状態を復元する。
+9. When a URL containing a focus target is opened by reload or as a shared link, the sdd-review-ui client shall restore the same view and scroll the focus target into view.
+   - 和訳: フォーカス対象を含む URL がリロードまたは共有リンクとして開かれたとき、sdd-review-ui クライアントは同じビューを復元し、フォーカス対象を画面内にスクロールする。
+10. If the anchor of a covering design section cannot be resolved in the design document, the sdd-review-ui client shall navigate to the corresponding structured traceability row instead, so that no jump results in a dead click.
+    - 和訳: カバーする design セクションのアンカーが design 文書内で解決できない場合、sdd-review-ui クライアントは代わりに対応する構造化トレーサビリティ行へ遷移し、いかなるジャンプもデッドクリックにならないようにする。
 
 ### Requirement 4: サイドバイサイド比較ビュー
 

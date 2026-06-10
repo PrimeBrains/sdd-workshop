@@ -32,6 +32,12 @@ sdd-workflow-ui は SDD Dashboard のワークフロー/オペレーション体
    - 和訳: ユーザーがボード上のスペックを選択したとき、sdd-workflow-ui クライアントはそのスペックのレビュー画面へ遷移する。
 5. The sdd-workflow-ui client shall represent the board view in the URL, so that the same view can be restored by reloading or sharing the URL.
    - 和訳: sdd-workflow-ui クライアントはボードビューを URL に表現し、リロードや URL 共有で同じビューを復元できるようにする。
+6. When the user opens the pipeline board, the sdd-workflow-ui client shall group the spec lanes into sections by each spec's `app`, ordering the app sections by app name.
+   - 和訳: ユーザーがパイプラインボードを開いたとき、sdd-workflow-ui クライアントはスペックのレーンを各スペックの `app` ごとのセクションにグルーピングし、app セクションを app 名順に並べて表示する。
+7. The sdd-workflow-ui client shall display, for each app section, a summary showing the number of specs, the number of specs ready for implementation, and the number of specs whose implementation is complete.
+   - 和訳: sdd-workflow-ui クライアントは、各 app セクションに、スペック数・実装準備完了（READY）のスペック数・実装完了のスペック数を示すサマリーを表示する。
+8. If a spec's `app` is null, the sdd-workflow-ui client shall display that spec's lane in an unclassified group (未分類).
+   - 和訳: スペックの `app` が null の場合、sdd-workflow-ui クライアントはそのスペックのレーンを「未分類」グループに表示する。
 
 ### Requirement 2: 承認操作
 
@@ -107,6 +113,12 @@ sdd-workflow-ui は SDD Dashboard のワークフロー/オペレーション体
    - 和訳: ユーザーがスキルを表示したとき、sdd-workflow-ui クライアントは英語版ドキュメントと日本語版ドキュメントをタブで切り替えられるようにする。
 3. Where a skill has no Japanese document, the sdd-workflow-ui client shall indicate its absence without treating it as an error and display the English document.
    - 和訳: スキルに日本語版ドキュメントが存在しない場合、sdd-workflow-ui クライアントはそれをエラーとして扱わずに不在であることを表示し、英語版ドキュメントを表示する。
+4. When the user opens the skills view, the sdd-workflow-ui client shall group the skills list by each skill's `origin` into three groups — cc-sdd standard (`origin` is `"cc-sdd"`), custom skills (`origin` is `"custom"`), and unclassified (`origin` is null) — displayed in this fixed order: standard, custom, unclassified.
+   - 和訳: ユーザーがスキルビューを開いたとき、sdd-workflow-ui クライアントはスキル一覧を各スキルの `origin` で「cc-sdd 標準」（`origin` が `"cc-sdd"`）・「独自スキル」（`origin` が `"custom"`）・「未分類」（`origin` が null）の 3 グループにグルーピングし、標準 → 独自 → 未分類 の固定順で表示する。
+5. The sdd-workflow-ui client shall display the number of skills in each origin group together with that group's heading.
+   - 和訳: sdd-workflow-ui クライアントは、各 origin グループの見出しとともに、そのグループに属するスキル数を表示する。
+6. When the user views a skill, the sdd-workflow-ui client shall display a badge indicating the skill's origin classification.
+   - 和訳: ユーザーがスキルを表示したとき、sdd-workflow-ui クライアントはそのスキルの origin 分類を示すバッジを表示する。
 
 ### Requirement 7: ADR ビューア
 
@@ -120,6 +132,10 @@ sdd-workflow-ui は SDD Dashboard のワークフロー/オペレーション体
    - 和訳: ユーザーが ADR を選択したとき、sdd-workflow-ui クライアントはその本文セクション（Context・Decision・Consequences、存在する場合は Alternatives）を読みやすい散文として描画する。
 3. If an ADR's metadata cannot be parsed, the sdd-workflow-ui client shall display the ADR's raw content together with the reported diagnostic instead of omitting the ADR.
    - 和訳: ADR のメタデータがパースできない場合、sdd-workflow-ui クライアントはその ADR を省略する代わりに、報告された診断とともに生の内容を表示する。
+4. When the user opens the ADR view, the sdd-workflow-ui client shall group the ADR list by each ADR's frontmatter `app`.
+   - 和訳: ユーザーが ADR ビューを開いたとき、sdd-workflow-ui クライアントは ADR 一覧を各 ADR の frontmatter `app` ごとにグルーピングして表示する。
+5. If an ADR's `app` is null, the sdd-workflow-ui client shall display that ADR under a repository-cross-cutting group (リポジトリ横断).
+   - 和訳: ADR の `app` が null の場合、sdd-workflow-ui クライアントはその ADR を「リポジトリ横断」グループに表示する。
 
 ### Requirement 8: 変更の自動反映
 
