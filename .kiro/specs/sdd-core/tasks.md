@@ -3,7 +3,7 @@
 本計画は `.kiro/specs/sdd-core/design.md` の層構造（Types → Config → Parsers → Services → Watcher → API → Entry）に沿い、純粋関数パーサー層を先に固めてからサービス・配信・書込・API 組み立てへ進む。全コードは `sdd-dashboard/server/` 配下に新規作成する。
 
 - [ ] 1. 基盤: パッケージと起動骨格
-- [ ] 1.1 サーバーパッケージを初期化する
+- [x] 1.1 サーバーパッケージを初期化する
   - `sdd-dashboard/server/` に package.json / tsconfig（strict・`any` 禁止）/ vitest 設定を作成し、Hono 4・remark 系・chokidar v4・yaml・zod（すべて MIT）を依存に追加する
   - データベース系の依存を一切含めない構成にする
   - `npm test`（Vitest 起動）と `tsc --noEmit` がエラーなく完走する
@@ -178,3 +178,8 @@
   - 書込中断シミュレーションで対象ファイルが破損しない（旧内容 or 完全な新内容）ことがアサートされる
   - _Requirements: 2.4, 9.1, 9.5, 11.1, 11.5, 12.4_
   - _Depends: 8.2, 8.3_
+
+## Implementation Notes
+
+- 1.1: ローカル Node が 21.7.3 のため vite を ^7 に固定（vite 8 の rolldown ネイティブバインディングは Node ^20.19||>=22.12 必須で Vitest が起動不能になる）。Node 22 へ更新したら固定解除可
+- 1.2: yaml パッケージは ISC ライセンス（MIT ではないが OSI 承認・実質同等）。design.md の「すべて MIT」は厳密には不正確
