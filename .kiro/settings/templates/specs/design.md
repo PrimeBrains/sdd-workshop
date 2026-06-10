@@ -132,16 +132,14 @@ Skip this section entirely for simple CRUD changes.
 
 ## Requirements Traceability
 
-Use this section for complex or compliance-sensitive features where requirements span multiple domains. Straightforward 1:1 mappings can rely on the Components summary table.
-
-Map each requirement ID (e.g., `2.1`) to the design elements that realize it.
+**Required section.** Map every requirement ID to the design elements that realize it. Tools and grep-based searches rely on this table, so the Requirement column MUST follow the reference-list grammar defined in `.kiro/steering/trace-notation.md`: comma-separated numeric IDs with every covered ID enumerated individually (e.g. `1.1, 1.2, 1.3`). No ranges (`1.3-1.5`), no wildcards (`15.*`), no parentheses, no free-form annotations in the Requirement column — put explanations in the Summary column.
 
 | Requirement | Summary | Components | Interfaces | Flows |
 |-------------|---------|------------|------------|-------|
-| 1.1 | | | | |
-| 1.2 | | | | |
+| 1.1, 1.2, 1.3 | | | | |
+| 2.1 | | | | |
 
-> Omit this section only when a single component satisfies a single requirement without cross-cutting concerns.
+> Every requirement ID defined in requirements.md must be covered by at least one row. Uncovered IDs are treated as a design gap.
 
 ## Components and Interfaces
 
@@ -153,7 +151,7 @@ Provide a quick reference before diving into per-component details.
   | ExampleComponent | UI | Displays XYZ | 1, 2 | GameProvider (P0), MapPanel (P1) | Service, State |
 - Only components introducing new boundaries (e.g., logic hooks, external integrations, persistence) require full detail blocks. Simple presentation components can rely on the summary row plus a short Implementation Note.
 
-Group detailed blocks by domain or architectural layer. For each detailed component, list requirement IDs as `2.1, 2.3` (omit “Requirement”). When multiple UI components share the same contract, reference a base interface/props definition instead of duplicating code blocks.
+Group detailed blocks by domain or architectural layer. For each detailed component, list requirement IDs as `2.1, 2.3` (omit “Requirement”). The `Requirements` field and the `Req Coverage` column follow the same reference-list grammar as the traceability table (individually enumerated numeric IDs only; no ranges, wildcards, or annotations). When multiple UI components share the same contract, reference a base interface/props definition instead of duplicating code blocks.
 
 ### [Domain / Layer]
 

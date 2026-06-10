@@ -51,7 +51,7 @@ After all parallel research completes, synthesize findings before generating tas
 
 **Generate task list following all rules**:
 - Use language specified in spec.json
-- Map all requirements to tasks and list numeric requirement IDs only (comma-separated) without descriptive suffixes, parentheses, translations, or free-form labels
+- Map all requirements to tasks and list numeric requirement IDs only (comma-separated) without descriptive suffixes, parentheses, translations, or free-form labels. Follow the reference-list grammar in `.kiro/steering/trace-notation.md`: enumerate every covered ID individually (e.g. `1.1, 1.3, 1.4, 1.5`); ranges like `1.3-1.5` and wildcards like `15.*` are forbidden
 - Ensure all design components included
 - Verify task progression is logical and incremental
 - Ensure each executable sub-task includes at least one detail bullet that states what "done" looks like in observable terms

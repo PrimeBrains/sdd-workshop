@@ -25,7 +25,7 @@ If steering/spec context is already available from conversation, skip redundant 
 Otherwise, load all necessary context:
 - `.kiro/specs/{feature}/spec.json`, `requirements.md`, `design.md` (if exists)
 - `.kiro/specs/{feature}/research.md` (if exists, contains gap analysis from `/kiro-validate-gap`)
-- Core steering context: `product.md`, `tech.md`, `structure.md`
+- Core steering context: `product.md`, `tech.md`, `structure.md`, `trace-notation.md` (reference-list grammar for traceability annotations)
 - Additional steering files only when directly relevant to requirement coverage, architecture boundaries, integrations, runtime prerequisites, security/performance constraints, or team conventions that affect implementation readiness
 - `.kiro/settings/templates/specs/design.md` for document structure
 - Read `rules/design-principles.md` from this skill's directory for design principles
@@ -141,6 +141,7 @@ After all findings return, synthesize in main context before proceeding.
    - For dynamically typed languages, provide type hints/annotations where available (e.g., Python type hints) and validate inputs at boundaries.
    - Document public interfaces and contracts clearly to ensure cross-component type safety.
 - **Requirements Traceability IDs**: Use numeric requirement IDs only (e.g. "1.1", "1.2", "3.1", "3.3") exactly as defined in requirements.md. Do not invent new IDs or use alphabetic labels.
+- **Reference-list grammar** (per `.kiro/steering/trace-notation.md`): Everywhere requirement IDs are listed (Requirements Traceability table, component `Requirements` fields, `Req Coverage` columns), enumerate every covered ID individually, comma-separated (e.g. `1.1, 1.3, 1.4, 1.5`). Never use ranges (`1.3-1.5`), wildcards (`15.*`), parentheses, or free-form annotations inside the ID list — ranges break plain-text grep for intermediate IDs; explanations belong in the Summary column or prose. The `## Requirements Traceability` section is required and must cover every requirement ID.
 
 ## Output Description
 
