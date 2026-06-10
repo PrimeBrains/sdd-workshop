@@ -3,6 +3,7 @@ id: 0
 title: 決定の短い表題
 status: proposed
 date: YYYY-MM-DD
+app: null
 specs: []
 requirements: []
 supersedes: null

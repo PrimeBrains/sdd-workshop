@@ -19,6 +19,7 @@ id: 1
 title: 決定の短い表題
 status: accepted        # proposed | accepted | deprecated | superseded
 date: 2026-06-10
+app: sdd-dashboard      # 所属アプリ（spec.json の app と同じ語彙）。リポジトリ横断の決定は null
 specs: [sdd-core]       # 関連 spec（なければ []）
 requirements: []        # 関連要件。trace-notation.md のクロス spec 形式（例 sdd-core/1.2）
 supersedes: null        # 置き換える ADR の id

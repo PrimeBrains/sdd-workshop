@@ -3,6 +3,7 @@ id: 1
 title: SDD Dashboard は DB なしの薄いローカル Web アプリとして実装する
 status: accepted
 date: 2026-06-10
+app: sdd-dashboard
 specs: [sdd-core, sdd-review-ui, sdd-workflow-ui]
 requirements: []
 supersedes: null

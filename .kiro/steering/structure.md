@@ -1,5 +1,14 @@
 # Project Structure
 
+## Repository Apps & Spec Grouping
+
+本リポジトリは複数アプリを含む: `evm-studio/`（EVM 管理ツール）と `sdd-dashboard/`（SDD レビューダッシュボード）。
+
+スペックの所属アプリは **spec.json の `app` フィールドが正典**（例: `"app": "evm-studio"`）。
+新規スペック作成時は必ず `app` を設定する。GUI・集計ツールはこのフィールドでグルーピングし、未設定のスペックは「未分類」として扱う。roadmap.md の Phase 見出しは人間向けの文脈であり、機械的なグルーピングには使わない。
+
+以下のディレクトリ規約は **evm-studio** のもの（sdd-dashboard の規約は `.kiro/specs/sdd-*/design.md` の File Structure Plan を参照）。
+
 ## Organization Philosophy
 
 サーバーとクライアントをトップレベルで分離し、それぞれ独立してビルド・テスト可能にする。ビジネスロジックはサーバーの `services/` に集約し、API 層・DB 層・UI 層を明確に分ける。
