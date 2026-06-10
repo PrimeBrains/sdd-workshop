@@ -1,0 +1,176 @@
+# 実装計画: sdd-core
+
+本計画は `.kiro/specs/sdd-core/design.md` の層構造（Types → Config → Parsers → Services → Watcher → API → Entry）に沿い、純粋関数パーサー層を先に固めてからサービス・配信・書込・API 組み立てへ進む。全コードは `sdd-dashboard/server/` 配下に新規作成する。
+
+- [ ] 1. 基盤: パッケージと起動骨格
+- [ ] 1.1 サーバーパッケージを初期化する
+  - `sdd-dashboard/server/` に package.json / tsconfig（strict・`any` 禁止）/ vitest 設定を作成し、Hono 4・remark 系・chokidar v4・yaml・zod（すべて MIT）を依存に追加する
+  - データベース系の依存を一切含めない構成にする
+  - `npm test`（Vitest 起動）と `tsc --noEmit` がエラーなく完走する
+  - _Requirements: 1.4_
+- [ ] 1.2 起動エントリとリポジトリコンテキストを実装する
+  - CLI 引数のリポジトリパスを絶対パスへ解決し、パス・`.kiro/` 位置・ポート（デフォルト値を文書化）を保持する RepoContext を唯一の定義場所として実装する
+  - パス不在・`.kiro/` 不在の場合は不正パスを明示するメッセージとともに非ゼロ終了する
+  - 正常リポジトリを指定すると指定ポートで HTTP サーバーが待ち受け、不正パスでは exit code 1 とエラーメッセージが出力される
+  - _Requirements: 1.1, 1.2, 1.3_
+- [ ] 1.3 エラーコード基盤と API 契約型を定義する
+  - ErrorCode 定数 + AppError クラス（design.md のエラー表に対応する全コード）を唯一の定義場所として実装する
+  - `types/` 配下に Position / DocBlock / SpecSummary / TraceGraph / ChangeEvent / ApiError 等の公開契約型を定義する（下流 UI スペックが import する正典）
+  - 全契約型が `tsc --noEmit` を通過し、ErrorCode に未定義の文字列リテラルを使うとコンパイルエラーになる
+  - _Requirements: 13.1_
+
+- [ ] 2. markdown パース基盤
+- [ ] 2.1 MarkdownEngine（mdast 変換と情報無欠落フォールバック）を実装する
+  - remark（remark-parse + remark-gfm + remark-frontmatter）で markdown 文字列を position 付き mdast とセクションツリーへ変換する純粋関数を実装する
+  - 構造化済み position 群の補集合から raw ブロックを切り出す `coverGaps` を実装し、どんな入力でも例外を投げない
+  - 単体テストで「全ブロックの position 連結 = 元文書全体」の不変則が破損 markdown 入力でも成立する
+  - _Requirements: 3.4, 13.2, 13.3_
+- [ ] 2.2 frontmatter パーサーを実装する
+  - 先頭 `---` ブロックを YAML としてパースし、ADR / validation レポートの既知キーを検証しつつ未知キーも保持する
+  - frontmatter が欠落・不正な場合は本文全体を診断付き raw markdown として返す
+  - 正常 frontmatter・キー欠落・YAML 構文エラーの 3 系統の単体テストが厳密値で pass する
+  - _Requirements: 7.5_
+- [ ] 2.3 参照リストパーサー（RefListParser）を実装する
+  - trace-notation.md の ref-list 文法（カンマ区切り全列挙）を解釈し、トークンごとに id / range / cross-spec / unparsable を判別する
+  - 旧範囲表記は同一 major・整数 minor の場合のみ閉区間で連番展開し legacy フラグを付け、major 跨ぎ・非整数・ワイルドカード・括弧付き注記は unparsable として返す（例外を投げない）
+  - `1.1-1.6` が 6 個の ID へ厳密一致で展開され、`15.*` と `1.6-2.3` が unparsable になる単体テストが pass する
+  - _Requirements: 6.2, 6.3, 6.6, 6.7_
+
+- [ ] 3. 成果物パーサー
+- [ ] 3.1 (P) spec.json パーサーを実装する
+  - spec.json の読取結果を構造化メタデータへ変換し、欠落・不正 JSON の場合は診断付きエントリとして返す（エントリを落とさない）
+  - 不正 JSON 入力で diagnostics に parse-failure が入り、正常入力でフェーズ・承認フラグ・言語・タイムスタンプが厳密値で取れる単体テストが pass する
+  - _Requirements: 2.3_
+  - _Boundary: SpecJsonParser_
+- [ ] 3.2 (P) requirements パーサーを実装する
+  - 数値 ID 付き要件見出しから ID・タイトル・Objective を、番号付きリストから `N.M` 形式の受入基準を抽出する
+  - 受入基準直後のインデント `- 和訳:` 箇条書きを当該基準の和訳として関連付ける
+  - 本スペック自身の requirements.md を fixture に、要件数 13・AC 数 61・和訳付与が厳密値で検証される単体テストが pass する
+  - _Requirements: 3.1, 3.2, 3.3_
+  - _Boundary: RequirementsParser_
+- [ ] 3.3 (P) design パーサーを実装する
+  - 見出し階層をタイトル・深さ・position 付きセクションツリーとして返す
+  - Requirements Traceability テーブルの各行を参照 ID（RefToken）・Summary・Components・Interfaces・Flows に構造化し、コンポーネント詳細の Requirements フィールドと Req Coverage 列からも参照を抽出する
+  - パースできない表行は raw テキスト + 診断で返しつつ残りの行の抽出を継続する
+  - 旧 spec `dashboard` の design.md（範囲表記入り）を fixture に、行構造化と raw フォールバックが厳密値で検証される単体テストが pass する
+  - _Requirements: 4.1, 4.2, 4.3, 4.4_
+  - _Boundary: DesignParser_
+- [ ] 3.4 (P) tasks パーサーを実装する
+  - チェックボックス行からタスク ID・説明・完了状態・`(P)` マーカー・`*` マーカーを抽出し、ID 形式から major / sub の親子階層を構築する
+  - `_Requirements:_` / `_Depends:_` / `_Boundary:_` 注記と詳細箇条書きをタスクエントリに保持する
+  - 既存 spec の tasks.md を fixture に、完了状態・並列マーカー・3 注記・詳細 bullet 保持が厳密値で検証される単体テストが pass する
+  - _Requirements: 5.1, 5.2, 5.3, 5.4_
+  - _Boundary: TasksParser_
+
+- [ ] 4. 読取サービス
+- [ ] 4.1 .kiro スキャナとスペックサービスを実装する
+  - `.kiro/specs/` を走査して spec ディレクトリと成果物ファイルの有無をインベントリ化し、一覧（メタデータ + 成果物有無）と詳細（全成果物の構造化表現）を返す
+  - キャッシュを持たず毎リクエストでファイルを読み直し、ディスク変更が次のレスポンスへ即時反映される
+  - フィクスチャツリーに対し、一覧の件数・成果物有無フラグと、ファイル書き換え後の再取得で内容が変わることが統合テストで検証される
+  - _Requirements: 1.4, 2.1, 2.2, 2.4_
+- [ ] 4.2 (P) steering / スキル読取サービスを実装する
+  - `.kiro/steering/` 配下の全 markdown を内容 + セクション構造付きで返す
+  - スキルディレクトリを走査し、SKILL.md と（存在すれば）SKILL.ja.md を英日ペアとして返す（ja 欠落時は null）
+  - fixture で steering 件数・skill の en/ja ペア解決（ja あり / なし両方）が厳密値で検証される
+  - _Requirements: 7.1, 7.2_
+  - _Boundary: SteeringService, SkillService_
+- [ ] 4.3 (P) ADR / validation レポート読取サービスを実装する
+  - `.kiro/adr/` の全 ADR を frontmatter 8 キーのパース + 本文構造化付きで返す（template.md は一覧から除外）
+  - スペックディレクトリの validation-{gap,design,impl}.md を type / feature / date / decision（存在時）付きで返す
+  - 実 ADR-0001 相当の fixture で frontmatter 全キーが厳密値で取得でき、decision を持たない gap レポートが正しく null になる
+  - _Requirements: 7.3, 7.4_
+  - _Boundary: AdrService, ValidationService_
+
+- [ ] 5. トレーサビリティグラフ
+- [ ] 5.1 双方向グラフ構築を実装する
+  - 構造化済み requirements / design / tasks から、design Traceability 行・コンポーネント Requirements フィールド・タスク `_Requirements:_` 注記の 3 源泉でエッジを構築する
+  - クロス spec 形式の参照は参照先スペックの requirements に対して解決する
+  - フィクスチャ spec に対し、要件→設計→タスクの両方向でノード対応が完全列挙されたグラフが返ることが厳密値で検証される
+  - _Requirements: 6.1, 6.2, 6.6_
+  - _Depends: 3.2, 3.3, 3.4, 4.1_
+- [ ] 5.2 グラフ診断（欠損・リンク切れ・旧表記照合）を実装する
+  - 旧範囲表記の展開後 ID を含む全参照を requirements の実在 ID と照合し、不在参照を broken-link 診断として position 付きで報告する
+  - どの設計行にも現れない要件 ID を design-uncovered、どのタスク注記にも現れない要件 ID を task-uncovered として全 AC を母集合に算出する
+  - unparsable トークンを unparsable-ref 診断へ転記し、診断があってもグラフ構築が完了する
+  - 「範囲表記 + 不在 ID + 未カバー要件」を仕込んだ fixture で 4 種の診断が期待件数ちょうど検出される
+  - _Requirements: 6.3, 6.4, 6.5, 6.7_
+
+- [ ] 6. ファイル監視と SSE
+- [ ] 6.1 イベントバスと chokidar 監視を実装する
+  - 型付き pub/sub（subscribe が unsubscribe 関数を返す）を実装する
+  - chokidar v4 で `.kiro/` とスキルディレクトリを監視し、ignored 関数フィルタ（dotfile・`.tmp-*`・md/json 以外）で除外、100ms デバウンスでバーストを集約し、パスからカテゴリと feature を分類した ChangeEvent を発行する
+  - 一時ファイル作成ではイベントが発行されず、spec ファイル変更で category=spec / feature 付きイベントが発行されることがテストで検証される
+  - _Requirements: 8.1, 8.3_
+- [ ] 6.2 SSE エンドポイントを実装する
+  - Hono streamSSE で `GET /api/events` を実装し、接続時に EventBus を subscribe して ChangeEvent を `event: change` として配信する
+  - 15 秒間隔の keepalive ping を送信し、onAbort で unsubscribe とタイマー解除を行う
+  - 複数同時接続クライアントが同一イベントを受信し、ファイル変更から 2 秒以内に受信完了し、切断後に subscriber 数が 0 へ戻ることが結合テストで検証される
+  - _Requirements: 8.2, 8.4, 8.5, 8.6_
+  - _Depends: 6.1_
+
+- [ ] 7. 書込操作
+- [ ] 7.1 セーフパスガード・アトミック書込・監査ログを実装する
+  - 書込候補パスを正規化 + realpath 解決し `.kiro/` プレフィックス外を拒否するガードを実装する
+  - 同一ディレクトリ temp + rename のアトミック書込（exclusive オプション付き）を実装する
+  - 全書込試行（拒否含む）をタイムスタンプ・操作種別・対象パス・結果付きの構造化 JSON 行として記録する
+  - `../` 連鎖・絶対パス・symlink 経由の脱出がすべて拒否され、書込失敗時に対象ファイルが旧内容のまま残ることが単体テストで検証される
+  - _Requirements: 12.1, 12.2, 12.3, 12.4_
+- [ ] 7.2 承認フラグ更新を実装する
+  - spec.json の読取 → 変換 → アトミック書込の共通基盤（未知フィールド保持・updated_at 更新・approvals からの phase / ready_for_implementation 決定的導出）を実装する
+  - generated=false のフェーズへの承認、先行フェーズ未承認での承認をバリデーションエラーとして拒否する
+  - 3 フェーズ承認で ready_for_implementation=true / phase=tasks-approved になり、違反 2 系統が 409 相当の AppError になる全分岐単体テストが pass する
+  - _Requirements: 9.1, 9.2, 9.3, 9.4, 9.5_
+  - _Depends: 7.1_
+- [ ] 7.3 フェーズ巻き戻しを実装する
+  - 対象フェーズの approved を false、後続フェーズの両フラグをクリアし、phase をフラグと整合する値へ、ready_for_implementation を false へ更新する
+  - 不明フェーズ名・不在スペックをバリデーションエラーとして拒否し、spec.json 以外のファイルには一切触れない
+  - tasks-approved 状態から requirements への巻き戻しで期待どおりのフラグ集合になり、成果物 md の mtime が変化しないことがテストで検証される
+  - _Requirements: 10.1, 10.2, 10.3, 10.4_
+  - _Depends: 7.2_
+- [ ] 7.4 (P) ADR 作成を実装する
+  - `.kiro/adr/` の既存最大番号 + 1 を 4 桁ゼロ埋めで採番し、タイトル由来の kebab-case スラッグでファイル名を構成する
+  - adr.md 規約準拠の frontmatter（8 キー）と必須セクション Context / Decision / Consequences（+ 任意 Alternatives）を持つ本文を生成し、status 省略時は proposed・date は当日をデフォルトとする
+  - exclusive 書込で番号衝突時に既存ファイルを上書きせず失敗する
+  - 作成されたファイルが FrontmatterParser で全キー厳密値読取でき、連続 2 回作成で番号が 1 ずつ増えることがテストで検証される
+  - _Requirements: 11.1, 11.2, 11.3, 11.5_
+  - _Depends: 7.1_
+  - _Boundary: AdrWriter_
+
+- [ ] 8. HTTP API 組み立て
+- [ ] 8.1 読取ルートを実装する
+  - `GET /api/repo` / `/api/specs` / `/api/specs/:feature` / `/api/specs/:feature/trace` / `/api/steering(:name)` / `/api/skills(:name)` / `/api/adr(:id)` を design.md のエンドポイント表どおりに実装する（ルートはサービス委譲のみでロジックを持たない）
+  - パスパラメータは英数字 + `-` `_` のみ許可し、不在リソースは 404 の構造化エラーを返す
+  - フィクスチャリポジトリへの全読取エンドポイント呼び出しが契約型どおりの JSON を返すことが統合テストで検証される
+  - _Requirements: 2.1, 2.2, 6.1, 7.1, 7.2, 7.3, 7.4_
+  - _Depends: 4.1, 4.2, 4.3, 5.1_
+- [ ] 8.2 書込ルートを実装する
+  - `PUT /api/specs/:feature/approvals` / `POST /api/specs/:feature/rollback` / `POST /api/adr` を zod スキーマ検証（フィールド単位エラー）付きで実装し、ADR の requirements 参照はクロス spec 形式を RefListParser で検証する
+  - すべての書込はセーフパスガードを経由する
+  - 不正ボディが 422 + fieldErrors、正常ボディが更新後メタデータ / 作成済み ADR を返すことが統合テストで検証される
+  - _Requirements: 9.1, 10.3, 11.4, 12.1_
+  - _Depends: 7.2, 7.3, 7.4_
+- [ ] 8.3 アプリ統合（CORS・エラーミドルウェア・起動配線）を実装する
+  - localhost オリジン限定の CORS、AppError → HTTP ステータス変換、未知例外 → 500 構造化エラー（プロセス継続）のミドルウェアを実装する
+  - エントリポイントから RepoContext・watcher・SSE・全ルートを配線し、`npm start` 相当のコマンド一発でサーバーが起動する
+  - 非 localhost オリジンが拒否され、ハンドラ内で故意に throw しても 500 JSON が返りサーバーが応答し続けることがテストで検証される
+  - _Requirements: 1.5, 13.1, 13.4_
+  - _Depends: 6.2, 8.1, 8.2_
+
+- [ ] 9. 統合検証
+- [ ] 9.1 フィクスチャリポジトリ統合テストを整備する
+  - 正常 spec・旧範囲表記 spec・spec.json 破損 spec・validation レポート・ADR を含むフィクスチャ `.kiro/` ツリーを整備する
+  - 一覧 / 詳細 / trace の応答について、診断（broken-link / uncovered / parse-failure）件数と旧表記展開結果を厳密値でアサートする
+  - 破損ファイルを含む全成果物で「構造化 + raw ブロック = 元文書全体」の情報無欠落不変則が API レスポンス上で成立する
+  - _Requirements: 2.1, 2.2, 2.3, 6.3, 6.4, 6.5, 13.3_
+- [ ] 9.2 監視 → SSE のデータフロー結合テストを実装する
+  - 実ファイル変更（追加・変更・削除）→ chokidar 検知 → SSE 受信までを 1 つの自動テストで担保し、受信イベントの type / path / category / feature を厳密値で突き合わせる
+  - 変更を加えない状態ではイベントが届かないこと（偽 pass 防止）を先に確認してから本シナリオを実行する
+  - 変更から 2 秒以内の受信がアサートされ、テスト終了時に SSE 接続リークがない
+  - _Requirements: 8.1, 8.2, 8.5, 8.6_
+  - _Depends: 6.2, 8.3_
+- [ ] 9.3 書込 → 反映のデータフロー結合テストを実装する
+  - 承認 API 呼び出し → ディスク上の spec.json が有効 JSON・未知フィールド保持 → 一覧 API へ反映、のフロー全体を 1 テストで担保する
+  - ADR 作成 API → 規約準拠ファイル生成 → ADR 一覧 API へ反映 → 同番号競合が 409、のフローを担保する
+  - 書込中断シミュレーションで対象ファイルが破損しない（旧内容 or 完全な新内容）ことがアサートされる
+  - _Requirements: 2.4, 9.1, 9.5, 11.1, 11.5, 12.4_
+  - _Depends: 8.2, 8.3_
