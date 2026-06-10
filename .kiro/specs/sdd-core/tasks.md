@@ -124,7 +124,7 @@
   - 3 フェーズ承認で ready_for_implementation=true / phase=tasks-approved になり、違反 2 系統が 409 相当の AppError になる全分岐単体テストが pass する
   - _Requirements: 9.1, 9.2, 9.3, 9.4, 9.5_
   - _Depends: 7.1_
-- [ ] 7.3 フェーズ巻き戻しを実装する
+- [x] 7.3 フェーズ巻き戻しを実装する
   - 対象フェーズの approved を false、後続フェーズの両フラグをクリアし、phase をフラグと整合する値へ、ready_for_implementation を false へ更新する
   - 不明フェーズ名・不在スペックをバリデーションエラーとして拒否し、spec.json 以外のファイルには一切触れない
   - tasks-approved 状態から requirements への巻き戻しで期待どおりのフラグ集合になり、成果物 md の mtime が変化しないことがテストで検証される
