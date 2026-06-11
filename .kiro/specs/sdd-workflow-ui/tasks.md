@@ -46,7 +46,7 @@
   - _Requirements: 2.5, 3.5, 4.2_
   - _Boundary: NextCommand_
 
-- [ ] 2.4 (P) app / origin グルーピング関数を実装する
+- [x] 2.4 (P) app / origin グルーピング関数を実装する
   - `model/grouping.ts` に `groupByApp` を実装する: `app: string | null` を持つ要素列を app 名昇順のグループ列に分割し、`app === null` のグループを末尾に置く（board の「未分類」/ ADR の「リポジトリ横断」が共用する純粋関数）
   - `summarizeSpecGroup` を実装する: app セクションのスペック数・READY 数（`readyForImplementation === true`）・実装完了数（`phase === "implementation-complete"`）を集計する
   - `groupSkillsByOrigin` を実装する: `SkillSummary.origin` で「`"cc-sdd"` → `"custom"` → `null`（未分類）」の固定順 3 グループ（空グループも省略しない）に分割し、各グループの件数を返す
