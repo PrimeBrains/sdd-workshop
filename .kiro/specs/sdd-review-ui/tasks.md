@@ -1,6 +1,6 @@
 # Implementation Plan
 
-- [ ] 1. 基盤: クライアントパッケージと共有基盤の構築
+- [x] 1. 基盤: クライアントパッケージと共有基盤の構築
 - [x] 1.1 sdd-dashboard/client パッケージの scaffolding を作成する
   - Vite + React 19 + TypeScript strict（`any` 禁止・noImplicitAny）+ TailwindCSS 4 のプロジェクトを `sdd-dashboard/client/` に作成し、Vitest + Testing Library の実行環境を整える
   - tsconfig paths に `@/* → src/*` と `@contracts/* → ../server/src/types/*` を定義し、ESLint で `@contracts` からの `import type` 以外の import と `dangerouslySetInnerHTML` の使用を禁止する
@@ -22,7 +22,7 @@
   - 完了条件: `/specs/foo/requirements` を直接開く・リロードすると同じビュー構成が復元され、未知 URL は `/specs` へフォールバックする
   - _Requirements: 1.4, 8.1_
 
-- [ ] 2. スペック一覧と概要ナビゲーション
+- [x] 2. スペック一覧と概要ナビゲーション
 - [x] 2.1 (P) スペック一覧画面を実装する
   - `useSpecs` の `SpecSummary[]` から feature 名・phase・承認状態・成果物有無バッジ（`SpecMetaBadges`）を一覧表示し、行クリックで `/specs/:feature` へ遷移する
   - spec.json 不正等の `diagnostics` を持つスペックも省略せず、診断バッジ付きで表示する
@@ -37,7 +37,7 @@
   - _Requirements: 1.2, 1.3_
   - _Boundary: SpecOverviewPage, DocumentTabs_
 
-- [ ] 3. ドキュメント描画基盤（情報無欠落）
+- [x] 3. ドキュメント描画基盤（情報無欠落）
 - [x] 3.1 安全な raw markdown 描画と DocBlock ディスパッチを実装する
   - `RawBlockView` を react-markdown + remark-gfm で実装する: raw HTML 非描画、`urlTransform` で外部オリジン URL と危険スキームを無効化、`reason` ツールチップ付きの生表示ボーダー
   - `DocBlockList` を実装し、`DocBlock` union を入力順のまま structured レンダラ / RawBlockView へディスパッチする（並べ替え・スキップなし）。`MarkdownDoc` で brief / research 等の文書全体を描画する
@@ -57,7 +57,7 @@
   - _Requirements: 2.8, 2.9_
   - _Depends: 3.1_
 
-- [ ] 4. 成果物別構造化ビューア
+- [x] 4. 成果物別構造化ビューア
 - [x] 4.1 (P) requirements ビューアを実装する
   - `RequirementsDoc` の各要件を ID・タイトル・objective・AC リストの構造化カードとして描画し、各要件・AC にアンカー ID を払い出す
   - AC の英文と `translationJa` をペアで同一項目内に表示する（和訳なしは英文のみ）。`otherBlocks` と raw フォールバックは DocBlockList 経由で文書順に描画する
@@ -79,7 +79,7 @@
   - _Requirements: 2.4_
   - _Boundary: TasksView_
 
-- [ ] 5. 相互リンクナビゲーション
+- [x] 5. 相互リンクナビゲーション
 - [x] 5.1 トレーサビリティ双方向インデックスを実装する
   - `buildTraceIndex` 純粋関数を実装する: `TraceGraph.edges` から要件 → design / task と逆方向の隣接 Map、診断のノード別索引、`uncovered` 集合を構築する。エッジ・診断の追加・削除・再判定をしない
   - `useTraceIndex` フックで `useTraceGraph` と合成する
@@ -112,7 +112,7 @@
   - _Requirements: 3.7, 3.8_
   - _Depends: 5.2_
 
-- [ ] 6. サイドバイサイド比較ビュー
+- [x] 6. サイドバイサイド比較ビュー
 - [x] 6.1 2 ペイン比較画面とドキュメント切替を実装する
   - `ComparePage` を実装する: URL クエリ（left / right、デフォルト requirements / design）に基づき `ComparePane` がビューアを 2 枚並列表示し、各ペインのセレクタで URL を書き換えて切替える
   - 完了条件: `?left=requirements&right=design` で両文書が並列表示され、セレクタ切替後のリロードで同じペイン構成が復元される
@@ -126,7 +126,7 @@
   - _Requirements: 4.3, 4.4_
   - _Depends: 5.1, 5.3_
 
-- [ ] 7. トレーサビリティマトリクス
+- [x] 7. トレーサビリティマトリクス
 - [x] 7.1 カバレッジマトリクス画面を実装する
   - `MatrixPage` / `MatrixGrid` を実装する: 行 = 全要件 ID、列グループ = design 要素 / タスク。セルにエッジ有無と `source` 種別マークを表示する。データは TraceIndex の展開結果のみで、UI 側の再判定をしない
   - 完了条件: フィクスチャグラフのエッジ数とマーク付きセル数が厳密一致するテストが通る
@@ -139,7 +139,7 @@
   - 完了条件: design-uncovered の要件行がハイライトされ、セルクリックで tasks ビューの該当タスクへ遷移しハイライトされる結合テストが通る
   - _Requirements: 5.2, 5.3, 5.4_
 
-- [ ] 8. validation レポート表示
+- [x] 8. validation レポート表示
 - [x] 8.1 (P) validation レポート一覧を実装する
   - `ValidationList` を実装し、`SpecDetail.validations` の type / date / decision をバッジ付きで一覧表示して概要画面に組み込む。存在しない type は「未生成」プレースホルダを表示する
   - 完了条件: gap のみ存在するフィクスチャで gap がメタデータ付きで表示され、design / impl が未生成表示になるテストが通る
@@ -152,7 +152,7 @@
   - _Requirements: 6.2, 6.3_
   - _Boundary: ValidationReportPage_
 
-- [ ] 9. SSE 自動更新
+- [x] 9. SSE 自動更新
 - [x] 9.1 変更イベント購読とクエリ無効化ブリッジを実装する
   - `useChangeEvents` を実装する: `GET /api/events` の `event: change` を購読し、category=spec のイベントを `['specs']` / `['spec', feature]` / `['trace', feature]` の invalidate（`refetchType: 'active'`）に写像する。spec 以外のカテゴリは写像なし。写像テーブルは workflow-ui が追加できる形で export する
   - 同一マイクロタスク内の連続イベントはキー集合に集約して 1 回で invalidate する
@@ -166,7 +166,7 @@
   - 完了条件: フェイク EventSource の切断 → 再接続シナリオでバナーが表示 → 消滅し、復帰時に表示中クエリの再取得が発火する結合テストが通る
   - _Requirements: 7.2, 7.3_
 
-- [ ] 10. 統合検証
+- [x] 10. 統合検証
 - [x] 10.1 主要レビューフローの E2E テストを実装する
   - Playwright + 実 sdd-core サーバー + フィクスチャリポジトリで実装する: 一覧表示（feature 名の厳密値）→ requirements 閲覧 → Req チップから design へジャンプ → マトリクスで uncovered 行ハイライト確認
   - ライブ更新シナリオ: テスト中にフィクスチャの requirements.md をディスク上で書き換え、リロードなしで新 AC テキスト（厳密値）が表示され、document 選択が維持されることを検証する。書き換え前に旧テキストの表示を境界アサートしてから行う（偽 pass 防止）
