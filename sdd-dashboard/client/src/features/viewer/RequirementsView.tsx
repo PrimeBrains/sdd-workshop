@@ -100,6 +100,10 @@ function RequirementCard({ requirement }: { requirement: StructuredRequirement }
   return (
     <section
       id={anchorIdOf({ type: "requirement", id: requirement.id })}
+      // 比較ビュー（6.2）の選択起点。delegation で NodeRef を復元するための種別 / ID。
+      // 通常のドキュメント表示では無視され、ComparePane のみが解釈する。
+      data-node-type="requirement"
+      data-node-id={requirement.id}
       className="rounded-md border border-slate-200 p-3"
     >
       <h2 className="text-base font-semibold">

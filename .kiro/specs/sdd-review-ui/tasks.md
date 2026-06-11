@@ -119,7 +119,7 @@
   - _Requirements: 4.1, 4.2_
   - _Depends: 4.1, 4.2, 4.3_
 
-- [ ] 6.2 対応箇所ハイライト同期を実装する
+- [x] 6.2 対応箇所ハイライト同期を実装する
   - `useCorrespondence` を実装する: 一方のペインで選択された要素から TraceIndex の隣接を引き、対向ペインの該当アンカー集合をハイライト + 先頭へスクロールする。対応関係はグラフ由来のみ（独自対応付けをしない）
   - 各ペイン内で RefChip の相互リンクナビゲーションがそのまま機能すること
   - 完了条件: 左ペインの要件カード選択で右ペイン design の対応セクションのみがハイライトされる結合テスト（グラフにない要素が光らないことを含む）が通る
@@ -199,6 +199,7 @@
 - 4.3: 全 3 構造化ビューア（requirements/design/tasks）が SpecDocumentPage のフォールバックを置換完了。brief/research は MarkdownDoc のまま。`TaskEntry` は `subtasks`（children でなく）で入れ子。完了マーカーは非インタラクティブ `<span data-checked aria-hidden>`（8.1）。タスク単位アサートは `data-task-id` の自身行スコープで分離（ネスト subtask の漏れ防止）
 - 5.1: 実契約 `TraceEdge` は `from`/`to`（design スケッチの source/target でない）+ 表示属性 `source`("design-table"|"component-field"|"task-annotation")+ `legacyExpanded`。NodeRef キーは type 接頭（`design:<name>` / `requirement:<id>` / `task:<id>`）で衝突回避。`uncovered` は design-uncovered/task-uncovered 診断からのみ導出（エッジ再計算しない＝5.5）。`allDiagnostics` は入力配列を同一参照で返す。`buildTraceIndex` は純関数（React/DOM import なし）、`useTraceIndex` が useTraceGraph と useMemo 合成
 - 5.3: ジャンプはページ単位ホスト `CrosslinkJumpProvider`（navigation/JumpContext.tsx）が実行 — クロスドキュメント遷移で RefChip が unmount しても着地・3.10 フォールバックを継続。TraceIndex は `TraceIndexContext`（SpecDocumentPage で `useTraceIndex` 供給、null 時は素テキストチップ）。broken-link 照合は `diagnosticsFor(origin)` の `ref===raw`。3.10 フォールバックは DesignView の `trace-row-<reqId>` アンカーへ着地（design cover edge と同一データ源なので必ず存在）。direction: origin=requirement→coverOf / origin=design|task→requirement。残課題（後続 polish）: 非 design の「対象位置特定できず」notice はページ単位 API のため全 RefChip に同時表示される（3.10 完了条件外）
+- 6.2: `useCorrespondence(selection, traceIndex, targetDocument)` はグラフ由来のみ（coverOf/requirementsOf → targetDocument 種別でフィルタ → anchorIdOf）。選択は UI 一時 state（URL 非符号化）。ハイライトは対向ペイン内スコープで `root.querySelector('[id="..."]')`（getElementById は両ペイン同一文書時に id 衝突するため不可）。`.correspondence-highlight` は持続型（jump-highlight の 2 秒一時とは別）。viewer は選択 delegation 用に `data-node-type`/`data-node-id`/`data-node-name`（design は slug 不可逆のため name 保持）を付与
 - 6.1: `DocumentKind → ビューア` ディスパッチは `features/viewer/DocumentView.tsx` が単一所有（SpecDocumentPage と ComparePane が共有、不在は MissingArtifact `data-testid="document-missing"`）。ComparePage はペイン構成を URL クエリ `?left=&right=`（既定 requirements/design）で保持、セレクタは `setSearchParams({replace:true})`。ペイン内 RefChip 用に TraceIndex/Crosslink/JumpHistory プロバイダで包む（左右対応ハイライトは 6.2）
 - 5.5: `jumpTo` は同一文書ジャンプも `navigate`（push）で URL hash を更新（旧: その場 scroll で hash 未更新）。同一パス+同一 hash への再ジャンプのみ navigate を skip しその場 focus。ブラウザ戻る/進む（popstate）は useHashScrollRestore（deps [ready, hash]）が hash 変化で再スクロール → フォーカス+スクロール復元（3.8）。in-UI jumpHistory（5.4）とブラウザ履歴は独立・直交（5.4 テストは browser-history depth を見ないため push 追加で非破壊）
 - 5.4: `jumpHistory.tsx`（純 reducer LIFO 出自スタック）+ `JumpBackBar`。RefChip は前進ジャンプ時に出自（現ルート FROM + origin チップの anchorIdOf）を push。`back()` は `jumpTo` を直呼び（jumpToCounterpart でない）して再 push しない＝バックループ構造防止、かつ pendingRef を null クリアして 3.10 フォールバックを抑止。`JumpHistoryProvider` は `CrosslinkJumpProvider` の外側に置き keyed 再マウントを跨いで履歴維持

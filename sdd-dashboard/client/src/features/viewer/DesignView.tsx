@@ -72,7 +72,14 @@ function SectionHeadingTree({ section }: { section: SectionNode }): JSX.Element 
   const Heading = headingTag(section.depth);
   return (
     <>
-      <Heading id={designAnchorId(section.title)} className="text-base font-semibold">
+      <Heading
+        id={designAnchorId(section.title)}
+        // 比較ビュー（6.2）の選択起点 / 対応ハイライト対象。delegation で NodeRef（design 名）を
+        // 復元するための種別 / 名。slug は不可逆のため名前を保持する。
+        data-node-type="design"
+        data-node-name={section.title}
+        className="text-base font-semibold"
+      >
         {section.title}
       </Heading>
       {section.children.map((child) => (

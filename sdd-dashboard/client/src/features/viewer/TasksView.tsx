@@ -95,7 +95,14 @@ function DependsLinks({ depends }: { depends: readonly string[] }): JSX.Element 
 /** 1 タスク（メジャー or サブ）の描画。サブタスクは要素配下に入れ子描画する */
 function TaskItem({ task }: { task: TaskEntry }): JSX.Element {
   return (
-    <div id={taskAnchorId(task.id)} data-testid="task-item" className="text-sm">
+    <div
+      id={taskAnchorId(task.id)}
+      data-testid="task-item"
+      // 比較ビュー（6.2）の選択起点。delegation で NodeRef を復元するための種別 / ID。
+      data-node-type="task"
+      data-node-id={task.id}
+      className="text-sm"
+    >
       {/* タスク自身の行（マーカー・注記・details）。サブタスクは別の入れ子ブロックに分離し、
           このタスク固有の内容だけを task-row として参照可能にする */}
       <div data-testid="task-row" data-task-id={task.id}>

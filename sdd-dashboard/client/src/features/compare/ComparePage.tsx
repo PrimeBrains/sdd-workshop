@@ -18,11 +18,15 @@
  *
  * 書込操作 UI は持たない（セレクタは view-state であってリポジトリへの書込ではない: 8.1）。
  */
-import { type JSX } from "react";
+import { useState, type JSX } from "react";
 import { useParams, useSearchParams } from "react-router";
 import { useSpecDetail } from "@/api/useSpecDetail";
 import { toDocumentKind, type DocumentKind } from "@/app/SpecActionSlot";
 import { ComparePane } from "@/features/compare/ComparePane";
+import {
+  useCorrespondence,
+  type CompareSelection,
+} from "@/features/compare/useCorrespondence";
 import { CrosslinkJumpProvider } from "@/navigation/JumpContext";
 import { JumpHistoryProvider } from "@/navigation/jumpHistory";
 import { ErrorPanel } from "@/shared/ErrorPanel";
@@ -49,8 +53,29 @@ export function ComparePage(): JSX.Element {
   // loading 中は index === null で、RefChip は素のテキストへグレースフルに退避する。
   const { index: traceIndex } = useTraceIndex(feature);
 
+  // 一方のペインで選択された要素（6.2）。UI 一時状態として Context でなくページ state に置く
+  // （design.md State Management の `CompareSelection`。URL には符号化しない = ビュー位置でなく
+  // 一時選択）。選択は常に 1 つで、対向ペインが対応ハイライトを受ける。
+  const [selection, setSelection] = useState<CompareSelection | null>(null);
+
+  // 各ペインのハイライトは「対向ペインの選択」から算出する（グラフ由来のみ）。
+  // 左ペインは右ペインの選択から（対向 = leftKind）、右ペインは左ペインの選択から（対向 = rightKind）。
+  const leftHighlight = useCorrespondence(
+    selection?.pane === "right" ? selection : null,
+    traceIndex,
+    leftKind,
+  );
+  const rightHighlight = useCorrespondence(
+    selection?.pane === "left" ? selection : null,
+    traceIndex,
+    rightKind,
+  );
+
   /** 指定ペインのクエリキーのみ書き換える（他ペインの構成は保持する） */
   function setPaneKind(key: "left" | "right", next: DocumentKind): void {
+    // 文書を切り替えると既存の選択・対応ハイライトの前提（種別）が崩れるため選択を解除する
+    // （別文書に対する古い対応を残さない）。
+    setSelection(null);
     setSearchParams(
       (prev) => {
         const updated = new URLSearchParams(prev);
@@ -89,12 +114,16 @@ export function ComparePage(): JSX.Element {
                   kind={leftKind}
                   detail={detail.data}
                   onKindChange={(next) => setPaneKind("left", next)}
+                  onSelectNode={(node) => setSelection({ pane: "left", node })}
+                  highlightAnchorIds={leftHighlight.anchorIds}
                 />
                 <ComparePane
                   side="right"
                   kind={rightKind}
                   detail={detail.data}
                   onKindChange={(next) => setPaneKind("right", next)}
+                  onSelectNode={(node) => setSelection({ pane: "right", node })}
+                  highlightAnchorIds={rightHighlight.anchorIds}
                 />
               </div>
             )}

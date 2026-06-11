@@ -10,3 +10,14 @@
   border-radius: 0.25rem;
   transition: background-color 150ms ease-out;
 }
+
+/*
+ * 比較ビュー（6.2 useCorrespondence）の左右対応ハイライト。ジャンプ着地の一時ハイライト
+ * （.jump-highlight）とは別クラスで、選択中は対向ペインの対応要素に持続的に付与する
+ * （選択解除・別要素選択で除去）。クラス名は ComparePane が単一所有する。
+ */
+.correspondence-highlight {
+  background-color: rgb(224 242 254); /* sky-100 相当 */
+  box-shadow: 0 0 0 2px rgb(125 211 252); /* sky-300 相当 */
+  border-radius: 0.25rem;
+}
