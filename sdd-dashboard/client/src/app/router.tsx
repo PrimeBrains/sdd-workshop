@@ -10,11 +10,11 @@
  */
 import { createBrowserRouter, Navigate, type RouteObject } from "react-router";
 import { AppShell } from "@/app/AppShell";
-import { ValidationReportPagePlaceholder } from "@/app/placeholders";
 import { ComparePage } from "@/features/compare/ComparePage";
 import { MatrixPage } from "@/features/matrix/MatrixPage";
 import { SpecListPage } from "@/features/specs/SpecListPage";
 import { SpecOverviewPage } from "@/features/specs/SpecOverviewPage";
+import { ValidationReportPage } from "@/features/validation/ValidationReportPage";
 import { SpecDocumentPage } from "@/features/viewer/SpecDocumentPage";
 
 /**
@@ -23,7 +23,7 @@ import { SpecDocumentPage } from "@/features/viewer/SpecDocumentPage";
  */
 export const RESERVED_NAMESPACES = ["/board", "/help", "/steering", "/skills", "/adr"] as const;
 
-/** review ルート（本スペックが所有する URL 空間。プレースホルダは後続タスクが置き換える） */
+/** review ルート（本スペックが所有する URL 空間。全ルートが実ページに到達する） */
 const reviewRoutes: RouteObject[] = [
   { index: true, element: <Navigate to="/specs" replace /> },
   { path: "specs", element: <SpecListPage /> },
@@ -31,7 +31,7 @@ const reviewRoutes: RouteObject[] = [
   // 静的セグメント（compare / matrix / validation）は :document より優先して一致する
   { path: "specs/:feature/compare", element: <ComparePage /> },
   { path: "specs/:feature/matrix", element: <MatrixPage /> },
-  { path: "specs/:feature/validation/:type", element: <ValidationReportPagePlaceholder /> },
+  { path: "specs/:feature/validation/:type", element: <ValidationReportPage /> },
   { path: "specs/:feature/:document", element: <SpecDocumentPage /> },
 ];
 
