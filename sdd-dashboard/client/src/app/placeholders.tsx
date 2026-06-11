@@ -3,23 +3,14 @@
  *
  * ルートレジストリと URL によるビュー復元（Requirement 1.4）を成立させるための
  * 最小表示。実ページは後続タスクがここへの参照を実装へ置き換える:
- * ComparePage = 7.x、MatrixPage = 8.x、ValidationReportPage = 6.x。
- * （SpecListPage は 2.1、SpecOverviewPage は 2.2、SpecDocumentPage は 3.2 で
- * 実装済み → features/）
+ * MatrixPage = 7.x、ValidationReportPage = 8.x。
+ * （SpecListPage は 2.1、SpecOverviewPage は 2.2、SpecDocumentPage は 3.2、
+ * ComparePage は 6.1 で実装済み → features/）
  *
  * 書込操作 UI（button・form 等）は一切置かない（Requirement 8.1）。
  */
 import type { JSX } from "react";
 import { useParams } from "react-router";
-
-export function ComparePagePlaceholder(): JSX.Element {
-  const { feature } = useParams();
-  return (
-    <h1 data-testid="compare-page" className="text-lg font-semibold">
-      {feature}/compare
-    </h1>
-  );
-}
 
 export function MatrixPagePlaceholder(): JSX.Element {
   const { feature } = useParams();

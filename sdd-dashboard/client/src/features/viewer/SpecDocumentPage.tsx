@@ -25,14 +25,10 @@
  */
 import { type JSX } from "react";
 import { Navigate, useParams } from "react-router";
-import type { SpecDetail } from "@contracts/spec";
 import { useSpecDetail } from "@/api/useSpecDetail";
-import { toDocumentKind, type DocumentKind } from "@/app/SpecActionSlot";
+import { toDocumentKind } from "@/app/SpecActionSlot";
 import { JumpBackBar } from "@/features/crosslink/JumpBackBar";
-import { DesignView } from "@/features/viewer/DesignView";
-import { RequirementsView } from "@/features/viewer/RequirementsView";
-import { TasksView } from "@/features/viewer/TasksView";
-import { MarkdownDoc } from "@/markdown/MarkdownDoc";
+import { DocumentView } from "@/features/viewer/DocumentView";
 import { CrosslinkJumpProvider } from "@/navigation/JumpContext";
 import { JumpHistoryProvider } from "@/navigation/jumpHistory";
 import { useHashScrollRestore } from "@/navigation/useHashScrollRestore";
@@ -93,40 +89,5 @@ export function SpecDocumentPage(): JSX.Element {
         </TraceIndexProvider>
       </CrosslinkJumpProvider>
     </JumpHistoryProvider>
-  );
-}
-
-/**
- * DocumentKind ごとの明示的ディスパッチ。4.x（RequirementsView / DesignView / TasksView）は
- * 該当 case の Fallback をそのまま置き換える。
- */
-function DocumentView({ kind, detail }: { kind: DocumentKind; detail: SpecDetail }): JSX.Element {
-  switch (kind) {
-    case "brief":
-      return detail.brief !== null ? <MarkdownDoc doc={detail.brief} /> : <MissingArtifact kind={kind} />;
-    case "requirements":
-      return detail.requirements !== null ? (
-        <RequirementsView doc={detail.requirements} />
-      ) : (
-        <MissingArtifact kind={kind} />
-      );
-    case "design":
-      return detail.design !== null ? <DesignView doc={detail.design} /> : <MissingArtifact kind={kind} />;
-    case "tasks":
-      return detail.tasks !== null ? <TasksView doc={detail.tasks} /> : <MissingArtifact kind={kind} />;
-    case "research":
-      return detail.research !== null ? <MarkdownDoc doc={detail.research} /> : <MissingArtifact kind={kind} />;
-  }
-}
-
-/** 不在成果物の非エラー表示（Requirement 1.3 パターン: 不在はエラーではない） */
-function MissingArtifact({ kind }: { kind: DocumentKind }): JSX.Element {
-  return (
-    <p
-      data-testid="document-missing"
-      className="rounded-md border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500"
-    >
-      {kind} は未作成です
-    </p>
   );
 }
