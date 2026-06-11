@@ -26,7 +26,9 @@ import { useState, type JSX } from "react";
 import { useNavigate, useParams } from "react-router";
 import type { NodeRef, RefToken, TraceDiagnostic } from "@contracts/trace";
 import { anchorIdOf } from "@/navigation/anchors";
+import { toDocumentKind } from "@/app/SpecActionSlot";
 import { useCrosslinkJumpFromContextOrLocal } from "@/navigation/JumpContext";
+import type { JumpTarget } from "@/navigation/useJump";
 import type { TraceIndex } from "@/trace/traceIndex";
 import { useTraceIndexContext } from "@/trace/TraceIndexContext";
 import { CounterpartPopover, type CounterpartItem } from "./CounterpartPopover";
@@ -102,8 +104,10 @@ const BASE_CHIP =
 export function RefChip({ token, origin }: RefChipProps): JSX.Element {
   const index = useTraceIndexContext();
   const navigate = useNavigate();
-  // RefChip は同一スペック内に居る。jumpTo の起点 feature はルートパラメータ由来
-  const currentFeature = useParams().feature ?? null;
+  // RefChip は同一スペック内に居る。jumpTo の起点 feature / document はルートパラメータ由来
+  const params = useParams();
+  const currentFeature = params.feature ?? null;
+  const currentDocument = toDocumentKind(params.document);
   const { jumpToCounterpart, notice } = useCrosslinkJumpFromContextOrLocal();
   const [open, setOpen] = useState(false);
 
@@ -208,7 +212,18 @@ export function RefChip({ token, origin }: RefChipProps): JSX.Element {
         : item.node.type === "requirement"
           ? item.node.id
           : requirementId;
-    jumpToCounterpart({ feature: currentFeature, target: item.node, requirementId: fallbackReqId });
+    // ジャンプが departed-from する出自（現在のルート + origin チップのアンカー）。
+    // back() でこの位置（ドキュメント + アンカー）へ復帰する（3.4）。現在ドキュメント不明時は履歴を積まない。
+    const jumpOrigin: JumpTarget | undefined =
+      currentDocument !== null
+        ? { feature: currentFeature, document: currentDocument, anchorId: anchorIdOf(origin) }
+        : undefined;
+    jumpToCounterpart({
+      feature: currentFeature,
+      target: item.node,
+      requirementId: fallbackReqId,
+      origin: jumpOrigin,
+    });
   }
 
   return (

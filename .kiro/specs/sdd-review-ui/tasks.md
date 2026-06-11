@@ -100,7 +100,7 @@
   - 完了条件: AC チップ → ポップオーバー → design 対応先選択で design ルートへ遷移しハイライトされる結合テスト、broken-link チップがクリックしても遷移しないテスト、およびアンカー未解決の design 対応先選択でトレーサビリティ行へ遷移するテストが通る
   - _Requirements: 3.1, 3.2, 3.5, 3.6, 3.10_
 
-- [ ] 5.4 ジャンプ履歴と戻る UI を実装する
+- [x] 5.4 ジャンプ履歴と戻る UI を実装する
   - `jumpHistory`（ジャンプ前のルート + アンカーを push するスタック）と `JumpBackBar`（出自の表示 + 戻るボタン）を実装する
   - 完了条件: 2 回連続ジャンプ後に戻るを 2 回押すと、逆順で各出自（ドキュメント + アンカー位置)へ復帰する結合テストが通る
   - _Requirements: 3.4_
@@ -199,4 +199,5 @@
 - 4.3: 全 3 構造化ビューア（requirements/design/tasks）が SpecDocumentPage のフォールバックを置換完了。brief/research は MarkdownDoc のまま。`TaskEntry` は `subtasks`（children でなく）で入れ子。完了マーカーは非インタラクティブ `<span data-checked aria-hidden>`（8.1）。タスク単位アサートは `data-task-id` の自身行スコープで分離（ネスト subtask の漏れ防止）
 - 5.1: 実契約 `TraceEdge` は `from`/`to`（design スケッチの source/target でない）+ 表示属性 `source`("design-table"|"component-field"|"task-annotation")+ `legacyExpanded`。NodeRef キーは type 接頭（`design:<name>` / `requirement:<id>` / `task:<id>`）で衝突回避。`uncovered` は design-uncovered/task-uncovered 診断からのみ導出（エッジ再計算しない＝5.5）。`allDiagnostics` は入力配列を同一参照で返す。`buildTraceIndex` は純関数（React/DOM import なし）、`useTraceIndex` が useTraceGraph と useMemo 合成
 - 5.3: ジャンプはページ単位ホスト `CrosslinkJumpProvider`（navigation/JumpContext.tsx）が実行 — クロスドキュメント遷移で RefChip が unmount しても着地・3.10 フォールバックを継続。TraceIndex は `TraceIndexContext`（SpecDocumentPage で `useTraceIndex` 供給、null 時は素テキストチップ）。broken-link 照合は `diagnosticsFor(origin)` の `ref===raw`。3.10 フォールバックは DesignView の `trace-row-<reqId>` アンカーへ着地（design cover edge と同一データ源なので必ず存在）。direction: origin=requirement→coverOf / origin=design|task→requirement。残課題（後続 polish）: 非 design の「対象位置特定できず」notice はページ単位 API のため全 RefChip に同時表示される（3.10 完了条件外）
+- 5.4: `jumpHistory.tsx`（純 reducer LIFO 出自スタック）+ `JumpBackBar`。RefChip は前進ジャンプ時に出自（現ルート FROM + origin チップの anchorIdOf）を push。`back()` は `jumpTo` を直呼び（jumpToCounterpart でない）して再 push しない＝バックループ構造防止、かつ pendingRef を null クリアして 3.10 フォールバックを抑止。`JumpHistoryProvider` は `CrosslinkJumpProvider` の外側に置き keyed 再マウントを跨いで履歴維持
 - 5.2: `navigation/anchors.ts` の `anchorIdOf` がアンカー ID の単一所有者（design slug = `trim → lowercase → [^a-z0-9]→-`、連続記号は連続ハイフン）。4.x ビューアはローカル helper を削除し import 済み。`useJump` は `jumpTo` + `lastResolution` のみ（`back`/`canGoBack` は 5.4）。ハイライトは `.jump-highlight`（index.css）2 秒で除去、再 jump/unmount で timer clear。アンカー不在は `resolved:false` を返すのみ（3.10 フォールバック結線は 5.3）。5.3 引き継ぎ注記: useJump と useHashScrollRestore を同居させるとクロスドキュメント jump で同一要素へ二重 scrollIntoView するが冪等で無害

@@ -30,7 +30,8 @@ import { useNavigate } from "react-router";
 import type { NodeRef } from "@contracts/trace";
 import type { DocumentKind } from "@/app/SpecActionSlot";
 import { anchorIdOf } from "@/navigation/anchors";
-import { useJump } from "@/navigation/useJump";
+import { useJumpHistory } from "@/navigation/jumpHistory";
+import { useJump, type JumpTarget } from "@/navigation/useJump";
 
 /** トレーサビリティ行アンカー（3.10 フォールバック着地点） */
 export function traceRowAnchorId(requirementId: string): string {
@@ -56,6 +57,11 @@ export interface CounterpartJump {
   target: NodeRef;
   /** フォールバック用の要件 ID（design 対応先の trace-row-<reqId> 着地に使う） */
   requirementId: string;
+  /**
+   * ジャンプが departed-from する出自（ルート + アンカー）。jumpHistory へ push し、
+   * JumpBackBar の「戻る」で復帰させる（3.4）。RefChip が現在のルート + origin チップから供給する。
+   */
+  origin?: JumpTarget;
 }
 
 export interface CrosslinkJumpApi {
@@ -63,6 +69,10 @@ export interface CrosslinkJumpApi {
   /** その他対応先のアンカー未解決時に公開する notice（3.10） */
   notice: string | null;
   clearNotice(): void;
+  /** 直前の出自へ戻る（jumpHistory を pop し、再 push せず復元する → 3.4） */
+  back(): void;
+  /** 戻れる出自があるか（JumpBackBar の表示可否 → 3.4） */
+  canGoBack: boolean;
 }
 
 /**
@@ -71,6 +81,7 @@ export interface CrosslinkJumpApi {
 function useCrosslinkJump(): CrosslinkJumpApi {
   const navigate = useNavigate();
   const { jumpTo, lastResolution } = useJump();
+  const history = useJumpHistory();
   const [notice, setNotice] = useState<string | null>(null);
 
   // 進行中ジャンプのフォールバック文脈。jumpTo の直前にセットし、lastResolution の
@@ -81,10 +92,24 @@ function useCrosslinkJump(): CrosslinkJumpApi {
     (jump: CounterpartJump) => {
       setNotice(null);
       pendingRef.current = jump;
+      // 前進ジャンプの直前に出自を履歴へ push（戻る UI 用 → 3.4）。back() による復帰は
+      // 下記のとおり push を経由しないため、戻り操作で履歴が積み増されることはない。
+      if (jump.origin !== undefined) {
+        history.push(jump.origin);
+      }
       jumpTo({ feature: jump.feature, document: documentOf(jump.target), anchorId: anchorIdOf(jump.target) });
     },
-    [jumpTo],
+    [jumpTo, history],
   );
+
+  // 直前の出自へ戻る: 履歴を pop し、**再 push せず** jumpTo で復元する（無限スタック防止 → 3.4）
+  const back = useCallback(() => {
+    setNotice(null);
+    pendingRef.current = null;
+    const origin = history.pop();
+    if (origin === null) return;
+    jumpTo(origin);
+  }, [history, jumpTo]);
 
   useEffect(() => {
     if (lastResolution === null || lastResolution.resolved) return;
@@ -107,7 +132,7 @@ function useCrosslinkJump(): CrosslinkJumpApi {
   }, [lastResolution, navigate]);
 
   const clearNotice = useCallback(() => setNotice(null), []);
-  return { jumpToCounterpart, notice, clearNotice };
+  return { jumpToCounterpart, notice, clearNotice, back, canGoBack: history.canGoBack };
 }
 
 const CrosslinkJumpContext = createContext<CrosslinkJumpApi | null>(null);

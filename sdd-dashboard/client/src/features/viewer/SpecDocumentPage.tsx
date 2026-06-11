@@ -28,11 +28,13 @@ import { Navigate, useParams } from "react-router";
 import type { SpecDetail } from "@contracts/spec";
 import { useSpecDetail } from "@/api/useSpecDetail";
 import { toDocumentKind, type DocumentKind } from "@/app/SpecActionSlot";
+import { JumpBackBar } from "@/features/crosslink/JumpBackBar";
 import { DesignView } from "@/features/viewer/DesignView";
 import { RequirementsView } from "@/features/viewer/RequirementsView";
 import { TasksView } from "@/features/viewer/TasksView";
 import { MarkdownDoc } from "@/markdown/MarkdownDoc";
 import { CrosslinkJumpProvider } from "@/navigation/JumpContext";
+import { JumpHistoryProvider } from "@/navigation/jumpHistory";
 import { useHashScrollRestore } from "@/navigation/useHashScrollRestore";
 import { ErrorPanel } from "@/shared/ErrorPanel";
 import { LoadingSkeleton } from "@/shared/LoadingSkeleton";
@@ -58,33 +60,39 @@ export function SpecDocumentPage(): JSX.Element {
   }
 
   return (
-    // CrosslinkJumpProvider / TraceIndexProvider はドキュメント切替（下の keyed div の remount）を
-    // 跨いで安定させる。クロスドキュメントジャンプの着地・3.10 フォールバックは RefChip 自身が
-    // unmount しても継続する必要があるため（JumpContext.tsx 参照）。
-    <CrosslinkJumpProvider>
-      <TraceIndexProvider index={traceIndex}>
-        <section data-testid="spec-document-page">
-          <h1 data-testid="spec-document-heading" className="text-lg font-semibold">
-            {feature}/{kind}
-          </h1>
-          {detail.isPending && <LoadingSkeleton label="ドキュメントを読み込み中…" />}
-          {detail.isError && (
-            <ErrorPanel
-              error={detail.error}
-              onRetry={() => {
-                void detail.refetch();
-              }}
-            />
-          )}
-          {detail.data !== undefined && (
-            // key は URL 由来（feature + document）で安定させる（7.2 の前提: データ同一性で key しない）
-            <div key={`${feature}/${kind}`} className="mt-4">
-              <DocumentView kind={kind} detail={detail.data} />
-            </div>
-          )}
-        </section>
-      </TraceIndexProvider>
-    </CrosslinkJumpProvider>
+    // JumpHistoryProvider / CrosslinkJumpProvider / TraceIndexProvider はドキュメント切替
+    // （下の keyed div の remount）を跨いで安定させる。クロスドキュメントジャンプの着地・
+    // 3.10 フォールバック・ジャンプ履歴（5.4）は RefChip 自身が unmount しても継続する必要があるため
+    // （JumpContext.tsx / jumpHistory.ts 参照）。JumpHistoryProvider は CrosslinkJumpProvider が
+    // 履歴を push / back するため外側に置く。
+    <JumpHistoryProvider>
+      <CrosslinkJumpProvider>
+        <TraceIndexProvider index={traceIndex}>
+          <section data-testid="spec-document-page">
+            <h1 data-testid="spec-document-heading" className="text-lg font-semibold">
+              {feature}/{kind}
+            </h1>
+            {/* 出自へ戻る UI（履歴が無いときは自身で非表示 → 3.4） */}
+            <JumpBackBar />
+            {detail.isPending && <LoadingSkeleton label="ドキュメントを読み込み中…" />}
+            {detail.isError && (
+              <ErrorPanel
+                error={detail.error}
+                onRetry={() => {
+                  void detail.refetch();
+                }}
+              />
+            )}
+            {detail.data !== undefined && (
+              // key は URL 由来（feature + document）で安定させる（7.2 の前提: データ同一性で key しない）
+              <div key={`${feature}/${kind}`} className="mt-4">
+                <DocumentView kind={kind} detail={detail.data} />
+              </div>
+            )}
+          </section>
+        </TraceIndexProvider>
+      </CrosslinkJumpProvider>
+    </JumpHistoryProvider>
   );
 }
 
