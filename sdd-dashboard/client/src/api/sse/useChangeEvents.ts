@@ -3,7 +3,7 @@
  * （design.md「SseInvalidationBridge（api/sse/useChangeEvents.ts）」/ Event Contract /
  * 「SSE 変更反映フロー」、Requirements 7.1 / 7.4、tasks.md 9.1）。
  *
- * 本タスク（9.1）の責務:
+ * 責務:
  * - `GET /api/events` へ `EventSource` で接続し `event: change` を購読する
  * - category 別キー写像で `QueryClient.invalidateQueries`（`refetchType: 'active'`）へ橋渡し
  *   - `spec` → `['specs']` + `['spec', feature]` + `['trace', feature]`
@@ -11,17 +11,18 @@
  * - 写像テーブル（DEFAULT_INVALIDATION_MAP / InvalidationMap）は export し、
  *   workflow-ui がエントリを追加できる拡張点とする
  * - 同一マイクロタスク内の連続イベントはキーを集約し 1 度の flush にまとめる（AI 生成バースト対策）
+ * - 接続状態 `"connected" | "reconnecting"` を公開する（9.2）:
+ *   - `onerror` → `reconnecting`（EventSource の自動再接続に任せる。手動再生成はしない）
+ *   - `onopen`（初回確立 / 再接続成功）→ `connected` に戻し、全キーを invalidate して
+ *     切断中の取りこぼしを回復する（→ 7.3）
  * - アンマウント時に `EventSource.close()`（リソースリーク防止）
- *
- * NOTE: 接続状態のリアル管理（onerror→reconnecting / onopen→全キー回復）と ConnectionBanner は
- * タスク 9.2 の範囲。本タスクは最小限の `status`（"connected"）のみ公開する。
  */
 import { useEffect, useRef, useState } from "react";
 import { useQueryClient, type QueryKey } from "@tanstack/react-query";
 import type { ChangeEvent } from "@contracts/events";
 import { queryKeys } from "@/api/queryKeys";
 
-/** SSE 接続状態（design.md Event Contract）。reconnecting への遷移は 9.2 で導入する */
+/** SSE 接続状態（design.md Event Contract） */
 export type SseStatus = "connected" | "reconnecting";
 
 /**
@@ -53,8 +54,8 @@ function serializeKey(key: QueryKey): string {
 
 export function useChangeEvents(map?: InvalidationMap): { status: SseStatus } {
   const queryClient = useQueryClient();
-  // 接続状態。9.1 では connected 固定（onerror/onopen 制御は 9.2）。
-  const [status] = useState<SseStatus>("connected");
+  // 接続状態。onerror→reconnecting / onopen→connected（9.2）。
+  const [status, setStatus] = useState<SseStatus>("connected");
 
   // 最新の写像をイベントハンドラから参照する（依存配列で再接続しないため ref 経由）。
   const mapRef = useRef<InvalidationMap>(map ?? DEFAULT_INVALIDATION_MAP);
@@ -99,8 +100,27 @@ export function useChangeEvents(map?: InvalidationMap): { status: SseStatus } {
 
     source.addEventListener("change", handleChange);
 
+    // 接続断: EventSource は内部で自動再接続を試みる（手動で張り直さない）。
+    // 表示は reconnecting に切り替える（→ 7.3）。
+    const handleError = () => {
+      setStatus("reconnecting");
+    };
+
+    // 接続確立（初回 open / 再接続成功）: connected に戻し、全キーを invalidate して
+    // 切断中に取りこぼした変更を回復する（→ 7.3）。キーを限定しない広域 invalidate で
+    // 表示中（active）のクエリのみ再取得する。
+    const handleOpen = () => {
+      setStatus("connected");
+      void queryClient.invalidateQueries({ refetchType: "active" });
+    };
+
+    source.onerror = handleError;
+    source.onopen = handleOpen;
+
     return () => {
       source.removeEventListener("change", handleChange);
+      source.onerror = null;
+      source.onopen = null;
       source.close();
     };
     // queryClient は安定参照。map は ref（mapRef）で参照するため依存に含めず、

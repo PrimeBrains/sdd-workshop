@@ -5,7 +5,9 @@
  *   `SpecActionSlotOutlet`（workflow-ui の操作挿入点。本スペックでは常に空 → 8.1）
  * - スペックサイドバー: GET /api/specs の feature 名を NavLink で列挙
  * - コンテンツ領域: `<Outlet/>`
- * - ConnectionBanner は SSE ブリッジのタスク（9.2）で追加する
+ * - ConnectionBanner: SseInvalidationBridge（useChangeEvents）をアプリ全体で常駐させ、
+ *   その接続状態を表示する（切断時「再接続中」/ 9.2 / Requirements 7.3）。ブリッジを
+ *   シェルで張ることで SSE 購読がアプリ全域で有効になる
  *
  * ナビゲーション領域は宣言済みの連結点: sdd-workflow-ui は予約名前空間
  * （router.tsx の RESERVED_NAMESPACES）向けナビリンク追加に限り本ファイルを
@@ -16,9 +18,11 @@
  */
 import type { JSX } from "react";
 import { Link, NavLink, Outlet } from "react-router";
+import { useChangeEvents } from "@/api/sse/useChangeEvents";
 import { useRepoInfo } from "@/api/useRepoInfo";
 import { useSpecs } from "@/api/useSpecs";
 import { SpecActionSlotOutlet, SpecActionSlotProvider } from "@/app/SpecActionSlot";
+import { ConnectionBanner } from "@/shared/ConnectionBanner";
 import { ErrorPanel } from "@/shared/ErrorPanel";
 
 /** リポジトリ名（装飾情報）。読込中・失敗時は非致命的に非表示とする */
@@ -70,6 +74,8 @@ function SpecSidebar(): JSX.Element {
 }
 
 export function AppShell(): JSX.Element {
+  // SseInvalidationBridge をアプリ全体で常駐させ、変更通知の購読と接続状態の管理を一元化する。
+  const { status } = useChangeEvents();
   return (
     <SpecActionSlotProvider>
       <div className="flex min-h-screen flex-col bg-slate-50 text-slate-800">
@@ -91,6 +97,7 @@ export function AppShell(): JSX.Element {
             <Outlet />
           </main>
         </div>
+        <ConnectionBanner status={status} />
       </div>
     </SpecActionSlotProvider>
   );

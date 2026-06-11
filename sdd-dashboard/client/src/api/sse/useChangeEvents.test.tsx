@@ -38,6 +38,9 @@ class FakeEventSource {
   url: string;
   readyState = 0;
   closeCalls = 0;
+  // EventSource 標準のプロパティハンドラ（onerror→reconnecting / onopen→connected を 9.2 で検証）
+  onerror: ((event: Event) => void) | null = null;
+  onopen: ((event: Event) => void) | null = null;
   private changeListeners = new Set<(event: MessageEvent) => void>();
 
   constructor(url: string) {
@@ -62,6 +65,18 @@ class FakeEventSource {
   emitChange(payload: ChangeEvent): void {
     const event = new MessageEvent("change", { data: JSON.stringify(payload) });
     for (const listener of this.changeListeners) listener(event);
+  }
+
+  /** 接続断（ブラウザの EventSource は内部で自動再接続する） */
+  emitError(): void {
+    this.readyState = 0;
+    this.onerror?.(new Event("error"));
+  }
+
+  /** 接続確立（初回 open または再接続成功） */
+  emitOpen(): void {
+    this.readyState = 1;
+    this.onopen?.(new Event("open"));
   }
 }
 
@@ -289,5 +304,62 @@ describe("useChangeEvents", () => {
     expect(es.closeCalls).toBe(0);
     unmount();
     expect(es.closeCalls).toBe(1);
+  });
+
+  // --- 9.2: 接続状態・再接続・取りこぼし回復（Requirements 7.3） ---
+
+  it("9.2: onerror で status が reconnecting になり、onopen 復帰で connected に戻る", () => {
+    const { Wrapper } = createWrapper();
+    const { result } = renderHook(() => useChangeEvents(), { wrapper: Wrapper });
+    const es = onlyInstance();
+
+    expect(result.current.status).toBe("connected");
+
+    act(() => {
+      es.emitError();
+    });
+    expect(result.current.status).toBe("reconnecting");
+
+    act(() => {
+      es.emitOpen();
+    });
+    expect(result.current.status).toBe("connected");
+  });
+
+  it("9.2: onopen 復帰時に全キーを invalidate して切断中の取りこぼしを回復する（7.3）", async () => {
+    const { queryClient, Wrapper } = createWrapper();
+    renderHook(() => useChangeEvents(), { wrapper: Wrapper });
+    const es = onlyInstance();
+
+    // 切断
+    act(() => {
+      es.emitError();
+    });
+
+    // 復帰: 全キー invalidate（表示中の active クエリは再取得される）
+    const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
+    await act(async () => {
+      es.emitOpen();
+      await Promise.resolve();
+    });
+
+    // キーを限定しない広域 invalidate（= 全キー）が refetchType: 'active' で 1 回発火する
+    expect(invalidateSpy).toHaveBeenCalledTimes(1);
+    expect(invalidateSpy).toHaveBeenCalledWith({ refetchType: "active" });
+  });
+
+  it("9.2: 初回 onopen（接続確立のみ。直前に切断なし）でも全キー invalidate して収束させる", async () => {
+    const { queryClient, Wrapper } = createWrapper();
+    renderHook(() => useChangeEvents(), { wrapper: Wrapper });
+    const es = onlyInstance();
+
+    const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
+    await act(async () => {
+      es.emitOpen();
+      await Promise.resolve();
+    });
+
+    expect(invalidateSpy).toHaveBeenCalledTimes(1);
+    expect(invalidateSpy).toHaveBeenCalledWith({ refetchType: "active" });
   });
 });

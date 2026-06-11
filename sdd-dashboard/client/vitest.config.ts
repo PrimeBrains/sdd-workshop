@@ -11,6 +11,8 @@ export default mergeConfig(
     test: {
       environment: "jsdom",
       include: ["src/**/*.test.{ts,tsx}"],
+      // jsdom に無い EventSource の既定スタブを注入（SSE 駆動テストは各自で上書き）
+      setupFiles: ["./src/test/setup.ts"],
     },
   }),
 );

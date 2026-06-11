@@ -7,7 +7,7 @@
  * - 書込操作 UI（button 等）が成功状態のシェルに存在しない（Requirement 8.1）
  */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
 import { createMemoryRouter, RouterProvider } from "react-router";
@@ -15,6 +15,51 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import type { RepoInfo } from "@contracts/api";
 import type { SpecDetail, SpecSummary } from "@contracts/spec";
 import { routes } from "@/app/router";
+
+/**
+ * フェイク EventSource: jsdom には EventSource が無いため、AppShell が常駐させる
+ * SseInvalidationBridge（useChangeEvents）が `new EventSource` でクラッシュしないよう
+ * グローバルへ差し替える。9.2 の接続状態シナリオ（onerror→banner→onopen）を駆動する。
+ */
+class FakeEventSource {
+  static instances: FakeEventSource[] = [];
+  static reset() {
+    FakeEventSource.instances = [];
+  }
+  url: string;
+  closeCalls = 0;
+  onerror: ((event: Event) => void) | null = null;
+  onopen: ((event: Event) => void) | null = null;
+  constructor(url: string) {
+    this.url = url;
+    FakeEventSource.instances.push(this);
+  }
+  addEventListener(): void {}
+  removeEventListener(): void {}
+  close(): void {
+    this.closeCalls += 1;
+  }
+  emitError(): void {
+    this.onerror?.(new Event("error"));
+  }
+  emitOpen(): void {
+    this.onopen?.(new Event("open"));
+  }
+}
+
+let restoreEventSource: (() => void) | undefined;
+beforeEach(() => {
+  FakeEventSource.reset();
+  const original = (globalThis as { EventSource?: unknown }).EventSource;
+  (globalThis as { EventSource?: unknown }).EventSource =
+    FakeEventSource as unknown as typeof EventSource;
+  restoreEventSource = () => {
+    (globalThis as { EventSource?: unknown }).EventSource = original;
+  };
+});
+afterEach(() => {
+  restoreEventSource?.();
+});
 
 const repoFixture: RepoInfo = { repoRoot: "/home/user/ghq/sdd-workshop", name: "sdd-workshop" };
 
@@ -159,5 +204,98 @@ describe("AppShell", () => {
       expect(screen.queryByTestId("loading-skeleton")).toBeNull();
     });
     expect(screen.queryAllByRole("button")).toHaveLength(0);
+  });
+
+  // --- 9.2: ConnectionBanner 配線 + SseInvalidationBridge 常駐（Requirements 7.3） ---
+
+  it("9.2: シェル常駐の SseInvalidationBridge が /api/events へ接続する（ブリッジ active）", async () => {
+    mockSuccess();
+    renderShell();
+    await screen.findByTestId("repo-name");
+    // useChangeEvents が AppShell で 1 度だけ EventSource を張る
+    expect(FakeEventSource.instances).toHaveLength(1);
+    expect(FakeEventSource.instances[0]?.url).toBe("/api/events");
+  });
+
+  it("9.2 完了条件: 切断（onerror）で ConnectionBanner が表示され、再接続（onopen）で消滅する", async () => {
+    mockSuccess();
+    renderShell();
+    await screen.findByTestId("repo-name");
+    const es = FakeEventSource.instances[0];
+    if (es === undefined) throw new Error("EventSource not created");
+
+    // 接続中: バナーなし
+    expect(screen.queryByTestId("connection-banner")).toBeNull();
+
+    // 切断: 「再接続中」バナーが表示される
+    act(() => {
+      es.emitError();
+    });
+    const banner = await screen.findByTestId("connection-banner");
+    expect(banner.textContent).toBe("再接続中…");
+
+    // 再接続成功: バナーが消滅する
+    act(() => {
+      es.emitOpen();
+    });
+    await waitFor(() => {
+      expect(screen.queryByTestId("connection-banner")).toBeNull();
+    });
+  });
+
+  it("9.2: 再接続復帰（onopen）で表示中クエリが全キー invalidate により再取得される（7.3 取りこぼし回復）", async () => {
+    // repo 名を再接続後に差し替え、全キー invalidate による再取得（active クエリ）を観測する
+    let repoName = "before";
+    server.use(
+      http.get("/api/repo", () =>
+        HttpResponse.json({ repoRoot: "/r", name: repoName } satisfies RepoInfo),
+      ),
+      http.get("/api/specs", () => HttpResponse.json([makeSpecSummary("sdd-review-ui")])),
+    );
+    // staleTime 0 にして invalidate→再取得が確実に走る QueryClient
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: 0 } } });
+    renderShell("/specs", client);
+
+    await waitFor(() => expect(screen.getByTestId("repo-name").textContent).toBe("before"));
+
+    const es = FakeEventSource.instances[0];
+    if (es === undefined) throw new Error("EventSource not created");
+
+    repoName = "after"; // 次回再取得で更新される
+    act(() => {
+      es.emitError();
+    });
+    await act(async () => {
+      es.emitOpen();
+      await Promise.resolve();
+    });
+
+    // onopen の全キー invalidate（refetchType:'active'）で active な repo クエリが再取得される
+    await waitFor(() => expect(screen.getByTestId("repo-name").textContent).toBe("after"));
+  });
+
+  it("7.2: 連続する spec change（再取得）を跨いでドキュメントビューアが remount されず選択が維持される", async () => {
+    mockSuccess();
+    renderShell("/specs/sdd-review-ui/requirements");
+    const heading = await screen.findByTestId("spec-document-heading");
+    expect(heading.textContent).toBe("sdd-review-ui/requirements");
+
+    // remount を検知するためのマーカー: DOM ノードの参照同一性。remount すると別ノードになる。
+    const before = screen.getByTestId("spec-document-page");
+
+    // 連続する変更イベント（再取得）を 2 回発火 → key（feature+document）が安定なら同一インスタンス維持
+    const es = FakeEventSource.instances[0];
+    if (es === undefined) throw new Error("EventSource not created");
+    await act(async () => {
+      es.emitOpen();
+      await Promise.resolve();
+      es.emitOpen();
+      await Promise.resolve();
+    });
+
+    const after = screen.getByTestId("spec-document-page");
+    // 同一 DOM ノード（remount していない）= feature+document の安定キーで選択・ドキュメントが維持
+    expect(after).toBe(before);
+    expect(screen.getByTestId("spec-document-heading").textContent).toBe("sdd-review-ui/requirements");
   });
 });
