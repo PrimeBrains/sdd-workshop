@@ -14,7 +14,7 @@
   - 完了条件: msw の結合テストで、成功時に PUT/POST が 1 件発行されキャッシュが更新後状態になること、409 `ApiError` がコード・メッセージの厳密値で `NormalizedApiError` に正規化されることが通る
   - _Requirements: 2.4, 3.4, 8.2, 9.4_
 
-- [ ] 1.3 ナレッジ読取フックとクエリキーを実装する
+- [x] 1.3 ナレッジ読取フックとクエリキーを実装する
   - `workflowQueryKeys.ts` に steering / skills / adr のクエリキーを集約し、`useSteeringList` / `useSteeringDoc` / `useSkillList` / `useSkillDoc` / `useAdrList` / `useAdrDoc` を review-ui の `ApiClient.get` 再利用 + `useQuery` 薄ラッパとして実装する
   - エラーは `NormalizedApiError` のまま透過し、`ErrorPanel`（review-ui 再利用）で code / message / 再試行を表示できる形にする
   - 完了条件: msw でモックした 404 / 500 応答に対し、各フックの error にエラーコードの厳密値が入り、ErrorPanel 表示 + 再試行ボタンで再取得が発火するテストが通る
