@@ -10,8 +10,24 @@
  * 各ルートは後続タスクで実画面へ置き換わるまでの最小プレースホルダを描画する。
  * プレースホルダは読み取り専用（書込操作 UI = button を持たない / Requirement 8.1）。
  */
-import type { JSX } from "react";
+import { lazy, Suspense, type JSX } from "react";
 import { type RouteObject, useParams } from "react-router";
+
+import { LoadingSkeleton } from "@/shared/LoadingSkeleton";
+
+/**
+ * board ルートは @xyflow/react を遅延ロードし、レビュー画面の初期ロードに影響させない
+ * （design.md「Performance」route-level code splitting / Requirement 9.5 はローカルバンドル）。
+ */
+const BoardPage = lazy(() => import("./board/BoardPage"));
+
+function BoardRoute(): JSX.Element {
+  return (
+    <Suspense fallback={<LoadingSkeleton label="ボードを読み込み中…" />}>
+      <BoardPage />
+    </Suspense>
+  );
+}
 
 /** 後続タスクで実画面に差し替わる最小プレースホルダ（見出しのみ） */
 function Placeholder({ testId, label }: { testId: string; label: string }): JSX.Element {
@@ -20,10 +36,6 @@ function Placeholder({ testId, label }: { testId: string; label: string }): JSX.
       <h1 className="text-lg font-semibold text-slate-800">{label}</h1>
     </section>
   );
-}
-
-function BoardPlaceholder(): JSX.Element {
-  return <Placeholder testId="workflow-board-page" label="Board" />;
 }
 
 function HelpPlaceholder(): JSX.Element {
@@ -63,7 +75,7 @@ function AdrDetailPlaceholder(): JSX.Element {
  * （連結先が `"/"` レイアウトの children のため）。
  */
 export const workflowRoutes: RouteObject[] = [
-  { path: "board", element: <BoardPlaceholder /> },
+  { path: "board", element: <BoardRoute /> },
   { path: "help", element: <HelpPlaceholder /> },
   { path: "steering", element: <SteeringListPlaceholder /> },
   { path: "steering/:name", element: <SteeringDocPlaceholder /> },

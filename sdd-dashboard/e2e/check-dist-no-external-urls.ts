@@ -48,6 +48,13 @@ const ALLOWED_STRING_CONSTANT_HOSTS: readonly string[] = [
   "chevrotain.io",
   "langium.org",
   "en.wikipedia.org",
+  // @xyflow/react: 非フェッチの attribution / error-doc / コメント URL 文字列（ランタイム取得なし）。
+  // proOptions.hideAttribution=true で attribution アンカーは DOM に出さず、これらは error doc/
+  // ドキュメントリンク文字列に過ぎない。`${e}flow.dev` はミニファイで `pro.`/`react` を動的合成する
+  // テンプレートリテラルのホスト断片（スキャナがそのまま host として解釈する）。
+  "reactflow.dev",
+  "pro.reactflow.dev",
+  "${e}flow.dev",
 ];
 
 /** ローカルオリジンと見なすホスト（取得参照・文字列定数いずれでも外部扱いしない）。 */

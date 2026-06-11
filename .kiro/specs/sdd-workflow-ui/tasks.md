@@ -61,7 +61,7 @@
   - _Requirements: 1.1, 1.3_
   - _Depends: 2.1_
 
-- [ ] 3.2 ボード画面を @xyflow/react で実装する
+- [x] 3.2 ボード画面を @xyflow/react で実装する
   - `@xyflow/react` ^12.11 を dependencies に追加し（CSS はローカル import・Pro 機能不使用）、`PipelineFlow` を読取専用設定（nodesDraggable / nodesConnectable 無効・fitView）でラップする。board ルートは `React.lazy` で遅延ロードする
   - `SpecPipelineNode` カスタムノードでフェーズ状態の色分け・現在フェーズ強調・ready バッジ・診断警告バッジを描画し、スペックラベルのクリックで `/specs/:feature` へ遷移させる。`BoardPage` は `useSpecs` でデータを取得し、エラー時は ErrorPanel を表示する
   - `BoardPage` は `groupByApp` でスペックを app セクションに分割し、セクションごとに `AppSectionHeader`（app 名 + `summarizeSpecGroup` のスペック数・READY 数・実装完了数サマリー）とレーン群を app 名昇順で描画する。`app` が null のスペックは末尾の「未分類」セクションに表示する
@@ -149,3 +149,4 @@
 
 - 1.4: review-ui の `useChangeEvents(map)` は `map ?? DEFAULT_INVALIDATION_MAP` で **置換**（マージではない）。注入する map は必ず `{ ...DEFAULT_INVALIDATION_MAP, ...workflowInvalidationMap }` と DEFAULT を spread すること。怠ると spec カテゴリの `['specs']` 無効化（ボード自動更新）が壊れる。配線は AppShell の既存 `useChangeEvents` 呼び出し1箇所＋Provider 配下の `WorkflowSlotRegistrar`（hooks 制約のため main.tsx ではなく AppShell）。
 - 3.1: `@xyflow/react@^12.11` は型インポート（`Node`/`Edge`）が必要なため task 3.2 ではなく 3.1 のコミットで dependencies へ追加済み。3.2 は CSS ローカル import・`React.lazy`・読取専用設定（Pro 不使用）の追加のみ。ボードグラフは **one-node-per-lane** モデル（1 スペック=1 `specPipeline` ノード、`edges=[]`、フェーズ進行は SpecPipelineNode のノード内ビジュアル）。
+- 3.2: `check:dist`（e2e）は dist 内 http(s) 文字列定数を許可リスト方式で検査する。@xyflow/react は非フェッチの attribution / error-doc 文字列（`reactflow.dev` / `pro.reactflow.dev` / `${e}flow.dev`）を BoardPage チャンクに埋め込むため、`ALLOWED_STRING_CONSTANT_HOSTS` へ追加した（fetched-reference 検査・self-test は不変更）。`proOptions.hideAttribution=true` で実 DOM の外部リンクも抑止。one-node-per-lane のため SpecPipelineNode から `<Handle>` は削除（read-only・エッジ無し）。ReactFlow テストは ResizeObserver スタブをテストファイル内 beforeAll で注入（共有 setup.ts は不変更）。

@@ -30,6 +30,19 @@ class FakeEventSource {
   close(): void {}
 }
 
+/** ReactFlow（board ルート）が要求する ResizeObserver は jsdom に無いため最小スタブを注入する。 */
+class ResizeObserverStub {
+  observe(): void {}
+  unobserve(): void {}
+  disconnect(): void {}
+}
+beforeAll(() => {
+  if ((globalThis as { ResizeObserver?: unknown }).ResizeObserver === undefined) {
+    (globalThis as { ResizeObserver?: unknown }).ResizeObserver =
+      ResizeObserverStub as unknown as typeof ResizeObserver;
+  }
+});
+
 let restoreEventSource: (() => void) | undefined;
 beforeEach(() => {
   const original = (globalThis as { EventSource?: unknown }).EventSource;
@@ -101,9 +114,11 @@ function renderAt(url: string) {
 }
 
 describe("workflowRoutes（Requirement 1.5: URL によるビュー復元 / 9.1: 同一 SPA 統合）", () => {
-  it("/board を直接開くと board プレースホルダが復元される", async () => {
+  it("/board を直接開くと board 画面（遅延ロード）が復元される", async () => {
     const router = renderAt("/board");
-    expect((await screen.findByTestId("workflow-board-page")).textContent).toBe("Board");
+    // React.lazy + Suspense 経由で BoardPage が描画され、見出し「Board」を含む。
+    const page = await screen.findByTestId("workflow-board-page");
+    expect(within(page).getByRole("heading", { name: "Board" })).toBeTruthy();
     expect(router.state.location.pathname).toBe("/board");
   });
 
