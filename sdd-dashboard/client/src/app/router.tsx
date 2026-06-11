@@ -14,10 +14,10 @@ import {
   ComparePagePlaceholder,
   MatrixPagePlaceholder,
   SpecDocumentPagePlaceholder,
-  SpecListPagePlaceholder,
   SpecOverviewPagePlaceholder,
   ValidationReportPagePlaceholder,
 } from "@/app/placeholders";
+import { SpecListPage } from "@/features/specs/SpecListPage";
 
 /**
  * 予約名前空間（sdd-workflow-ui 向け契約宣言）。本スペックではルートとして実装しない。
@@ -28,7 +28,7 @@ export const RESERVED_NAMESPACES = ["/board", "/help", "/steering", "/skills", "
 /** review ルート（本スペックが所有する URL 空間。プレースホルダは後続タスクが置き換える） */
 const reviewRoutes: RouteObject[] = [
   { index: true, element: <Navigate to="/specs" replace /> },
-  { path: "specs", element: <SpecListPagePlaceholder /> },
+  { path: "specs", element: <SpecListPage /> },
   { path: "specs/:feature", element: <SpecOverviewPagePlaceholder /> },
   // 静的セグメント（compare / matrix / validation）は :document より優先して一致する
   { path: "specs/:feature/compare", element: <ComparePagePlaceholder /> },
