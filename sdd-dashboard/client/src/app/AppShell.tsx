@@ -24,6 +24,7 @@ import { useSpecs } from "@/api/useSpecs";
 import { SpecActionSlotOutlet, SpecActionSlotProvider } from "@/app/SpecActionSlot";
 import { ConnectionBanner } from "@/shared/ConnectionBanner";
 import { ErrorPanel } from "@/shared/ErrorPanel";
+import { appChangeEventsMap, WorkflowSlotRegistrar } from "@/workflow/integration";
 
 /** リポジトリ名（装飾情報）。読込中・失敗時は非致命的に非表示とする */
 function HeaderRepoName(): JSX.Element | null {
@@ -109,9 +110,12 @@ function SpecSidebar(): JSX.Element {
 
 export function AppShell(): JSX.Element {
   // SseInvalidationBridge をアプリ全体で常駐させ、変更通知の購読と接続状態の管理を一元化する。
-  const { status } = useChangeEvents();
+  // workflow-ui の steering/skill/adr カテゴリ写像を結合した map を注入する（spec は DEFAULT を保持）。
+  const { status } = useChangeEvents(appChangeEventsMap);
   return (
     <SpecActionSlotProvider>
+      {/* SpecActionSlot へ workflow 操作 UI を登録する（Provider 配下で実行する必要がある） */}
+      <WorkflowSlotRegistrar />
       <div className="flex min-h-screen flex-col bg-slate-50 text-slate-800">
         <header className="flex items-center gap-3 border-b border-slate-200 bg-white px-4 py-3">
           <Link to="/specs" className="text-base font-bold text-slate-800">

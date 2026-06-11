@@ -20,7 +20,7 @@
   - 完了条件: msw でモックした 404 / 500 応答に対し、各フックの error にエラーコードの厳密値が入り、ErrorPanel 表示 + 再試行ボタンで再取得が発火するテストが通る
   - _Requirements: 9.6_
 
-- [ ] 1.4 SSE 無効化写像の拡張と registerWorkflow 組込を実装する
+- [x] 1.4 SSE 無効化写像の拡張と registerWorkflow 組込を実装する
   - `workflow/api/invalidationMap.ts` に `steering → [['steering']]` / `skill → [['skills']]` / `adr → [['adr']]` の `InvalidationMap` エントリを定義する（`spec` カテゴリは review-ui 所有のまま変更せず、`other` は写像なし）
   - `workflow/integration.tsx` の `registerWorkflow()` で SpecActionSlot 登録（4.1 実装までは何も描画しないレンダラ）と `useChangeEvents` への写像注入を組み立て、`main.tsx` から 1 行で呼び出す
   - 完了条件: フェイク EventSource の結合テストで「イベントなしでは再取得ゼロ」を先に確認した上で、category=steering イベントで `['steering']` の再取得が発生し、category=other では再取得が起きないことが通る
@@ -144,3 +144,7 @@
   - 完了条件: `npm run test:e2e` で誤操作防止・ローカル完結・ナレッジ閲覧の全アサーションが green になる
   - _Requirements: 4.1, 5.1, 5.2, 6.1, 6.2, 7.1, 7.2, 9.3, 9.4, 9.5_
   - _Depends: 4.2, 5.1, 6.1, 6.2, 6.3_
+
+## Implementation Notes
+
+- 1.4: review-ui の `useChangeEvents(map)` は `map ?? DEFAULT_INVALIDATION_MAP` で **置換**（マージではない）。注入する map は必ず `{ ...DEFAULT_INVALIDATION_MAP, ...workflowInvalidationMap }` と DEFAULT を spread すること。怠ると spec カテゴリの `['specs']` 無効化（ボード自動更新）が壊れる。配線は AppShell の既存 `useChangeEvents` 呼び出し1箇所＋Provider 配下の `WorkflowSlotRegistrar`（hooks 制約のため main.tsx ではなく AppShell）。
