@@ -86,7 +86,7 @@
   - 完了条件: legacy 展開・broken-link・uncovered を含むフィクスチャグラフで、`coverOf` / `requirementsOf` の結果集合が入力エッジ列挙と厳密一致し、`allDiagnostics` が入力と同一であるテストが通る
   - _Requirements: 3.1, 3.2, 5.5_
 
-- [ ] 5.2 アンカー規約とジャンプ実行を実装する
+- [x] 5.2 アンカー規約とジャンプ実行を実装する
   - `anchorIdOf`（NodeRef → DOM アンカー ID の決定的変換。design 名は slug 正規化）と `useJump`（scrollIntoView + 2 秒の一時ハイライト、アンカー不在時は `resolved: false` を返す）を実装する
   - アンカー解決失敗時は黙って無視せず呼び出し側がフォールバックを実行する: design 対応先は構造化トレーサビリティ行へ（5.3 で結線）、その他はドキュメント先頭へ遷移し「対象位置を特定できなかった」notice を表示する
   - 完了条件: ジャンプ実行で対象要素が viewport 内に入りハイライトクラスが付与される結合テスト、および `anchorIdOf` の厳密値単体テストが通る
@@ -198,3 +198,4 @@
 - 4.2: 既知の軽微 defect（後続整形タスク向け）: Traceability の raw 行は `<tbody>` 直下に RawBlockView の `<div>` を置くため HTML 的に無効（client 専用 SPA では foster-parenting なしで内容保持）。`<tr><td colSpan>` でラップすると妥当になる
 - 4.3: 全 3 構造化ビューア（requirements/design/tasks）が SpecDocumentPage のフォールバックを置換完了。brief/research は MarkdownDoc のまま。`TaskEntry` は `subtasks`（children でなく）で入れ子。完了マーカーは非インタラクティブ `<span data-checked aria-hidden>`（8.1）。タスク単位アサートは `data-task-id` の自身行スコープで分離（ネスト subtask の漏れ防止）
 - 5.1: 実契約 `TraceEdge` は `from`/`to`（design スケッチの source/target でない）+ 表示属性 `source`("design-table"|"component-field"|"task-annotation")+ `legacyExpanded`。NodeRef キーは type 接頭（`design:<name>` / `requirement:<id>` / `task:<id>`）で衝突回避。`uncovered` は design-uncovered/task-uncovered 診断からのみ導出（エッジ再計算しない＝5.5）。`allDiagnostics` は入力配列を同一参照で返す。`buildTraceIndex` は純関数（React/DOM import なし）、`useTraceIndex` が useTraceGraph と useMemo 合成
+- 5.2: `navigation/anchors.ts` の `anchorIdOf` がアンカー ID の単一所有者（design slug = `trim → lowercase → [^a-z0-9]→-`、連続記号は連続ハイフン）。4.x ビューアはローカル helper を削除し import 済み。`useJump` は `jumpTo` + `lastResolution` のみ（`back`/`canGoBack` は 5.4）。ハイライトは `.jump-highlight`（index.css）2 秒で除去、再 jump/unmount で timer clear。アンカー不在は `resolved:false` を返すのみ（3.10 フォールバック結線は 5.3）。5.3 引き継ぎ注記: useJump と useHashScrollRestore を同居させるとクロスドキュメント jump で同一要素へ二重 scrollIntoView するが冪等で無害

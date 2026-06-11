@@ -7,8 +7,7 @@
  *   useHashScrollRestore / useJump（5.2）と同じ `scrollIntoView({ block: "center" })`
  * - 本文（セクション見出し）は DocBlockList で描画する。各見出しに design 要素アンカー
  *   `design-<slug>` を払い出す（slug 正規化: trim → 小文字 → 非英数を `-`）。
- *   5.2 anchors.ts（anchorIdOf）が規約の単一所有者となるため、同一アルゴリズムを
- *   ローカルに実装してディープリンク互換を保つ
+ *   anchors.ts（anchorIdOf）が規約の単一所有者であり本ビューアはそれを使用する
  * - Requirements Traceability を構造化テーブル（`<table>`）として描画し、各行の
  *   `refs: RefToken[]` を参照チップ列として描画する。チップは 5.3（RefChip）までは
  *   静的・非インタラクティブで、RefToken の kind 別に原文（raw）を忠実に表示する
@@ -24,23 +23,18 @@ import type { SectionNode } from "@contracts/document";
 import type { DesignDoc, TraceabilityRow } from "@contracts/spec";
 import type { RefToken } from "@contracts/trace";
 import { DocBlockList, type StructuredBlock } from "@/markdown/DocBlockList";
+import { anchorIdOf } from "@/navigation/anchors";
 
 export interface DesignViewProps {
   doc: DesignDoc;
 }
 
 /**
- * design 要素名 → アンカー ID の slug 部分（trim → 小文字 → 非英数を `-`）。
- * design.md JumpNavigation 規約（`design "RawBlockView"` → `design-rawblockview`）に揃える。
- * 5.2 anchors.ts（anchorIdOf）が規約の単一所有者になるため、同一アルゴリズムを保つ。
+ * design 要素アンカー ID（`design-<slug>`）。anchors.ts（anchorIdOf）が slug 正規化
+ * （trim → 小文字 → 非英数を `-`）を含め規約を単一所有する。
  */
-function designSlug(name: string): string {
-  return name.trim().toLowerCase().replace(/[^a-z0-9]/g, "-");
-}
-
-/** design 要素アンカー ID（`design-<slug>`） */
 function designAnchorId(name: string): string {
-  return `design-${designSlug(name)}`;
+  return anchorIdOf({ type: "design", name });
 }
 
 /** RefToken の表示テキスト（kind 別に原文を忠実に表示。解釈は RefChip 5.3 の責務） */

@@ -9,7 +9,7 @@
  *   （タスクアンカー `#task-<id>` へのリンク）・`boundary`（テキスト）・`details`
  *   （bullet）を描画する（2.4）
  * - 各タスクに要素アンカー `task-<id>` を払い出す（design.md JumpNavigation 規約・
- *   3.2 の暫定払い出しと互換。5.2 anchors.ts（anchorIdOf）が規約の単一所有者になる）
+ *   3.2 の暫定払い出しと互換。anchors.ts（anchorIdOf）が規約の単一所有者でありそれを使用する）
  * - tasks + otherBlocks を position（startOffset）順にマージし、raw フォールバックを含め
  *   DocBlockList 経由で文書順に描画する（情報無欠落、2.5）
  * - チェックボックスは読み取り専用の表示のみ（完了状態の変更は行わない、8.1）。input /
@@ -26,14 +26,15 @@ import type { DocBlock } from "@contracts/document";
 import type { TaskEntry, TasksDoc } from "@contracts/spec";
 import type { RefToken } from "@contracts/trace";
 import { DocBlockList, type StructuredBlock } from "@/markdown/DocBlockList";
+import { anchorIdOf } from "@/navigation/anchors";
 
 export interface TasksViewProps {
   doc: TasksDoc;
 }
 
-/** タスクアンカー ID（`task-<id>`）。design.md JumpNavigation 規約。5.2 anchors.ts が単一所有者になる */
+/** タスクアンカー ID（`task-<id>`）。anchors.ts（anchorIdOf）が規約の単一所有者 */
 function taskAnchorId(id: string): string {
-  return `task-${id}`;
+  return anchorIdOf({ type: "task", id });
 }
 
 /** RefToken の安定キー（同一タスク内で raw が重複しても位置で区別する） */

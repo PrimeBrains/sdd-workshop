@@ -11,7 +11,7 @@
  * - otherBlocks の構造化セクション（Introduction / Boundary Context）は SectionNode ツリーを
  *   再帰的に正しい見出しレベルで描画する（本文テキストは契約上 raw ブロックが運ぶ）
  * - アンカー ID は要件・AC とも `req-<id>`（design.md JumpNavigation 規約・3.2 の暫定払い出し
- *   と互換。5.2 anchors.ts（anchorIdOf）が規約の単一所有者となる）
+ *   と互換。anchors.ts（anchorIdOf）が規約の単一所有者であり本ビューアはそれを使用する）
  * - AC の ID チップは非インタラクティブな表示のみ（参照の構造化解釈は RefChip 5.3 の責務）
  * - パース診断: RequirementsDoc 契約は文書単位の diagnostics を運ばない。raw ブロックの
  *   `reason` は RawBlockView（DocBlockList 経由）が title ツールチップで表示する
@@ -21,6 +21,7 @@ import { useMemo, type JSX, type ReactNode } from "react";
 import type { DocBlock, SectionNode } from "@contracts/document";
 import type { RequirementsDoc } from "@contracts/spec";
 import { DocBlockList, type StructuredBlock } from "@/markdown/DocBlockList";
+import { anchorIdOf } from "@/navigation/anchors";
 
 export interface RequirementsViewProps {
   doc: RequirementsDoc;
@@ -70,8 +71,8 @@ function SectionHeadingTree({ section }: { section: SectionNode }): JSX.Element 
 /** AC 1 件の描画（DocBlockList の memo 前提のためモジュールレベルで参照安定にする） */
 function renderCriterion(block: StructuredBlock<CriterionPayload>): ReactNode {
   return (
-    // アンカー ID `req-<AC id>`（design.md JumpNavigation 規約。5.2 anchors.ts が単一所有者になる）
-    <div id={`req-${block.id}`} className="flex items-start gap-2 text-sm">
+    // アンカー ID `req-<AC id>`（design.md JumpNavigation 規約。anchors.ts が単一所有者）
+    <div id={anchorIdOf({ type: "requirement", id: block.id })} className="flex items-start gap-2 text-sm">
       {/* ID チップ（非インタラクティブ。参照の構造化解釈は RefChip 5.3 の責務） */}
       <span
         data-testid="ac-id-chip"
@@ -95,7 +96,10 @@ function renderCriterion(block: StructuredBlock<CriterionPayload>): ReactNode {
 /** 要件カード: ID・タイトル・objective + AC リスト（2.1） */
 function RequirementCard({ requirement }: { requirement: StructuredRequirement }): JSX.Element {
   return (
-    <section id={`req-${requirement.id}`} className="rounded-md border border-slate-200 p-3">
+    <section
+      id={anchorIdOf({ type: "requirement", id: requirement.id })}
+      className="rounded-md border border-slate-200 p-3"
+    >
       <h2 className="text-base font-semibold">
         Requirement {requirement.id}: {requirement.title}
       </h2>

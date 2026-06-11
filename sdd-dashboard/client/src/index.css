@@ -1,1 +1,12 @@
 @import "tailwindcss";
+
+/*
+ * ジャンプ着地時の一時ハイライト（navigation/anchors.ts HIGHLIGHT_CLASS）。
+ * useJump が対象アンカーへ付与し ~2 秒後に除去する。クラス名は anchors.ts が単一所有する。
+ */
+.jump-highlight {
+  background-color: rgb(254 249 195); /* amber-100 相当 */
+  box-shadow: 0 0 0 2px rgb(253 224 71); /* amber-300 相当 */
+  border-radius: 0.25rem;
+  transition: background-color 150ms ease-out;
+}

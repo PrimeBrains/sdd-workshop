@@ -20,9 +20,8 @@
  * - ビューの key は feature + document（URL 由来）で安定させ、データ更新（SSE 再取得 →
  *   7.2）でアンマウントされないようにする
  *
- * アンカー ID（`req-<id>` / `task-<id>`）は design.md JumpNavigation の規約に揃えた
- * 暫定払い出し。5.2 の anchors.ts（anchorIdOf）が規約の単一所有者となり、4.x ビューアは
- * そちらを使用する。
+ * アンカー ID（`req-<id>` / `task-<id>`）は design.md JumpNavigation の規約に揃える。
+ * anchors.ts（anchorIdOf）が規約の単一所有者であり、4.x ビューアはそちらを使用する。
  */
 import { type JSX } from "react";
 import { Navigate, useParams } from "react-router";
