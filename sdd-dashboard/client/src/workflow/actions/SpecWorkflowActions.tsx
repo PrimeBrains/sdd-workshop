@@ -16,6 +16,7 @@ import { useState, type JSX } from "react";
 import type { PhaseName, SpecApprovals, SpecSummary } from "@contracts/spec";
 import { useSpecs } from "@/api/useSpecs";
 import { approvablePhase } from "@/workflow/model/phaseModel";
+import { ApproveDialog } from "./ApproveDialog";
 import { ConfirmDialog } from "./ConfirmDialog";
 
 interface SpecWorkflowActionsProps {
@@ -71,21 +72,7 @@ export function SpecWorkflowActions({ feature }: SpecWorkflowActionsProps): JSX.
       ) : null}
 
       {dialog === "approve" && phase !== null ? (
-        <ConfirmDialog
-          title="承認の確認"
-          confirmLabel="承認する"
-          pending={false}
-          error={null}
-          onConfirm={closeDialog}
-          onCancel={closeDialog}
-        >
-          <p>
-            対象スペック: <span className="font-mono">{feature}</span>
-          </p>
-          <p className="mt-1">
-            フェーズ: <span className="font-mono">{phase}</span>
-          </p>
-        </ConfirmDialog>
+        <ApproveDialog feature={feature} phase={phase} onClose={closeDialog} />
       ) : null}
 
       {dialog === "rollback" ? (
