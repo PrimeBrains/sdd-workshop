@@ -15,7 +15,7 @@
   - 完了条件: msw でモックした 500 + `ApiError` 応答に対し、ErrorPanel にエラーコードとメッセージの厳密値が表示され、再試行ボタンで再取得が発火するテストが通る
   - _Requirements: 1.5_
 
-- [ ] 1.3 アプリシェル・ルートレジストリ・SpecActionSlot を実装する
+- [x] 1.3 アプリシェル・ルートレジストリ・SpecActionSlot を実装する
   - `app/router.tsx` にルート表（`/specs`、`/specs/:feature`、`/specs/:feature/:document`、compare / matrix / validation ルート）を `RouteObject[]` レジストリとして定義し、予約名前空間定数（`/board` `/help` `/steering` `/skills` `/adr`）を宣言する
   - `AppShell.tsx`（ヘッダ + スペックサイドバー + Outlet）と `SpecActionSlot.tsx`（Context 登録 API + Outlet。本スペックでは何も登録しない）を実装する
   - 書込操作の UI 要素（承認ボタン等）を一切置かないこと
@@ -187,3 +187,5 @@
 - 1.1: client tsconfig は `moduleResolution: "bundler"` で server types の NodeNext 形式 `.js` 指定子を解決できる。`@contracts/api` は `../errors/codes.js`（types/ 外 1 ファイル）へ推移参照する
 - 1.2: クライアント合成エラーコードは `NETWORK_ERROR`（ネットワーク断）に加え `UNEXPECTED_RESPONSE`（非 JSON・形不一致・空 code/message）の 2 つ。「code/message 必ず非空」の事後条件を満たすための合成（client.ts に文書化済み）
 - 1.2: QueryClient 既定は retry 1 / staleTime 30s / refetchOnWindowFocus false（`createQueryClient()` factory。main.tsx への組み立ては 1.3）。ESLint で `fetch` 直接使用は api/client.ts 以外禁止
+- 1.3: vitest globals 無効のため RTL 自動 cleanup が効かない。複数 `render` するテストファイルは明示 `afterEach(cleanup)` が必要（後続 2.x 以降の画面テストも同様）
+- 1.3: 将来ページのプレースホルダは `app/placeholders.tsx`（2.x/3.2/6.x/7.x/8.x で差し替え）。layout から子ルートの params を読むには `useParams` でなく `useMatches()` の最深 match を使う（SpecActionSlotOutlet 実装済み）
