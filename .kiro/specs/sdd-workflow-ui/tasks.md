@@ -131,7 +131,7 @@
   - _Depends: 1.1, 1.3, 2.4_
 
 - [ ] 7. 統合検証
-- [ ] 7.1 承認・手戻りワークフローの E2E テストを実装する
+- [x] 7.1 承認・手戻りワークフローの E2E テストを実装する
   - Playwright + 実 sdd-core サーバー + フィクスチャリポジトリで `sdd-dashboard/e2e/workflow.spec.ts` を実装する: ボード表示（全レーンとフェーズ状態の厳密値）→ スペッククリックでレビュー画面へ遷移 → 確認ダイアログ経由で承認 → ディスク上の spec.json の approved が true になったことをファイル読取でアサート → ボードが承認済み表示へ自動更新されることを確認する
   - 手戻りシナリオ: 全承認済みフィクスチャを requirements へ巻き戻し、影響表示の内容を確認して確定 → spec.json 上で後続フェーズのフラグクリアと ready=false をファイルでアサート → `/kiro-spec-requirements` の案内表示を確認する。実行前に変更前状態の境界アサートを行う（偽 pass 防止）
   - 完了条件: `npm run test:e2e` で上記 2 シナリオが green になる
@@ -150,3 +150,4 @@
 - 1.4: review-ui の `useChangeEvents(map)` は `map ?? DEFAULT_INVALIDATION_MAP` で **置換**（マージではない）。注入する map は必ず `{ ...DEFAULT_INVALIDATION_MAP, ...workflowInvalidationMap }` と DEFAULT を spread すること。怠ると spec カテゴリの `['specs']` 無効化（ボード自動更新）が壊れる。配線は AppShell の既存 `useChangeEvents` 呼び出し1箇所＋Provider 配下の `WorkflowSlotRegistrar`（hooks 制約のため main.tsx ではなく AppShell）。
 - 3.1: `@xyflow/react@^12.11` は型インポート（`Node`/`Edge`）が必要なため task 3.2 ではなく 3.1 のコミットで dependencies へ追加済み。3.2 は CSS ローカル import・`React.lazy`・読取専用設定（Pro 不使用）の追加のみ。ボードグラフは **one-node-per-lane** モデル（1 スペック=1 `specPipeline` ノード、`edges=[]`、フェーズ進行は SpecPipelineNode のノード内ビジュアル）。
 - 3.2: `check:dist`（e2e）は dist 内 http(s) 文字列定数を許可リスト方式で検査する。@xyflow/react は非フェッチの attribution / error-doc 文字列（`reactflow.dev` / `pro.reactflow.dev` / `${e}flow.dev`）を BoardPage チャンクに埋め込むため、`ALLOWED_STRING_CONSTANT_HOSTS` へ追加した（fetched-reference 検査・self-test は不変更）。`proOptions.hideAttribution=true` で実 DOM の外部リンクも抑止。one-node-per-lane のため SpecPipelineNode から `<Handle>` は削除（read-only・エッジ無し）。ReactFlow テストは ResizeObserver スタブをテストファイル内 beforeAll で注入（共有 setup.ts は不変更）。
+- 7.1: 承認シナリオは generated 未承認フェーズを持つフィクスチャが必要だが committed fixture（fixture-normal/legacy/broken）は全承認のため、temp repo コピーへ `fixture-approvable`（design=generated 未承認）を beforeAll で書込み（committed fixture・sdd-core 単体テストへ非干渉）。4.1 で SpecActionSlot に承認/手戻り UI を載せた結果 review-ui の E2E `readonly-local.spec.ts` の「スロット空・書込ボタン皆無」アサートが破れるため、AppShell.test.tsx（4.1）と同じ再検証を適用: スロット内（workflow-ui 所有・確認ゲート付き）を除外し、review-ui 自身のクローム＋ネットワーク層（非 GET 0 件・外部 0 件）の読み取り専用保証は不変のまま維持。

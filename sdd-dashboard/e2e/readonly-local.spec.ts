@@ -109,22 +109,34 @@ test.describe("sdd-review-ui 読み取り専用・ローカル完結 E2E", () =>
     await expect(page.getByTestId("matrix-grid")).toBeVisible();
 
     // --- 書込 UI の不在（8.1 / 完了条件）。 ---
-    // SpecActionSlot は描画されるが空であること（review-ui は何も登録しない）。
+    // SpecActionSlot は描画される拡張点。sdd-workflow-ui 統合後はこのスロット内に
+    // 承認/手戻り操作（確認ゲート付き・sdd-workflow-ui 所有）が描画されうるため、
+    // 「review-ui 自身の画面には書込 UI が無い」ことをスロット外で検証する。
+    // 読み取り専用の本質はネットワーク層（非 GET 0 件・下記）で構造的に担保される
+    // — スロットのボタンは確認確定まで一切リクエストを発しないため、本テストの
+    // 全件 GET アサートはそのまま成立する。
     await page.goto("/specs/fixture-normal/requirements");
     await expect(page.getByTestId("requirements-view")).toContainText(OLD_AC_TEXT);
     const slot = page.getByTestId("spec-action-slot");
     await expect(slot).toBeAttached();
-    await expect(slot).toHaveText(""); // 登録ゼロ → 子要素なし（8.1 の構造的保証）。
 
-    // mutating な form / submit ボタンがページに存在しない。
+    // mutating な form / submit ボタンがページに存在しない（review-ui は GET 専用クライアント）。
     await expect(page.locator("form")).toHaveCount(0);
     await expect(page.locator('button[type="submit"], input[type="submit"]')).toHaveCount(0);
 
-    // 書込操作を示唆するテキストを持つ操作要素（button / role=button）が存在しない。
+    // 書込操作を示唆するテキストを持つ操作要素（button / role=button）が、
+    // workflow-ui の SpecActionSlot の「外」に存在しない（review-ui 自身の書込 UI ゼロ）。
+    const slotHandle = await slot.elementHandle();
     const actionable = page.locator('button, [role="button"], a[href^="http"]');
     const actionCount = await actionable.count();
     for (let i = 0; i < actionCount; i += 1) {
-      const text = (await actionable.nth(i).textContent()) ?? "";
+      const el = actionable.nth(i);
+      const insideSlot = await el.evaluate(
+        (node, root) => (root instanceof Node ? root.contains(node) : false),
+        slotHandle,
+      );
+      if (insideSlot) continue; // workflow-ui の承認/手戻り操作は確認ゲート付きで許容（9.3, 9.4）。
+      const text = (await el.textContent()) ?? "";
       for (const pattern of WRITE_ACTION_PATTERNS) {
         expect(text, `書込系操作要素を検出: "${text.trim()}"`).not.toMatch(pattern);
       }
