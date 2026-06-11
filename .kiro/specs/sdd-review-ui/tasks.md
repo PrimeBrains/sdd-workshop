@@ -38,7 +38,7 @@
   - _Boundary: SpecOverviewPage, DocumentTabs_
 
 - [ ] 3. ドキュメント描画基盤（情報無欠落）
-- [ ] 3.1 安全な raw markdown 描画と DocBlock ディスパッチを実装する
+- [x] 3.1 安全な raw markdown 描画と DocBlock ディスパッチを実装する
   - `RawBlockView` を react-markdown + remark-gfm で実装する: raw HTML 非描画、`urlTransform` で外部オリジン URL と危険スキームを無効化、`reason` ツールチップ付きの生表示ボーダー
   - `DocBlockList` を実装し、`DocBlock` union を入力順のまま structured レンダラ / RawBlockView へディスパッチする（並べ替え・スキップなし）。`MarkdownDoc` で brief / research 等の文書全体を描画する
   - 完了条件: `<script>` と外部画像入り markdown が不活性テキストとして表示され script / 外部 img 要素が DOM に存在しないテスト、および structured / raw 混在フィクスチャで描画テキスト連結が元文書全文と一致する情報無欠落テストが通る
@@ -189,3 +189,5 @@
 - 1.2: QueryClient 既定は retry 1 / staleTime 30s / refetchOnWindowFocus false（`createQueryClient()` factory。main.tsx への組み立ては 1.3）。ESLint で `fetch` 直接使用は api/client.ts 以外禁止
 - 1.3: vitest globals 無効のため RTL 自動 cleanup が効かない。複数 `render` するテストファイルは明示 `afterEach(cleanup)` が必要（後続 2.x 以降の画面テストも同様）
 - 1.3: 将来ページのプレースホルダは `app/placeholders.tsx`（2.x/3.2/6.x/7.x/8.x で差し替え）。layout から子ルートの params を読むには `useParams` でなく `useMatches()` の最深 match を使う（SpecActionSlotOutlet 実装済み）
+- 3.1: 安全描画設定は `RawBlockView` の `safeMarkdownOptions`（module 定数）が単一所有。react-markdown 10 は rehype-raw なしで raw HTML をテキストノード化（不活性テキスト表示は標準動作）。`safeUrlTransform` は許可リスト方式（fragment / 相対 / 同一オリジン http(s) のみ）
+- 3.1: `DocBlockList` の `StructuredItem` memo はレンダラの参照安定が前提 — 4.x ビューアで `renderStructured` をインライン arrow にすると memo が無効化される点に注意
