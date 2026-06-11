@@ -15,6 +15,8 @@ import { type RouteObject, useParams } from "react-router";
 
 import { LoadingSkeleton } from "@/shared/LoadingSkeleton";
 
+import { HelpPage } from "@/workflow/help/HelpPage";
+
 /**
  * board ルートは @xyflow/react を遅延ロードし、レビュー画面の初期ロードに影響させない
  * （design.md「Performance」route-level code splitting / Requirement 9.5 はローカルバンドル）。
@@ -36,10 +38,6 @@ function Placeholder({ testId, label }: { testId: string; label: string }): JSX.
       <h1 className="text-lg font-semibold text-slate-800">{label}</h1>
     </section>
   );
-}
-
-function HelpPlaceholder(): JSX.Element {
-  return <Placeholder testId="workflow-help-page" label="Help" />;
 }
 
 function SteeringListPlaceholder(): JSX.Element {
@@ -76,7 +74,7 @@ function AdrDetailPlaceholder(): JSX.Element {
  */
 export const workflowRoutes: RouteObject[] = [
   { path: "board", element: <BoardRoute /> },
-  { path: "help", element: <HelpPlaceholder /> },
+  { path: "help", element: <HelpPage /> },
   { path: "steering", element: <SteeringListPlaceholder /> },
   { path: "steering/:name", element: <SteeringDocPlaceholder /> },
   { path: "skills", element: <SkillListPlaceholder /> },

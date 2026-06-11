@@ -122,8 +122,16 @@ describe("workflowRoutes（Requirement 1.5: URL によるビュー復元 / 9.1: 
     expect(router.state.location.pathname).toBe("/board");
   });
 
+  it("/help を直接開くと HelpPage（フロー解説）が復元される", async () => {
+    const router = renderAt("/help");
+    const page = await screen.findByTestId("workflow-help-page");
+    expect(within(page).getByRole("heading", { level: 1 })).toBeTruthy();
+    // フロー解説の 8 ステップが描画される（プレースホルダではない実画面である証跡）。
+    expect(within(page).getAllByTestId("help-flow-step")).toHaveLength(8);
+    expect(router.state.location.pathname).toBe("/help");
+  });
+
   it.each([
-    ["/help", "workflow-help-page", "Help"],
     ["/steering", "workflow-steering-list-page", "Steering"],
     ["/steering/product", "workflow-steering-doc-page", "Steering: product"],
     ["/skills", "workflow-skill-list-page", "Skills"],
