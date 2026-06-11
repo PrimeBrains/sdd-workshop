@@ -80,7 +80,7 @@
   - _Boundary: TasksView_
 
 - [ ] 5. 相互リンクナビゲーション
-- [ ] 5.1 トレーサビリティ双方向インデックスを実装する
+- [x] 5.1 トレーサビリティ双方向インデックスを実装する
   - `buildTraceIndex` 純粋関数を実装する: `TraceGraph.edges` から要件 → design / task と逆方向の隣接 Map、診断のノード別索引、`uncovered` 集合を構築する。エッジ・診断の追加・削除・再判定をしない
   - `useTraceIndex` フックで `useTraceGraph` と合成する
   - 完了条件: legacy 展開・broken-link・uncovered を含むフィクスチャグラフで、`coverOf` / `requirementsOf` の結果集合が入力エッジ列挙と厳密一致し、`allDiagnostics` が入力と同一であるテストが通る
@@ -197,3 +197,4 @@
 - 4.2: design アンカー slug は `trim → 小文字 → [^a-z0-9]→-`（prefix `design-`、連続記号は連続ハイフン）。5.2 anchors.ts が単一所有者になる際は同一アルゴリズムを維持すること。`DesignDoc` は `sections: SectionNode[]`（見出しのみ）/ `traceability: DocBlock<TraceabilityRow>[]` / `componentRequirements`（派生 trace メタ）。`componentRequirements` は DocBlock でなく派生メタのため DesignView では未描画でも 2.5 違反でない（refs/component は本文見出しと 5.x matrix で再出）
 - 4.2: 既知の軽微 defect（後続整形タスク向け）: Traceability の raw 行は `<tbody>` 直下に RawBlockView の `<div>` を置くため HTML 的に無効（client 専用 SPA では foster-parenting なしで内容保持）。`<tr><td colSpan>` でラップすると妥当になる
 - 4.3: 全 3 構造化ビューア（requirements/design/tasks）が SpecDocumentPage のフォールバックを置換完了。brief/research は MarkdownDoc のまま。`TaskEntry` は `subtasks`（children でなく）で入れ子。完了マーカーは非インタラクティブ `<span data-checked aria-hidden>`（8.1）。タスク単位アサートは `data-task-id` の自身行スコープで分離（ネスト subtask の漏れ防止）
+- 5.1: 実契約 `TraceEdge` は `from`/`to`（design スケッチの source/target でない）+ 表示属性 `source`("design-table"|"component-field"|"task-annotation")+ `legacyExpanded`。NodeRef キーは type 接頭（`design:<name>` / `requirement:<id>` / `task:<id>`）で衝突回避。`uncovered` は design-uncovered/task-uncovered 診断からのみ導出（エッジ再計算しない＝5.5）。`allDiagnostics` は入力配列を同一参照で返す。`buildTraceIndex` は純関数（React/DOM import なし）、`useTraceIndex` が useTraceGraph と useMemo 合成
