@@ -2,14 +2,12 @@
  * SpecWorkflowActions — レビュー画面ヘッダ（SpecActionSlot）へ重ねる承認・手戻り操作 UI
  * （design.md「SpecWorkflowActions + ConfirmDialog ...」/ Requirements 2.1, 3.1, 9.2, 9.3）。
  *
- * 本タスク（4.1）の範囲はボタン可視条件 + 確認ゲート基盤の接続のみ:
+ * ボタン可視条件 + 確認ゲート基盤の接続:
  * - 承認ボタンは `approvablePhase(spec) !== null` のときだけ表示する（2.1）
  * - 手戻りボタンは生成済みまたは承認済みフェーズが 1 つ以上あるとき表示する（3.1）
- * - ボタン押下で `ConfirmDialog` を開き、対象 feature / phase を表示する
+ * - 承認ボタン押下で `ApproveDialog`（4.2）、手戻りボタン押下で `RollbackDialog`（4.3）を開く
  *
- * 実行（PUT approvals / POST rollback・対象選択・影響表示）は 4.2/4.3 へ意図的に繰り延べる。
- * 本タスクでは確定コールバックはダイアログを閉じるだけで、書込は一切行わない。
- * `ConfirmDialog` の構造的保証（onConfirm 経由でのみ書込）により、4.2/4.3 は onConfirm に
+ * `ConfirmDialog` の構造的保証（onConfirm 経由でのみ書込）により、各ダイアログは onConfirm に
  * mutation を差し込むだけで誤発火しない。既存レビュー画面は変更しない（9.2）。
  */
 import { useState, type JSX } from "react";
@@ -17,7 +15,7 @@ import type { PhaseName, SpecApprovals, SpecSummary } from "@contracts/spec";
 import { useSpecs } from "@/api/useSpecs";
 import { approvablePhase } from "@/workflow/model/phaseModel";
 import { ApproveDialog } from "./ApproveDialog";
-import { ConfirmDialog } from "./ConfirmDialog";
+import { RollbackDialog } from "./RollbackDialog";
 
 interface SpecWorkflowActionsProps {
   feature: string;
@@ -47,7 +45,6 @@ export function SpecWorkflowActions({ feature }: SpecWorkflowActionsProps): JSX.
 
   if (!showApprove && !showRollback) return null;
 
-  // 4.2/4.3 へ繰り延べ: 確定では書込を行わずダイアログを閉じるだけ。
   const closeDialog = () => setDialog(null);
 
   return (
@@ -76,21 +73,7 @@ export function SpecWorkflowActions({ feature }: SpecWorkflowActionsProps): JSX.
       ) : null}
 
       {dialog === "rollback" ? (
-        <ConfirmDialog
-          title="手戻りの確認"
-          confirmLabel="手戻りする"
-          pending={false}
-          error={null}
-          onConfirm={closeDialog}
-          onCancel={closeDialog}
-        >
-          <p>
-            対象スペック: <span className="font-mono">{feature}</span>
-          </p>
-          <p className="mt-1 text-gray-500">
-            巻き戻し先フェーズの選択と影響表示は後続タスクで実装します。
-          </p>
-        </ConfirmDialog>
+        <RollbackDialog feature={feature} spec={spec} onClose={closeDialog} />
       ) : null}
     </>
   );

@@ -84,7 +84,7 @@
   - _Requirements: 2.2, 2.3, 2.4, 2.6_
   - _Depends: 1.2_
 
-- [ ] 4.3 手戻りダイアログと巻き戻し実行を実装する
+- [x] 4.3 手戻りダイアログと巻き戻し実行を実装する
   - `RollbackDialog` を実装する: requirements / design / tasks から巻き戻し先を選択させ（生成済み・承認済みフェーズのみ選択可）、選択に応じて `computeRollbackImpact` の結果（承認解除されるフェーズ・再生成が必要な後続フェーズ・実装準備フラグ解除）を実行前に可視化する
   - 確定で `useRollbackMutation` を実行して更新後のフェーズ・承認状態を反映する。キャンセル時はリクエストを発行せず、拒否時（404 / 422）は code + message を表示して状態表示を変えない
   - 完了条件: msw 結合テストで target = requirements 選択時に影響表示へ「design / tasks の承認解除」「実装準備解除」が列挙され、キャンセルで POST 0 件・確定で POST 1 件 + 状態更新が通る
