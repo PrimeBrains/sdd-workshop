@@ -34,7 +34,7 @@
   - _Requirements: 1.1, 1.2, 2.1_
   - _Boundary: PhaseModel_
 
-- [ ] 2.2 (P) 巻き戻し影響予測を実装する
+- [x] 2.2 (P) 巻き戻し影響予測を実装する
   - `computeRollbackImpact` を実装する: 対象フェーズの承認解除・後続フェーズの両フラグクリア・ready_for_implementation 喪失を、sdd-core RollbackWriter のセマンティクスどおりに列挙する（表示専用。実行結果は常にサーバー返却値で上書き）
   - 完了条件: 全承認済みスペックに対する target = requirements / design / tasks の各ケースで、revokedApproval / clearedPhases / losesReady が sdd-core design.md 記載のセマンティクスと厳密一致する単体テストが通る
   - _Requirements: 3.2_
