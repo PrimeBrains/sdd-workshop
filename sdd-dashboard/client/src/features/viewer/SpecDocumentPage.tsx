@@ -10,13 +10,12 @@
  *   ビュー位置の唯一の真実（design.md State Management）であり、未知 URL を既知ビューへ
  *   フォールバックさせるルーターの規律（1.4）に揃えた選択（not-found 表示ではなく遷移）
  * - URL ハッシュのフォーカス対象はデータ到着後に useHashScrollRestore で復元する（3.9）
- * - 4.x までのフォールバック描画（情報無欠落の範囲で契約が運ぶ内容を全描画）:
+ * - 構造化ビューア / フォールバック描画（情報無欠落の範囲で契約が運ぶ内容を全描画）:
  *   - brief / research: MarkdownDoc（全文 + セクション。2.7 と同経路）
- *   - design: セクションツリー + Traceability 行（DocBlockList で raw 行も欠落なし）+
- *     コンポーネント参照。本文テキストは DesignDoc 契約に含まれない（DesignView 4.2 が
- *     構造化ビューとして引き受ける）
- *   - tasks: tasks + otherBlocks を position 順にマージし、タスク階層・マーカー・注記と
- *     raw ブロック全文を描画
+ *   - requirements: RequirementsView（4.1）
+ *   - design: DesignView（4.2。セクションツリーナビ + 本文 + Traceability テーブル）
+ *   - tasks: 4.3 までのフォールバック。tasks + otherBlocks を position 順にマージし、
+ *     タスク階層・マーカー・注記と raw ブロック全文を描画
  * - 不在成果物（null）は「未作成」の非エラー表示（Requirement 1.3 パターン）
  * - 読込中 LoadingSkeleton / 失敗 ErrorPanel + 再試行（Requirement 1.5 パターン）
  * - ビューの key は feature + document（URL 由来）で安定させ、データ更新（SSE 再取得 →
@@ -26,22 +25,15 @@
  * 暫定払い出し。5.2 の anchors.ts（anchorIdOf）が規約の単一所有者となり、4.x ビューアは
  * そちらを使用する。
  */
-import { useMemo, type JSX, type ReactNode } from "react";
+import { useMemo, type JSX } from "react";
 import { Navigate, useParams } from "react-router";
-import type { RawBlock, SectionNode } from "@contracts/document";
-import type {
-  ComponentRequirements,
-  DesignDoc,
-  SpecDetail,
-  TaskEntry,
-  TasksDoc,
-  TraceabilityRow,
-} from "@contracts/spec";
+import type { RawBlock } from "@contracts/document";
+import type { SpecDetail, TaskEntry, TasksDoc } from "@contracts/spec";
 import type { RefToken } from "@contracts/trace";
 import { useSpecDetail } from "@/api/useSpecDetail";
 import { toDocumentKind, type DocumentKind } from "@/app/SpecActionSlot";
+import { DesignView } from "@/features/viewer/DesignView";
 import { RequirementsView } from "@/features/viewer/RequirementsView";
-import { DocBlockList, type StructuredBlock } from "@/markdown/DocBlockList";
 import { MarkdownDoc } from "@/markdown/MarkdownDoc";
 import { RawBlockView } from "@/markdown/RawBlockView";
 import { useHashScrollRestore } from "@/navigation/useHashScrollRestore";
@@ -102,7 +94,7 @@ function DocumentView({ kind, detail }: { kind: DocumentKind; detail: SpecDetail
         <MissingArtifact kind={kind} />
       );
     case "design":
-      return detail.design !== null ? <DesignFallback doc={detail.design} /> : <MissingArtifact kind={kind} />;
+      return detail.design !== null ? <DesignView doc={detail.design} /> : <MissingArtifact kind={kind} />;
     case "tasks":
       return detail.tasks !== null ? <TasksFallback doc={detail.tasks} /> : <MissingArtifact kind={kind} />;
     case "research":
@@ -128,70 +120,7 @@ function refsRawText(refs: readonly RefToken[]): string {
 }
 
 // ---------------------------------------------------------------------------
-// design フォールバック
-// ---------------------------------------------------------------------------
-
-/** Traceability 行（DocBlockList へ渡すため module-level で参照安定にする） */
-function renderTraceabilityRow(block: StructuredBlock<TraceabilityRow>): ReactNode {
-  return (
-    <p className="text-sm">
-      <span className="font-mono font-semibold">{refsRawText(block.refs)}</span> — {block.summary} /{" "}
-      {block.components} / {block.interfaces} / {block.flows}
-    </p>
-  );
-}
-
-function SectionTree({ sections }: { sections: readonly SectionNode[] }): JSX.Element {
-  return (
-    <ul className="list-disc space-y-1 pl-5 text-sm">
-      {sections.map((section) => (
-        <li key={section.position.startOffset}>
-          {section.title}
-          {section.children.length > 0 && <SectionTree sections={section.children} />}
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-/**
- * 4.2 DesignView までの最小フォールバック。DesignDoc 契約はセクション見出し階層・
- * Traceability 行・コンポーネント参照を運ぶ（本文テキストは契約に含まれないため、
- * 内容を発明せず契約が提供する範囲を描画する）。
- */
-function DesignFallback({ doc }: { doc: DesignDoc }): JSX.Element {
-  return (
-    <article className="space-y-6">
-      <section>
-        <h2 className="text-base font-semibold">セクション構成</h2>
-        <div className="mt-2">
-          <SectionTree sections={doc.sections} />
-        </div>
-      </section>
-      <section>
-        <h2 className="text-base font-semibold">Requirements Traceability</h2>
-        <div className="mt-2 space-y-2">
-          <DocBlockList blocks={doc.traceability} renderStructured={renderTraceabilityRow} />
-        </div>
-      </section>
-      {doc.componentRequirements.length > 0 && (
-        <section>
-          <h2 className="text-base font-semibold">コンポーネント参照</h2>
-          <ul className="mt-2 list-disc space-y-1 pl-5 text-sm">
-            {doc.componentRequirements.map((entry: ComponentRequirements) => (
-              <li key={entry.position.startOffset}>
-                {entry.component}: {refsRawText(entry.refs)}
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-    </article>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// tasks フォールバック
+// tasks フォールバック（4.3 TasksView までの最小フォールバック）
 // ---------------------------------------------------------------------------
 
 function TaskItem({ task }: { task: TaskEntry }): JSX.Element {

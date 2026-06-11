@@ -13,7 +13,7 @@
  * - 読込中 LoadingSkeleton / 失敗 ErrorPanel + 再試行（Requirement 1.5 パターン）
  */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
 import type { ReactNode } from "react";
@@ -300,14 +300,16 @@ describe("document パラメータごとのビュー描画（Requirement 1.4）"
     expect(intro.compareDocumentPosition(outsideRaw) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
-  it("design はフォールバックでセクションツリー・トレーサビリティ行・raw 行を描画する", async () => {
+  it("design は DesignView でセクションナビ・トレーサビリティテーブル・raw 行を描画する", async () => {
     renderAt("/specs/foo/design");
     const page = await screen.findByTestId("spec-document-page");
-    // データ到着（本文描画）まで待つ
-    await screen.findByText("Overview");
+    // データ到着（本文描画）まで待つ（"Overview" はナビ + 見出しの 2 箇所に出る）
+    await screen.findByTestId("design-section-nav");
 
-    expect(page.textContent).toContain("Overview");
-    expect(page.textContent).toContain("Architecture");
+    // DesignView のセクションツリーナビ（4.2 で SpecDocumentPage に結線）
+    const nav = screen.getByTestId("design-section-nav");
+    expect(within(nav).getByText("Overview")).toBeTruthy();
+    expect(within(nav).getByText("Architecture")).toBeTruthy();
     // 構造化トレーサビリティ行の全フィールド
     expect(page.textContent).toContain("1.1");
     expect(page.textContent).toContain("スペック一覧表示");

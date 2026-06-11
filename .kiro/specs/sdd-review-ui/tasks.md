@@ -65,7 +65,7 @@
   - _Requirements: 2.1, 2.2_
   - _Boundary: RequirementsView_
 
-- [ ] 4.2 (P) design ビューアを実装する
+- [x] 4.2 (P) design ビューアを実装する
   - `SectionNode` ツリーを左ナビとして描画し、クリックで該当セクションへスクロールする。本文は DocBlockList で描画する
   - Requirements Traceability テーブルを構造化テーブルとして描画し、`refs` の `RefToken[]` を参照チップ列（5.3 実装までは静的表示）として描画する。セクション見出しに design 要素アンカーを払い出す
   - 完了条件: フィクスチャ design 文書でセクションツリーの全見出しがナビに表示され、Traceability 行の参照 ID 群が行ごとに厳密値で描画されるテストが通る
@@ -194,3 +194,5 @@
 - 3.2: SpecDocumentPage の DocumentKind switch が 4.x ビューアの差し替え点。アンカー `req-<id>`/`task-<id>` は暫定払い出しで 5.2 anchorIdOf が単一所有者になる。4.1 への引き継ぎ: RequirementsFallback は otherBlocks の SectionNode children（入れ子見出し）をタイトルのみ描画 — 4.1 で MarkdownDoc 相当に置換すること
 - 3.2: `navigation/useHashScrollRestore.ts`（data-ready ゲート + getElementById + scrollIntoView block:center）は 5.2 useJump と合成する前提の最小フック。hash 変化でも再スクロールする（in-app 遷移と両立）
 - 4.1: `RequirementsDoc` には per-doc diagnostics フィールドがない（`Diagnostic[]` は `SpecSummary` のみ）。DiagnosticBadge は 4.1 では不要 — 4.2/4.3 で必要なら raw ブロックの `reason` か summary 診断が出所。viewer は requirements + otherBlocks を `position.startOffset` でマージし DocBlockList で文書順描画（SectionNode は depth に従い再帰描画）
+- 4.2: design アンカー slug は `trim → 小文字 → [^a-z0-9]→-`（prefix `design-`、連続記号は連続ハイフン）。5.2 anchors.ts が単一所有者になる際は同一アルゴリズムを維持すること。`DesignDoc` は `sections: SectionNode[]`（見出しのみ）/ `traceability: DocBlock<TraceabilityRow>[]` / `componentRequirements`（派生 trace メタ）。`componentRequirements` は DocBlock でなく派生メタのため DesignView では未描画でも 2.5 違反でない（refs/component は本文見出しと 5.x matrix で再出）
+- 4.2: 既知の軽微 defect（後続整形タスク向け）: Traceability の raw 行は `<tbody>` 直下に RawBlockView の `<div>` を置くため HTML 的に無効（client 専用 SPA では foster-parenting なしで内容保持）。`<tr><td colSpan>` でラップすると妥当になる
