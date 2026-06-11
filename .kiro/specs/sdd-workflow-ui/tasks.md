@@ -112,7 +112,7 @@
   - _Boundary: SteeringListPage, SteeringDocPage_
   - _Depends: 1.1, 1.3_
 
-- [ ] 6.2 (P) スキルビューア（英日タブ・origin グループ）を実装する
+- [x] 6.2 (P) スキルビューア（英日タブ・origin グループ）を実装する
   - `SkillListPage` で `useSkillList` の全スキルを EN / JA 有無バッジ付きで一覧表示する。`SkillDocPage` は `SkillDoc.en` / `SkillDoc.ja` を URL クエリ `?lang=` で復元可能なタブとして切替表示する
   - `ja` が null のスキルは JA タブを無効化し「日本語版は未作成」の非エラー表示とともに英語版を表示する
   - 一覧は `groupSkillsByOrigin` で「cc-sdd 標準」→「独自スキル」→「未分類」の固定順 3 グループに分け、各グループ見出しに件数を併記する。`SkillDocPage` のヘッダに `SkillDoc.origin` の `OriginBadge`（cc-sdd 標準 / 独自スキル / 未分類）を表示する

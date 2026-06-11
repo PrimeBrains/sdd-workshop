@@ -18,6 +18,8 @@ import { LoadingSkeleton } from "@/shared/LoadingSkeleton";
 import { HelpPage } from "@/workflow/help/HelpPage";
 import { SteeringListPage } from "@/workflow/knowledge/steering/SteeringListPage";
 import { SteeringDocPage } from "@/workflow/knowledge/steering/SteeringDocPage";
+import { SkillListPage } from "@/workflow/knowledge/skills/SkillListPage";
+import { SkillDocPage } from "@/workflow/knowledge/skills/SkillDocPage";
 
 /**
  * board ルートは @xyflow/react を遅延ロードし、レビュー画面の初期ロードに影響させない
@@ -42,15 +44,6 @@ function Placeholder({ testId, label }: { testId: string; label: string }): JSX.
   );
 }
 
-function SkillListPlaceholder(): JSX.Element {
-  return <Placeholder testId="workflow-skill-list-page" label="Skills" />;
-}
-
-function SkillDocPlaceholder(): JSX.Element {
-  const { name } = useParams();
-  return <Placeholder testId="workflow-skill-doc-page" label={`Skill: ${name ?? ""}`} />;
-}
-
 function AdrListPlaceholder(): JSX.Element {
   return <Placeholder testId="workflow-adr-list-page" label="ADR" />;
 }
@@ -70,8 +63,8 @@ export const workflowRoutes: RouteObject[] = [
   { path: "help", element: <HelpPage /> },
   { path: "steering", element: <SteeringListPage /> },
   { path: "steering/:name", element: <SteeringDocPage /> },
-  { path: "skills", element: <SkillListPlaceholder /> },
-  { path: "skills/:name", element: <SkillDocPlaceholder /> },
+  { path: "skills", element: <SkillListPage /> },
+  { path: "skills/:name", element: <SkillDocPage /> },
   { path: "adr", element: <AdrListPlaceholder /> },
   { path: "adr/:id", element: <AdrDetailPlaceholder /> },
 ];

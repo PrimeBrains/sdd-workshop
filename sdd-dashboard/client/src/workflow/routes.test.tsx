@@ -94,6 +94,18 @@ const server = setupServer(
   http.get("/api/steering/:name", ({ params }) =>
     HttpResponse.json({ name: String(params.name), content: "# Product\n本文", sections: [] }),
   ),
+  // 6.2 で skills ルートが実画面（データ取得あり）に差し替わったため、最小フィクスチャを供給する。
+  http.get("/api/skills", () =>
+    HttpResponse.json([{ name: "kiro-review", hasEn: true, hasJa: true, origin: "cc-sdd" }]),
+  ),
+  http.get("/api/skills/:name", ({ params }) =>
+    HttpResponse.json({
+      name: String(params.name),
+      en: { content: "# Skill\nEN body", sections: [] },
+      ja: { content: "# スキル\nJA body", sections: [] },
+      origin: "cc-sdd",
+    }),
+  ),
 );
 
 beforeAll(() => server.listen({ onUnhandledRequest: "error" }));
@@ -137,14 +149,28 @@ describe("workflowRoutes（Requirement 1.5: URL によるビュー復元 / 9.1: 
   });
 
   it.each([
-    ["/skills", "workflow-skill-list-page", "Skills"],
-    ["/skills/kiro-review", "workflow-skill-doc-page", "Skill: kiro-review"],
     ["/adr", "workflow-adr-list-page", "ADR"],
     ["/adr/0001", "workflow-adr-detail-page", "ADR: 0001"],
   ])("%s を直接開くと %s プレースホルダが復元される", async (url, testId, text) => {
     const router = renderAt(url);
     expect((await screen.findByTestId(testId)).textContent).toBe(text);
     expect(router.state.location.pathname).toBe(url);
+  });
+
+  it("/skills を直接開くと SkillListPage（実画面）が復元される", async () => {
+    const router = renderAt("/skills");
+    const page = await screen.findByTestId("workflow-skill-list-page");
+    // プレースホルダではなく実画面である証跡（一覧リンクが描画される）。
+    expect(within(page).getByRole("link", { name: /kiro-review/ })).toBeTruthy();
+    expect(router.state.location.pathname).toBe("/skills");
+  });
+
+  it("/skills/:name を直接開くと SkillDocPage（実画面・origin バッジ）が復元される", async () => {
+    const router = renderAt("/skills/kiro-review");
+    const page = await screen.findByTestId("skill-doc-page");
+    // プレースホルダではなく実画面である証跡（origin バッジが描画される）。
+    expect(within(page).getByTestId("origin-badge").textContent).toBe("cc-sdd 標準");
+    expect(router.state.location.pathname).toBe("/skills/kiro-review");
   });
 
   it("/steering を直接開くと SteeringListPage（実画面）が復元される", async () => {
