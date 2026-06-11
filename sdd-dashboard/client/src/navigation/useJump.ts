@@ -4,10 +4,11 @@
  *
  * `jumpTo(target)` は対象アンカーへ `scrollIntoView({ block: "center" })` し、~2 秒の
  * 一時ハイライトクラス（anchors.HIGHLIGHT_CLASS）を付与する。
- * - 同一ドキュメント内（feature + document 一致）: その場でスクロール + ハイライト
- * - 別ドキュメント: ルート + アンカーを URL ハッシュへ符号化して遷移し、遷移先 mount 後に
- *   ハッシュからフォーカス対象を解決してスクロール + ハイライトする（3.3 のジャンプ意味論。
- *   URL 履歴 nav state の本実装は 5.5、UI 内履歴 back は 5.4）
+ * - フォーカス対象を URL（パス + ハッシュ）へ符号化し、ブラウザ履歴へ **push** で遷移する
+ *   （5.5 / Requirement 3.7「ナビゲーション状態を URL に符号化」「jumpTo はブラウザ履歴 push」）。
+ *   同一ドキュメント内・別ドキュメントを問わず `navigate(path#anchor)` で遷移するため、戻る /
+ *   進む（popstate）で直前 / 直後のフォーカス状態を復元できる（Requirement 3.8）。
+ * - 遷移後に hash 変化を捉え、保留アンカーを 1 回だけ解決してスクロール + ハイライトする。
  * - アンカー不在（名称不一致）: throw せず `lastResolution = { resolved: false }` を返す。
  *   黙ってトップへスクロールしない。フォールバック（design 対応先 → トレーサビリティ行 /
  *   その他 → ドキュメント先頭 + notice）は呼び出し側（RefChip 5.3）が決める
@@ -97,23 +98,32 @@ export function useJump(): JumpApi {
 
   const jumpTo = useCallback(
     (target: JumpTarget) => {
-      const sameDocument =
-        target.feature === currentFeature && target.document === currentDocument;
+      const targetPath = `/specs/${target.feature}/${target.document}`;
+      const targetHash = `#${encodeURIComponent(target.anchorId)}`;
+      const sameLocation =
+        target.feature === currentFeature &&
+        target.document === currentDocument &&
+        hash === targetHash;
 
-      if (sameDocument) {
+      // 同一ロケーション（同一パス + 同一ハッシュ）への再ジャンプは navigate で履歴が積まれず
+      // hash 変化も起きないため、その場でフォーカスを解決する（戻る対象が増えないので push 不要）。
+      if (sameLocation) {
         const resolved = focus(target.anchorId);
         setLastResolution({ resolved });
         return;
       }
 
-      // 別ドキュメント: ルート + ハッシュへ遷移し、遷移先 mount 後に解決する
+      // フォーカス対象を URL（パス + ハッシュ）へ符号化しブラウザ履歴へ push する（3.7）。
+      // 同一 / 別ドキュメントを問わず遷移し、遷移後の hash 変化で保留アンカーを解決する。
+      // これにより戻る / 進む（popstate）で直前 / 直後のフォーカス状態を復元できる（3.8）。
       pendingAnchorRef.current = target.anchorId;
-      navigate(`/specs/${target.feature}/${target.document}#${encodeURIComponent(target.anchorId)}`);
+      navigate(`${targetPath}${targetHash}`);
     },
-    [currentFeature, currentDocument, focus, navigate],
+    [currentFeature, currentDocument, hash, focus, navigate],
   );
 
-  // クロスドキュメント遷移の着地: 遷移後の hash 変化で保留アンカーを 1 回だけ解決する
+  // ジャンプ遷移の着地: 遷移後の hash 変化で保留アンカーを 1 回だけ解決する
+  // （同一ドキュメント内ジャンプ・クロスドキュメントジャンプ共通の着地経路）。
   useEffect(() => {
     const pending = pendingAnchorRef.current;
     if (pending === null || hash === "" || hash === "#") {
