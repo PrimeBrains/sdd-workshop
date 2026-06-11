@@ -1,6 +1,6 @@
 # Implementation Plan
 
-- [ ] 1. 基盤: workflow 名前空間とシェル統合
+- [x] 1. 基盤: workflow 名前空間とシェル統合
 - [x] 1.1 workflow ルート群とシェル連結を実装する
   - `workflow/routes.tsx` に `/board` `/help` `/steering` `/steering/:name` `/skills` `/skills/:name` `/adr` `/adr/:id` の `RouteObject[]` をプレースホルダページ付きで定義し、`app/router.tsx` の連結点（予約名前空間）へ合成する
   - `AppShell.tsx` の共通ナビゲーションへ Board / Help / Steering / Skills / ADR のリンクを追加する（既存リンク・レイアウト構造・`/specs/**` ルートには触れない）
@@ -26,7 +26,7 @@
   - 完了条件: フェイク EventSource の結合テストで「イベントなしでは再取得ゼロ」を先に確認した上で、category=steering イベントで `['steering']` の再取得が発生し、category=other では再取得が起きないことが通る
   - _Requirements: 8.1, 8.3_
 
-- [ ] 2. フェーズモデル純粋関数群
+- [x] 2. フェーズモデル純粋関数群
 - [x] 2.1 (P) パイプライン段階モデルと承認可能判定を実装する
   - `buildPipelineView` を実装する: `SpecSummary` から 4 段階（requirements / design / tasks / implementation）の状態（not-generated / generated / approved / unknown）・現在フェーズ・ready を導出する。approvals が null のスペックは全段階 unknown を返す
   - `approvablePhase` を実装する: generated かつ未承認かつ先行フェーズすべて承認済みのフェーズのみを返す（sdd-core の承認バリデーションと同条件）
@@ -54,7 +54,7 @@
   - _Requirements: 1.6, 1.7, 1.8, 6.4, 6.5, 7.4, 7.5_
   - _Boundary: GroupingModel_
 
-- [ ] 3. パイプライン俯瞰ボード
+- [x] 3. パイプライン俯瞰ボード
 - [x] 3.1 ボードグラフ構築関数を実装する
   - `buildBoardGraph` を実装する: `SpecSummary[]` からスペックごとに 1 レーン（4 フェーズノード + 進行エッジ）と決定論的な格子座標を生成し、ノードデータに `PipelineView` と診断有無を埋め込む。spec.json 不正のスペックも省略せずレーンを生成する
   - 完了条件: 正常 / 一部未生成 / spec.json 破損の 3 スペックフィクスチャで、レーン数 = 入力数・ノード状態・診断フラグ・座標の決定性が厳密値で一致する単体テストが通る
@@ -69,7 +69,7 @@
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.6, 1.7, 1.8, 9.5, 9.6_
   - _Depends: 2.4, 3.1_
 
-- [ ] 4. 承認・手戻り操作
+- [x] 4. 承認・手戻り操作
 - [x] 4.1 確認ダイアログ基盤と SpecActionSlot 登録を実装する
   - `ConfirmDialog` を実装する: 確定 / キャンセルの 2 操作、実行中（pending）の確定無効化、エラー表示領域を持ち、書込が確定コールバック経由でのみ起こる構造にする。Esc / 背景クリックはキャンセル扱い
   - `SpecWorkflowActions` を実装して `registerWorkflow` から SpecActionSlot へ登録する: `approvablePhase` が非 null のとき承認ボタンを、承認済みまたは生成済みフェーズが 1 つ以上あるとき手戻りボタンを表示する。レビュー画面の既存表示は変更しない
@@ -97,14 +97,14 @@
   - _Requirements: 2.5, 3.5_
   - _Depends: 2.3_
 
-- [ ] 5. ヘルプ/オンボーディング
+- [x] 5. ヘルプ/オンボーディング
 - [x] 5.1 ヘルプ画面と cc-sdd フロー解説コンテンツを実装する
   - `helpContent.tsx` に Discovery → Requirements → 承認 → Design → 承認 → Tasks → 承認 → 実装 の順序を示すフロー図と、フェーズ別カード（成果物・承認の意味・CLI コマンド = `PHASE_COMMANDS` 参照）をローカル静的コンテンツとして実装し、`HelpPage` で描画する。外部リンク・外部画像を含めない
   - 完了条件: `/help` で 8 ステップが定義順に表示され、各フェーズカードに成果物名と CLI コマンドの厳密値が表示されるテストが通る。共通ナビからヘルプへ到達できる
   - _Requirements: 4.1, 4.2, 4.3_
   - _Depends: 2.3_
 
-- [ ] 6. ナレッジビューア
+- [x] 6. ナレッジビューア
 - [x] 6.1 (P) steering ビューアを実装する
   - `SteeringListPage` で `useSteeringList` の全 steering 文書を一覧表示し、選択で `/steering/:name` へ遷移する。`SteeringDocPage` は `SteeringDoc` を review-ui の `MarkdownDoc` で全文描画する（情報無欠落は markdown 基盤の不変則に乗る）
   - 完了条件: フィクスチャ steering 文書が一覧に全件表示され、本文表示の描画テキストに元文書の全セクション見出しが含まれるテストが通る
@@ -130,7 +130,7 @@
   - _Boundary: AdrListPage, AdrDetailPage, AdrStatusBadge_
   - _Depends: 1.1, 1.3, 2.4_
 
-- [ ] 7. 統合検証
+- [x] 7. 統合検証
 - [x] 7.1 承認・手戻りワークフローの E2E テストを実装する
   - Playwright + 実 sdd-core サーバー + フィクスチャリポジトリで `sdd-dashboard/e2e/workflow.spec.ts` を実装する: ボード表示（全レーンとフェーズ状態の厳密値）→ スペッククリックでレビュー画面へ遷移 → 確認ダイアログ経由で承認 → ディスク上の spec.json の approved が true になったことをファイル読取でアサート → ボードが承認済み表示へ自動更新されることを確認する
   - 手戻りシナリオ: 全承認済みフィクスチャを requirements へ巻き戻し、影響表示の内容を確認して確定 → spec.json 上で後続フェーズのフラグクリアと ready=false をファイルでアサート → `/kiro-spec-requirements` の案内表示を確認する。実行前に変更前状態の境界アサートを行う（偽 pass 防止）
