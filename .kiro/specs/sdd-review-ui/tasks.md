@@ -133,7 +133,7 @@
   - _Requirements: 5.1, 5.5_
   - _Depends: 5.1_
 
-- [ ] 7.2 未カバー・診断ハイライトとマトリクスからの遷移を実装する
+- [x] 7.2 未カバー・診断ハイライトとマトリクスからの遷移を実装する
   - `uncovered.design` / `uncovered.task` の行を警告ハイライトし、`DiagnosticsPanel` に broken-link / unparsable-ref を raw テキスト・発生元・行番号付きで一覧表示する
   - 行ヘッダ / セルのクリックで該当ドキュメントビューの対応要素へ `jumpTo` する
   - 完了条件: design-uncovered の要件行がハイライトされ、セルクリックで tasks ビューの該当タスクへ遷移しハイライトされる結合テストが通る
@@ -200,6 +200,7 @@
 - 5.1: 実契約 `TraceEdge` は `from`/`to`（design スケッチの source/target でない）+ 表示属性 `source`("design-table"|"component-field"|"task-annotation")+ `legacyExpanded`。NodeRef キーは type 接頭（`design:<name>` / `requirement:<id>` / `task:<id>`）で衝突回避。`uncovered` は design-uncovered/task-uncovered 診断からのみ導出（エッジ再計算しない＝5.5）。`allDiagnostics` は入力配列を同一参照で返す。`buildTraceIndex` は純関数（React/DOM import なし）、`useTraceIndex` が useTraceGraph と useMemo 合成
 - 5.3: ジャンプはページ単位ホスト `CrosslinkJumpProvider`（navigation/JumpContext.tsx）が実行 — クロスドキュメント遷移で RefChip が unmount しても着地・3.10 フォールバックを継続。TraceIndex は `TraceIndexContext`（SpecDocumentPage で `useTraceIndex` 供給、null 時は素テキストチップ）。broken-link 照合は `diagnosticsFor(origin)` の `ref===raw`。3.10 フォールバックは DesignView の `trace-row-<reqId>` アンカーへ着地（design cover edge と同一データ源なので必ず存在）。direction: origin=requirement→coverOf / origin=design|task→requirement。残課題（後続 polish）: 非 design の「対象位置特定できず」notice はページ単位 API のため全 RefChip に同時表示される（3.10 完了条件外）
 - 7.1: 【重要】サーバーの TraceEdge dedupe キーは `source` を含む（trace-graph.ts:88）ため `(req, node)` は一意でない — 同一 (req, design:X) に design-table と component-field の 2 エッジが来うる。MatrixGrid は `viewsByColumn: Map<string, TraceEdgeView[]>` でセル内の全エッジを保持し、エッジ 1 本 = マーク 1 個（各 `data-source`）で描画（折り畳むと 5.5 違反 + 完了条件「エッジ数=マーク数」破綻）。レビュー初回リジェクト → 是正済み
+- 7.2: uncovered 行ハイライトは `index.uncovered.design/task.has(reqId)` のみから導出（再計算なし）。DiagnosticsPanel は `allDiagnostics` を broken-link/unparsable-ref にフィルタ（uncovered 系は position 無しのため除外、行ハイライトが担当）。表示は実契約フィールド（broken-link→`ref` / unparsable-ref→`raw` / 両者 `where`＋`position.startLine`）。マトリクス遷移は MatrixGrid が NodeRef を `onJump` で emit（脆弱な colKey 文字列再マップでなく）、MatrixPage が `anchorIdOf` で `/specs/:feature/<document>#<anchor>` へ navigate。空セルもクリックで遷移可
 - 6.2: `useCorrespondence(selection, traceIndex, targetDocument)` はグラフ由来のみ（coverOf/requirementsOf → targetDocument 種別でフィルタ → anchorIdOf）。選択は UI 一時 state（URL 非符号化）。ハイライトは対向ペイン内スコープで `root.querySelector('[id="..."]')`（getElementById は両ペイン同一文書時に id 衝突するため不可）。`.correspondence-highlight` は持続型（jump-highlight の 2 秒一時とは別）。viewer は選択 delegation 用に `data-node-type`/`data-node-id`/`data-node-name`（design は slug 不可逆のため name 保持）を付与
 - 6.1: `DocumentKind → ビューア` ディスパッチは `features/viewer/DocumentView.tsx` が単一所有（SpecDocumentPage と ComparePane が共有、不在は MissingArtifact `data-testid="document-missing"`）。ComparePage はペイン構成を URL クエリ `?left=&right=`（既定 requirements/design）で保持、セレクタは `setSearchParams({replace:true})`。ペイン内 RefChip 用に TraceIndex/Crosslink/JumpHistory プロバイダで包む（左右対応ハイライトは 6.2）
 - 5.5: `jumpTo` は同一文書ジャンプも `navigate`（push）で URL hash を更新（旧: その場 scroll で hash 未更新）。同一パス+同一 hash への再ジャンプのみ navigate を skip しその場 focus。ブラウザ戻る/進む（popstate）は useHashScrollRestore（deps [ready, hash]）が hash 変化で再スクロール → フォーカス+スクロール復元（3.8）。in-UI jumpHistory（5.4）とブラウザ履歴は独立・直交（5.4 テストは browser-history depth を見ないため push 追加で非破壊）
