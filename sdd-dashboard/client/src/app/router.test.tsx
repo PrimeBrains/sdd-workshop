@@ -14,7 +14,7 @@ import { setupServer } from "msw/node";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import type { RepoInfo } from "@contracts/api";
-import type { SpecSummary } from "@contracts/spec";
+import type { SpecDetail, SpecSummary } from "@contracts/spec";
 import { createQueryClient } from "@/app/queryClient";
 import { RESERVED_NAMESPACES, routes } from "@/app/router";
 
@@ -48,9 +48,25 @@ function makeSpecSummary(feature: string): SpecSummary {
   };
 }
 
+/** SpecOverviewPage（2.2 で実装済み）が取得する GET /api/specs/:feature の最小フィクスチャ */
+function makeSpecDetail(feature: string): SpecDetail {
+  return {
+    summary: makeSpecSummary(feature),
+    brief: null,
+    requirements: { requirements: [], otherBlocks: [] },
+    design: { sections: [], traceability: [], componentRequirements: [] },
+    tasks: { tasks: [], otherBlocks: [] },
+    research: null,
+    validations: [],
+  };
+}
+
 const server = setupServer(
   http.get("/api/repo", () => HttpResponse.json(repoFixture)),
   http.get("/api/specs", () => HttpResponse.json([makeSpecSummary("sdd-review-ui")])),
+  http.get("/api/specs/:feature", ({ params }) =>
+    HttpResponse.json(makeSpecDetail(String(params.feature))),
+  ),
 );
 
 beforeAll(() => server.listen({ onUnhandledRequest: "error" }));
@@ -85,10 +101,11 @@ describe("ルートレジストリ（Requirement 1.4: URL によるビュー復�
     expect(page).toBeTruthy();
   });
 
-  it("/specs/foo を直接開くと SpecOverviewPage プレースホルダが feature=foo で復元される", async () => {
+  it("/specs/foo を直接開くと SpecOverviewPage（2.2 で実装済み）が feature=foo で復元される", async () => {
     renderAt("/specs/foo");
-    const page = await screen.findByTestId("spec-overview-page");
-    expect(page.textContent).toBe("foo");
+    await screen.findByTestId("spec-overview-page");
+    const heading = await screen.findByTestId("spec-overview-heading");
+    expect(heading.textContent).toBe("foo");
   });
 
   it("/ は /specs へリダイレクトされる", async () => {

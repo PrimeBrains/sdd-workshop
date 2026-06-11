@@ -30,7 +30,7 @@
   - _Requirements: 1.1_
   - _Boundary: SpecListPage, SpecMetaBadges_
 
-- [ ] 2.2 (P) スペック概要画面とドキュメントタブを実装する
+- [x] 2.2 (P) スペック概要画面とドキュメントタブを実装する
   - `useSpecDetail` から成果物（brief / requirements / design / tasks / research）と validation レポートを選択可能なタブ / カードとして提示する
   - 存在しない成果物はディム表示 + 「未作成」表示とし、クリックしてもエラーにしない
   - 完了条件: `artifacts` の false 項目が非エラーの不在表示になり、true 項目のみ該当ドキュメントルートへ遷移するテストが通る
