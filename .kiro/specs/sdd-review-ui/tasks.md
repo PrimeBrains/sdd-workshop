@@ -58,7 +58,7 @@
   - _Depends: 3.1_
 
 - [ ] 4. 成果物別構造化ビューア
-- [ ] 4.1 (P) requirements ビューアを実装する
+- [x] 4.1 (P) requirements ビューアを実装する
   - `RequirementsDoc` の各要件を ID・タイトル・objective・AC リストの構造化カードとして描画し、各要件・AC にアンカー ID を払い出す
   - AC の英文と `translationJa` をペアで同一項目内に表示する（和訳なしは英文のみ）。`otherBlocks` と raw フォールバックは DocBlockList 経由で文書順に描画する
   - 完了条件: 実 spec 構造のフィクスチャで、AC `1.2` のカードに英文と和訳がペアで描画され、ID チップが表示されるテストが通る
@@ -193,3 +193,4 @@
 - 3.1: `DocBlockList` の `StructuredItem` memo はレンダラの参照安定が前提 — 4.x ビューアで `renderStructured` をインライン arrow にすると memo が無効化される点に注意
 - 3.2: SpecDocumentPage の DocumentKind switch が 4.x ビューアの差し替え点。アンカー `req-<id>`/`task-<id>` は暫定払い出しで 5.2 anchorIdOf が単一所有者になる。4.1 への引き継ぎ: RequirementsFallback は otherBlocks の SectionNode children（入れ子見出し）をタイトルのみ描画 — 4.1 で MarkdownDoc 相当に置換すること
 - 3.2: `navigation/useHashScrollRestore.ts`（data-ready ゲート + getElementById + scrollIntoView block:center）は 5.2 useJump と合成する前提の最小フック。hash 変化でも再スクロールする（in-app 遷移と両立）
+- 4.1: `RequirementsDoc` には per-doc diagnostics フィールドがない（`Diagnostic[]` は `SpecSummary` のみ）。DiagnosticBadge は 4.1 では不要 — 4.2/4.3 で必要なら raw ブロックの `reason` か summary 診断が出所。viewer は requirements + otherBlocks を `position.startOffset` でマージし DocBlockList で文書順描画（SectionNode は depth に従い再帰描画）

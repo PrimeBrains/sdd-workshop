@@ -2,8 +2,9 @@
  * SpecDocumentPage のテスト（tasks.md 3.2 / Requirements 1.4, 3.9 /
  * design.md ルート表 `/specs/:feature/:document`）。
  *
- * - document パラメータごとに対応ビューが描画される（4.x までは MarkdownDoc /
- *   構造化フォールバック。情報無欠落: raw ブロックは全文描画）
+ * - document パラメータごとに対応ビューが描画される（requirements は RequirementsView
+ *   （4.1）、design / tasks は 4.x までの構造化フォールバック。情報無欠落: raw ブロックは
+ *   全文描画）
  * - ディープリンク（URL 直開き = リロード・共有リンク）で同一ドキュメントが復元され、
  *   ハッシュのフォーカス対象が scrollIntoView される（3.9 / 完了条件）
  * - 未知 document パラメータは概要 `/specs/:feature` へリダイレクト（1.4: URL が
@@ -277,7 +278,7 @@ describe("document パラメータごとのビュー描画（Requirement 1.4）"
     expect(screen.getByText("research の本文です。")).toBeTruthy();
   });
 
-  it("requirements はフォールバックで要件・AC・和訳・raw ブロックを文書順で全描画する（情報無欠落）", async () => {
+  it("requirements は RequirementsView で要件・AC・和訳・raw ブロックを文書順で全描画する（情報無欠落）", async () => {
     renderAt("/specs/foo/requirements");
     const page = await screen.findByTestId("spec-document-page");
     // データ到着（本文描画）まで待つ

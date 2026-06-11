@@ -5,14 +5,13 @@
  * - document パラメータを DocumentKind（語彙は SpecActionSlot の単一定義を再利用）へ
  *   検証し、種別ごとの明示的 switch でビューへディスパッチする。4.x の構造化ビューア
  *   （RequirementsView / DesignView / TasksView）はこの switch の該当 case を置き換える
+ *   （requirements は 4.1 で RequirementsView へ置換済み）
  * - 未知の document パラメータは概要 `/specs/:feature` へリダイレクトする。URL が
  *   ビュー位置の唯一の真実（design.md State Management）であり、未知 URL を既知ビューへ
  *   フォールバックさせるルーターの規律（1.4）に揃えた選択（not-found 表示ではなく遷移）
  * - URL ハッシュのフォーカス対象はデータ到着後に useHashScrollRestore で復元する（3.9）
  * - 4.x までのフォールバック描画（情報無欠落の範囲で契約が運ぶ内容を全描画）:
  *   - brief / research: MarkdownDoc（全文 + セクション。2.7 と同経路）
- *   - requirements: requirements + otherBlocks を position 順にマージし、構造化要件
- *     （ID・タイトル・objective・AC 英文+和訳）と raw ブロック全文を描画
  *   - design: セクションツリー + Traceability 行（DocBlockList で raw 行も欠落なし）+
  *     コンポーネント参照。本文テキストは DesignDoc 契約に含まれない（DesignView 4.2 が
  *     構造化ビューとして引き受ける）
@@ -33,7 +32,6 @@ import type { RawBlock, SectionNode } from "@contracts/document";
 import type {
   ComponentRequirements,
   DesignDoc,
-  RequirementsDoc,
   SpecDetail,
   TaskEntry,
   TasksDoc,
@@ -42,6 +40,7 @@ import type {
 import type { RefToken } from "@contracts/trace";
 import { useSpecDetail } from "@/api/useSpecDetail";
 import { toDocumentKind, type DocumentKind } from "@/app/SpecActionSlot";
+import { RequirementsView } from "@/features/viewer/RequirementsView";
 import { DocBlockList, type StructuredBlock } from "@/markdown/DocBlockList";
 import { MarkdownDoc } from "@/markdown/MarkdownDoc";
 import { RawBlockView } from "@/markdown/RawBlockView";
@@ -98,7 +97,7 @@ function DocumentView({ kind, detail }: { kind: DocumentKind; detail: SpecDetail
       return detail.brief !== null ? <MarkdownDoc doc={detail.brief} /> : <MissingArtifact kind={kind} />;
     case "requirements":
       return detail.requirements !== null ? (
-        <RequirementsFallback doc={detail.requirements} />
+        <RequirementsView doc={detail.requirements} />
       ) : (
         <MissingArtifact kind={kind} />
       );
@@ -126,81 +125,6 @@ function MissingArtifact({ kind }: { kind: DocumentKind }): JSX.Element {
 /** RefToken 列の原文表示（解釈しない: 構造化解釈は RefChip 5.x の責務） */
 function refsRawText(refs: readonly RefToken[]): string {
   return refs.map((ref) => ref.raw).join(", ");
-}
-
-// ---------------------------------------------------------------------------
-// requirements フォールバック
-// ---------------------------------------------------------------------------
-
-type RequirementBlock = RequirementsDoc["requirements"][number];
-type StructuredRequirement = Extract<RequirementBlock, { kind: "structured" }>;
-type CriterionPayload = { id: string; text: string; translationJa: string | null };
-
-/** AC 1 件の描画（DocBlockList へ渡すため module-level で参照安定にする） */
-function renderCriterion(block: StructuredBlock<CriterionPayload>): ReactNode {
-  return (
-    // アンカー ID `req-<id>`（design.md JumpNavigation 規約。5.2 anchors.ts が単一所有者になる）
-    <div id={`req-${block.id}`} className="text-sm">
-      <p>
-        <span className="font-mono font-semibold">{block.id}.</span> {block.text}
-      </p>
-      {block.translationJa !== null && <p className="mt-0.5 text-slate-600">和訳: {block.translationJa}</p>}
-    </div>
-  );
-}
-
-function RequirementCard({ requirement }: { requirement: StructuredRequirement }): JSX.Element {
-  return (
-    <section id={`req-${requirement.id}`} className="rounded-md border border-slate-200 p-3">
-      <h2 className="text-base font-semibold">
-        Requirement {requirement.id}: {requirement.title}
-      </h2>
-      {requirement.objective !== null && <p className="mt-1 text-sm text-slate-700">{requirement.objective}</p>}
-      <div className="mt-2 space-y-2">
-        <DocBlockList blocks={requirement.criteria} renderStructured={renderCriterion} />
-      </div>
-    </section>
-  );
-}
-
-type MergedRequirementsBlock = RequirementBlock | RequirementsDoc["otherBlocks"][number];
-
-/**
- * requirements + otherBlocks を position（startOffset）順にマージする。
- * サーバー側不変則（position 連結 = 元文書全体）を表示順でも保つ（情報無欠落、2.5）。
- */
-function mergeRequirementsBlocks(doc: RequirementsDoc): MergedRequirementsBlock[] {
-  return [...doc.requirements, ...doc.otherBlocks].sort(
-    (a, b) => a.position.startOffset - b.position.startOffset,
-  );
-}
-
-/**
- * 4.1 RequirementsView までの最小フォールバック。契約が運ぶ全フィールドを文書順で描画する。
- * 注: otherBlocks の構造化セクションは契約上 SectionNode（見出し階層）のみを運ぶため、
- * 見出しを描画する（セクション本文は契約に含まれない。構造化されない範囲は raw として届く）。
- */
-function RequirementsFallback({ doc }: { doc: RequirementsDoc }): JSX.Element {
-  const blocks = useMemo(() => mergeRequirementsBlocks(doc), [doc]);
-  return (
-    <article className="space-y-3">
-      {blocks.map((block) => {
-        if (block.kind === "raw") {
-          return (
-            <RawBlockView key={block.position.startOffset} markdown={block.markdown} reason={block.reason} />
-          );
-        }
-        if ("section" in block) {
-          return (
-            <h2 key={block.position.startOffset} className="text-base font-semibold">
-              {block.section.title}
-            </h2>
-          );
-        }
-        return <RequirementCard key={block.position.startOffset} requirement={block} />;
-      })}
-    </article>
-  );
 }
 
 // ---------------------------------------------------------------------------
