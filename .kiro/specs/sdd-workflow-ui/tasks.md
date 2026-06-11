@@ -40,7 +40,7 @@
   - _Requirements: 3.2_
   - _Boundary: RollbackImpact_
 
-- [ ] 2.3 (P) 次 CLI コマンド対応表を実装する
+- [x] 2.3 (P) 次 CLI コマンド対応表を実装する
   - `nextCommand.ts` に承認後（requirements → `/kiro-spec-design`、design → `/kiro-spec-tasks`、tasks → `/kiro-impl`）と手戻り後（巻き戻し先フェーズの再生成コマンド）の対応、およびヘルプ用 `PHASE_COMMANDS`（フェーズ・成果物・コマンドの固定記述）を定義する
   - 完了条件: フェーズ × feature 名の全対応が `"/kiro-spec-design sdd-workflow-ui"` 等の厳密値で一致する単体テストが通る
   - _Requirements: 2.5, 3.5, 4.2_
