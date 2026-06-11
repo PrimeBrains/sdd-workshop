@@ -32,9 +32,12 @@ import { DesignView } from "@/features/viewer/DesignView";
 import { RequirementsView } from "@/features/viewer/RequirementsView";
 import { TasksView } from "@/features/viewer/TasksView";
 import { MarkdownDoc } from "@/markdown/MarkdownDoc";
+import { CrosslinkJumpProvider } from "@/navigation/JumpContext";
 import { useHashScrollRestore } from "@/navigation/useHashScrollRestore";
 import { ErrorPanel } from "@/shared/ErrorPanel";
 import { LoadingSkeleton } from "@/shared/LoadingSkeleton";
+import { TraceIndexProvider } from "@/trace/TraceIndexContext";
+import { useTraceIndex } from "@/trace/useTraceIndex";
 
 export function SpecDocumentPage(): JSX.Element {
   // ルートパラメータ由来（`/specs/:feature/:document` で必ず供給される。?? "" は型の絞り込みのみ）
@@ -42,6 +45,9 @@ export function SpecDocumentPage(): JSX.Element {
   const feature = params.feature ?? "";
   const kind = toDocumentKind(params.document);
   const detail = useSpecDetail(feature);
+  // RefChip（5.3）の対応先解決用に trace グラフを取得し index を Context で配布する。
+  // loading 中は index === null で、RefChip は素のテキストへグレースフルに退避する。
+  const { index: traceIndex } = useTraceIndex(feature);
 
   // フォーカス対象の復元はドキュメント本体の描画後（データ到着後）に 1 回だけ行う（3.9）
   useHashScrollRestore(kind !== null && detail.data !== undefined);
@@ -52,26 +58,33 @@ export function SpecDocumentPage(): JSX.Element {
   }
 
   return (
-    <section data-testid="spec-document-page">
-      <h1 data-testid="spec-document-heading" className="text-lg font-semibold">
-        {feature}/{kind}
-      </h1>
-      {detail.isPending && <LoadingSkeleton label="ドキュメントを読み込み中…" />}
-      {detail.isError && (
-        <ErrorPanel
-          error={detail.error}
-          onRetry={() => {
-            void detail.refetch();
-          }}
-        />
-      )}
-      {detail.data !== undefined && (
-        // key は URL 由来（feature + document）で安定させる（7.2 の前提: データ同一性で key しない）
-        <div key={`${feature}/${kind}`} className="mt-4">
-          <DocumentView kind={kind} detail={detail.data} />
-        </div>
-      )}
-    </section>
+    // CrosslinkJumpProvider / TraceIndexProvider はドキュメント切替（下の keyed div の remount）を
+    // 跨いで安定させる。クロスドキュメントジャンプの着地・3.10 フォールバックは RefChip 自身が
+    // unmount しても継続する必要があるため（JumpContext.tsx 参照）。
+    <CrosslinkJumpProvider>
+      <TraceIndexProvider index={traceIndex}>
+        <section data-testid="spec-document-page">
+          <h1 data-testid="spec-document-heading" className="text-lg font-semibold">
+            {feature}/{kind}
+          </h1>
+          {detail.isPending && <LoadingSkeleton label="ドキュメントを読み込み中…" />}
+          {detail.isError && (
+            <ErrorPanel
+              error={detail.error}
+              onRetry={() => {
+                void detail.refetch();
+              }}
+            />
+          )}
+          {detail.data !== undefined && (
+            // key は URL 由来（feature + document）で安定させる（7.2 の前提: データ同一性で key しない）
+            <div key={`${feature}/${kind}`} className="mt-4">
+              <DocumentView kind={kind} detail={detail.data} />
+            </div>
+          )}
+        </section>
+      </TraceIndexProvider>
+    </CrosslinkJumpProvider>
   );
 }
 

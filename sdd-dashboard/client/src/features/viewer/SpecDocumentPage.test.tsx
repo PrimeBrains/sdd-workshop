@@ -210,6 +210,17 @@ const detailByFeature: Record<string, SpecDetail> = {
 };
 
 const server = setupServer(
+  // SpecDocumentPage は RefChip（5.3）の対応先解決用に trace グラフも取得する。
+  // ビューア構造の検証には不要だが、未ハンドルにすると onUnhandledRequest:"error" になるため
+  // 空グラフを返す（RefChip は index から素のテキストへグレースフルに退避する）。
+  http.get("/api/specs/:feature/trace", ({ params }) =>
+    HttpResponse.json({
+      feature: String(params.feature),
+      nodes: { requirements: [], designElements: [], tasks: [] },
+      edges: [],
+      diagnostics: [],
+    }),
+  ),
   http.get("/api/specs/:feature", ({ params }) => {
     const detail = detailByFeature[String(params.feature)];
     if (detail !== undefined) return HttpResponse.json(detail);

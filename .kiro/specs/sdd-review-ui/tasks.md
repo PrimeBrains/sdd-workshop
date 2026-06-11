@@ -92,7 +92,7 @@
   - 完了条件: ジャンプ実行で対象要素が viewport 内に入りハイライトクラスが付与される結合テスト、および `anchorIdOf` の厳密値単体テストが通る
   - _Requirements: 3.3_
 
-- [ ] 5.3 参照チップと対応先ポップオーバーを実装する
+- [x] 5.3 参照チップと対応先ポップオーバーを実装する
   - `RefChip` を `RefToken` の kind 別に実装する: `id` 通常チップ / `range` 展開 + legacy バッジ / `cross-spec` チップ / `unparsable` 警告非リンクチップ（raw そのまま表示）
   - クリックで `CounterpartPopover` に TraceIndex 由来の対応先（design / task / requirement）を一覧し、選択で `jumpTo` する。broken-link 診断に該当する参照はリンク切れスタイルで描画しジャンプを提供しない
   - `cross-spec` は対象スペックの requirements ルート + アンカーへ遷移する。4.1〜4.3 のビューアの参照表示を本チップへ差し替える
@@ -198,4 +198,5 @@
 - 4.2: 既知の軽微 defect（後続整形タスク向け）: Traceability の raw 行は `<tbody>` 直下に RawBlockView の `<div>` を置くため HTML 的に無効（client 専用 SPA では foster-parenting なしで内容保持）。`<tr><td colSpan>` でラップすると妥当になる
 - 4.3: 全 3 構造化ビューア（requirements/design/tasks）が SpecDocumentPage のフォールバックを置換完了。brief/research は MarkdownDoc のまま。`TaskEntry` は `subtasks`（children でなく）で入れ子。完了マーカーは非インタラクティブ `<span data-checked aria-hidden>`（8.1）。タスク単位アサートは `data-task-id` の自身行スコープで分離（ネスト subtask の漏れ防止）
 - 5.1: 実契約 `TraceEdge` は `from`/`to`（design スケッチの source/target でない）+ 表示属性 `source`("design-table"|"component-field"|"task-annotation")+ `legacyExpanded`。NodeRef キーは type 接頭（`design:<name>` / `requirement:<id>` / `task:<id>`）で衝突回避。`uncovered` は design-uncovered/task-uncovered 診断からのみ導出（エッジ再計算しない＝5.5）。`allDiagnostics` は入力配列を同一参照で返す。`buildTraceIndex` は純関数（React/DOM import なし）、`useTraceIndex` が useTraceGraph と useMemo 合成
+- 5.3: ジャンプはページ単位ホスト `CrosslinkJumpProvider`（navigation/JumpContext.tsx）が実行 — クロスドキュメント遷移で RefChip が unmount しても着地・3.10 フォールバックを継続。TraceIndex は `TraceIndexContext`（SpecDocumentPage で `useTraceIndex` 供給、null 時は素テキストチップ）。broken-link 照合は `diagnosticsFor(origin)` の `ref===raw`。3.10 フォールバックは DesignView の `trace-row-<reqId>` アンカーへ着地（design cover edge と同一データ源なので必ず存在）。direction: origin=requirement→coverOf / origin=design|task→requirement。残課題（後続 polish）: 非 design の「対象位置特定できず」notice はページ単位 API のため全 RefChip に同時表示される（3.10 完了条件外）
 - 5.2: `navigation/anchors.ts` の `anchorIdOf` がアンカー ID の単一所有者（design slug = `trim → lowercase → [^a-z0-9]→-`、連続記号は連続ハイフン）。4.x ビューアはローカル helper を削除し import 済み。`useJump` は `jumpTo` + `lastResolution` のみ（`back`/`canGoBack` は 5.4）。ハイライトは `.jump-highlight`（index.css）2 秒で除去、再 jump/unmount で timer clear。アンカー不在は `resolved:false` を返すのみ（3.10 フォールバック結線は 5.3）。5.3 引き継ぎ注記: useJump と useHashScrollRestore を同居させるとクロスドキュメント jump で同一要素へ二重 scrollIntoView するが冪等で無害

@@ -24,7 +24,8 @@
 import { useMemo, type JSX, type ReactNode } from "react";
 import type { DocBlock } from "@contracts/document";
 import type { TaskEntry, TasksDoc } from "@contracts/spec";
-import type { RefToken } from "@contracts/trace";
+import type { NodeRef, RefToken } from "@contracts/trace";
+import { RefChip } from "@/features/crosslink/RefChip";
 import { DocBlockList, type StructuredBlock } from "@/markdown/DocBlockList";
 import { anchorIdOf } from "@/navigation/anchors";
 
@@ -43,21 +44,14 @@ function refTokenKey(token: RefToken, index: number): string {
 }
 
 /**
- * 参照チップ列（5.3 RefChip までは静的・非インタラクティブ）。
- * RefToken の kind 別の原文テキスト（raw）をそのまま表示する（exact-value testable）。
+ * 参照チップ列。各 RefToken を RefChip（5.3）に委譲する。origin はこのタスクノード
+ * （タスク → 参照している要件へジャンプする方向 → 3.2）。
  */
-function RefChipList({ refs }: { refs: readonly RefToken[] }): JSX.Element {
+function RefChipList({ refs, origin }: { refs: readonly RefToken[]; origin: NodeRef }): JSX.Element {
   return (
     <span className="flex flex-wrap gap-1">
       {refs.map((token, index) => (
-        <span
-          key={refTokenKey(token, index)}
-          data-testid="ref-chip"
-          data-ref-kind={token.kind}
-          className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs font-semibold text-slate-700"
-        >
-          {token.raw}
-        </span>
+        <RefChip key={refTokenKey(token, index)} token={token} origin={origin} />
       ))}
     </span>
   );
@@ -139,7 +133,7 @@ function TaskItem({ task }: { task: TaskEntry }): JSX.Element {
       {task.requirements.length > 0 && (
         <p className="mt-1 flex flex-wrap items-baseline gap-1 text-slate-600">
           <span className="text-xs font-semibold text-slate-500">Requirements</span>
-          <RefChipList refs={task.requirements} />
+          <RefChipList refs={task.requirements} origin={{ type: "task", id: task.id }} />
         </p>
       )}
 

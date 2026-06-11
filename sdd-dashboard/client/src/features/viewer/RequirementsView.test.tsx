@@ -14,12 +14,23 @@
  *   正しいレベルで描画する（情報無欠落、2.5 / 3.2 レビューの持ち越し）
  */
 import { cleanup, render, screen, within } from "@testing-library/react";
+import { type ReactElement } from "react";
+import { MemoryRouter } from "react-router";
 import { afterEach, describe, expect, it } from "vitest";
 import type { Position } from "@contracts/document";
 import type { RequirementsDoc } from "@contracts/spec";
 import { RequirementsView } from "@/features/viewer/RequirementsView";
 
 afterEach(cleanup);
+
+/**
+ * RefChip（5.3）は react-router フックを使うため Router 配下で描画する。TraceIndexProvider は
+ * 与えないため index=null で、AC ID チップは素のテキストへグレースフルに退避する
+ * （ビューアの構造化描画テストは trace に依存しない）。
+ */
+function renderInRouter(ui: ReactElement) {
+  return render(<MemoryRouter initialEntries={["/specs/demo/requirements"]}>{ui}</MemoryRouter>);
+}
 
 function pos(startLine: number, endLine: number, startOffset: number, endOffset: number): Position {
   return { startLine, endLine, startOffset, endOffset };
@@ -124,7 +135,7 @@ function expectDocumentOrder(elements: ReadonlyArray<Element>): void {
 
 describe("AC の英文 + 和訳ペア表示（Requirement 2.2 / 完了条件）", () => {
   it("AC 1.2 の項目内に英文と和訳がペアで描画され、ID チップが表示される", () => {
-    const { container } = render(<RequirementsView doc={fixtureDoc} />);
+    const { container } = renderInRouter(<RequirementsView doc={fixtureDoc} />);
 
     const item = container.querySelector('[id="req-1.2"]');
     expect(item).not.toBeNull();
@@ -133,13 +144,13 @@ describe("AC の英文 + 和訳ペア表示（Requirement 2.2 / 完了条件）"
     // 英文と和訳が同一項目内にペアで描画される（厳密値）
     expect(within(item as HTMLElement).getByText(AC_12_TEXT)).toBeTruthy();
     expect(within(item as HTMLElement).getByText(AC_12_JA)).toBeTruthy();
-    // ID チップ
-    const chip = within(item as HTMLElement).getByTestId("ac-id-chip");
+    // ID チップ（5.3 で RefChip に差し替え。ID テキストはそのまま表示する）
+    const chip = within(item as HTMLElement).getByTestId("ref-chip");
     expect(chip.textContent).toBe("1.2");
   });
 
   it("和訳なしの AC は英文のみ描画する（空の和訳要素を出さない）", () => {
-    const { container } = render(<RequirementsView doc={fixtureDoc} />);
+    const { container } = renderInRouter(<RequirementsView doc={fixtureDoc} />);
 
     const item = container.querySelector('[id="req-1.1"]');
     expect(item).not.toBeNull();
@@ -150,14 +161,14 @@ describe("AC の英文 + 和訳ペア表示（Requirement 2.2 / 完了条件）"
   });
 
   it("構造化できなかった AC 行は raw のまま全文描画される（情報無欠落）", () => {
-    render(<RequirementsView doc={fixtureDoc} />);
+    renderInRouter(<RequirementsView doc={fixtureDoc} />);
     expect(screen.getByText("構造化できなかった受入基準の行")).toBeTruthy();
   });
 });
 
 describe("要件カードの構造化描画（Requirement 2.1）", () => {
   it("要件カードに ID・タイトル・objective を厳密値で描画する", () => {
-    render(<RequirementsView doc={fixtureDoc} />);
+    renderInRouter(<RequirementsView doc={fixtureDoc} />);
     expect(
       screen.getByRole("heading", { name: "Requirement 1: スペック一覧とドキュメント選択" }),
     ).toBeTruthy();
@@ -165,7 +176,7 @@ describe("要件カードの構造化描画（Requirement 2.1）", () => {
   });
 
   it("要件と各 AC にアンカー ID（req-<id>）を払い出す", () => {
-    const { container } = render(<RequirementsView doc={fixtureDoc} />);
+    const { container } = renderInRouter(<RequirementsView doc={fixtureDoc} />);
     expect(container.querySelector('[id="req-1"]')).not.toBeNull();
     expect(container.querySelector('[id="req-1.1"]')).not.toBeNull();
     expect(container.querySelector('[id="req-1.2"]')).not.toBeNull();
@@ -174,7 +185,7 @@ describe("要件カードの構造化描画（Requirement 2.1）", () => {
 
 describe("otherBlocks + raw の文書順描画（情報無欠落）", () => {
   it("構造化セクション見出し・raw・要件カードを startOffset の文書順で描画する", () => {
-    render(<RequirementsView doc={fixtureDoc} />);
+    renderInRouter(<RequirementsView doc={fixtureDoc} />);
     expectDocumentOrder([
       screen.getByRole("heading", { name: "Requirements Document" }),
       screen.getByRole("heading", { name: "Introduction" }),
@@ -186,7 +197,7 @@ describe("otherBlocks + raw の文書順描画（情報無欠落）", () => {
   });
 
   it("SectionNode の子見出しも正しい見出しレベルで描画する（3.2 レビュー持ち越し）", () => {
-    render(<RequirementsView doc={fixtureDoc} />);
+    renderInRouter(<RequirementsView doc={fixtureDoc} />);
     expect(screen.getByRole("heading", { level: 1, name: "Requirements Document" })).toBeTruthy();
     expect(screen.getByRole("heading", { level: 2, name: "Boundary Context" })).toBeTruthy();
     expect(screen.getByRole("heading", { level: 3, name: "Adjacent expectations" })).toBeTruthy();

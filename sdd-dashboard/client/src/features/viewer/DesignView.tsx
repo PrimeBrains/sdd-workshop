@@ -21,7 +21,8 @@
 import type { JSX, ReactNode } from "react";
 import type { SectionNode } from "@contracts/document";
 import type { DesignDoc, TraceabilityRow } from "@contracts/spec";
-import type { RefToken } from "@contracts/trace";
+import type { NodeRef, RefToken } from "@contracts/trace";
+import { RefChip } from "@/features/crosslink/RefChip";
 import { DocBlockList, type StructuredBlock } from "@/markdown/DocBlockList";
 import { anchorIdOf } from "@/navigation/anchors";
 
@@ -37,32 +38,20 @@ function designAnchorId(name: string): string {
   return anchorIdOf({ type: "design", name });
 }
 
-/** RefToken の表示テキスト（kind 別に原文を忠実に表示。解釈は RefChip 5.3 の責務） */
-function refTokenText(token: RefToken): string {
-  return token.raw;
-}
-
 /** RefToken の安定キー（同一行内で raw が重複しても位置で区別する） */
 function refTokenKey(token: RefToken, index: number): string {
   return `${index}:${token.raw}`;
 }
 
 /**
- * 参照チップ列（5.3 RefChip までは静的・非インタラクティブ）。
- * RefToken の kind 別の原文テキストをそのまま表示する（exact-value testable）。
+ * 参照チップ列。各 RefToken を RefChip（5.3）に委譲し、対応先ポップオーバー・ジャンプ・
+ * broken-link 表示を提供する。origin は当該行の design コンテキスト（要件 → 設計の逆方向）。
  */
-function RefChipList({ refs }: { refs: readonly RefToken[] }): JSX.Element {
+function RefChipList({ refs, origin }: { refs: readonly RefToken[]; origin: NodeRef }): JSX.Element {
   return (
     <span className="flex flex-wrap gap-1">
       {refs.map((token, index) => (
-        <span
-          key={refTokenKey(token, index)}
-          data-testid="ref-chip"
-          data-ref-kind={token.kind}
-          className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs font-semibold text-slate-700"
-        >
-          {refTokenText(token)}
-        </span>
+        <RefChip key={refTokenKey(token, index)} token={token} origin={origin} />
       ))}
     </span>
   );
@@ -124,12 +113,39 @@ function SectionNav({ sections }: { sections: readonly SectionNode[] }): JSX.Ele
   );
 }
 
+/**
+ * トレーサビリティ行の design アンカー名（broken-link 照合・ジャンプ origin 用）。
+ * 行は要件 → 設計の対応を表す。design 側の文脈ラベルとして summary を用いる。
+ */
+function rowDesignOrigin(row: TraceabilityRow): NodeRef {
+  return { type: "design", name: row.summary };
+}
+
+/**
+ * 行に付与するトレーサビリティ行アンカー（`trace-row-<reqId>`）。
+ * 3.10 フォールバック（design 対応先のアンカー未解決時）の着地先になる。
+ * 行内の最初の id / range 参照の要件 ID をキーにする（無ければアンカーを払い出さない）。
+ */
+function traceRowAnchorIds(refs: readonly RefToken[]): string[] {
+  const ids: string[] = [];
+  for (const ref of refs) {
+    if (ref.kind === "id") ids.push(ref.id);
+    else if (ref.kind === "range") ids.push(...ref.expanded);
+  }
+  return ids;
+}
+
 /** Traceability テーブルの 1 行（DocBlockList へ渡すため module-level で参照安定にする） */
 function renderTraceabilityRow(block: StructuredBlock<TraceabilityRow>): ReactNode {
+  const reqIds = traceRowAnchorIds(block.refs);
   return (
     <tr data-testid="traceability-row" className="border-t border-slate-200 align-top">
       <td className="px-2 py-1">
-        <RefChipList refs={block.refs} />
+        {/* 3.10 フォールバック着地点: 行が表す各要件のトレーサビリティ行アンカー */}
+        {reqIds.map((id) => (
+          <span key={id} id={`trace-row-${id}`} data-testid="trace-row-anchor" />
+        ))}
+        <RefChipList refs={block.refs} origin={rowDesignOrigin(block)} />
       </td>
       <td className="px-2 py-1 text-sm">{block.summary}</td>
       <td className="px-2 py-1 text-sm">{block.components}</td>

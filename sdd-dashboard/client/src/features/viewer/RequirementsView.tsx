@@ -20,6 +20,7 @@
 import { useMemo, type JSX, type ReactNode } from "react";
 import type { DocBlock, SectionNode } from "@contracts/document";
 import type { RequirementsDoc } from "@contracts/spec";
+import { RefChip } from "@/features/crosslink/RefChip";
 import { DocBlockList, type StructuredBlock } from "@/markdown/DocBlockList";
 import { anchorIdOf } from "@/navigation/anchors";
 
@@ -73,12 +74,13 @@ function renderCriterion(block: StructuredBlock<CriterionPayload>): ReactNode {
   return (
     // アンカー ID `req-<AC id>`（design.md JumpNavigation 規約。anchors.ts が単一所有者）
     <div id={anchorIdOf({ type: "requirement", id: block.id })} className="flex items-start gap-2 text-sm">
-      {/* ID チップ（非インタラクティブ。参照の構造化解釈は RefChip 5.3 の責務） */}
-      <span
-        data-testid="ac-id-chip"
-        className="shrink-0 rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs font-semibold text-slate-700"
-      >
-        {block.id}
+      {/* AC ID チップ = RefChip（5.3）。クリックで coverOf（design / task）対応先を提示しジャンプする（3.1）。
+          origin はこの AC（要件ノード）。token は AC 自身の ID（id kind） */}
+      <span className="shrink-0">
+        <RefChip
+          token={{ kind: "id", id: block.id, raw: block.id }}
+          origin={{ type: "requirement", id: block.id }}
+        />
       </span>
       <div>
         <p>{block.text}</p>
