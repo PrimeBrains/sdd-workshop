@@ -106,6 +106,45 @@ const server = setupServer(
       origin: "cc-sdd",
     }),
   ),
+  // 6.3 で adr ルートが実画面（データ取得あり）に差し替わったため、最小フィクスチャを供給する。
+  http.get("/api/adr", () =>
+    HttpResponse.json([
+      {
+        name: "0001-sample-decision",
+        frontmatter: {
+          id: 1,
+          title: "Sample decision",
+          status: "accepted",
+          date: "2026-06-01",
+          app: "sdd-dashboard",
+          specs: ["sdd-review-ui"],
+          requirements: [],
+          supersedes: null,
+          superseded_by: null,
+        },
+        diagnostics: [],
+      },
+    ]),
+  ),
+  http.get("/api/adr/:id", ({ params }) =>
+    HttpResponse.json({
+      name: String(params.id),
+      frontmatter: {
+        id: 1,
+        title: "Sample decision",
+        status: "accepted",
+        date: "2026-06-01",
+        app: "sdd-dashboard",
+        specs: ["sdd-review-ui"],
+        requirements: [],
+        supersedes: null,
+        superseded_by: null,
+      },
+      content: "## Context\n背景\n## Decision\n決定",
+      sections: [],
+      diagnostics: [],
+    }),
+  ),
 );
 
 beforeAll(() => server.listen({ onUnhandledRequest: "error" }));
@@ -148,13 +187,20 @@ describe("workflowRoutes（Requirement 1.5: URL によるビュー復元 / 9.1: 
     expect(router.state.location.pathname).toBe("/help");
   });
 
-  it.each([
-    ["/adr", "workflow-adr-list-page", "ADR"],
-    ["/adr/0001", "workflow-adr-detail-page", "ADR: 0001"],
-  ])("%s を直接開くと %s プレースホルダが復元される", async (url, testId, text) => {
-    const router = renderAt(url);
-    expect((await screen.findByTestId(testId)).textContent).toBe(text);
-    expect(router.state.location.pathname).toBe(url);
+  it("/adr を直接開くと AdrListPage（実画面・一覧リンク）が復元される", async () => {
+    const router = renderAt("/adr");
+    const page = await screen.findByTestId("workflow-adr-list-page");
+    // プレースホルダではなく実画面である証跡（一覧リンクが描画される）。
+    expect(within(page).getByRole("link", { name: /Sample decision/ })).toBeTruthy();
+    expect(router.state.location.pathname).toBe("/adr");
+  });
+
+  it("/adr/:id を直接開くと AdrDetailPage（実画面・本文描画）が復元される", async () => {
+    const router = renderAt("/adr/0001-sample-decision");
+    const page = await screen.findByTestId("adr-detail-page");
+    // MarkdownDoc 経由で本文の見出しが描画される（プレースホルダではない証跡）。
+    expect(within(page).getByRole("heading", { name: "Context" })).toBeTruthy();
+    expect(router.state.location.pathname).toBe("/adr/0001-sample-decision");
   });
 
   it("/skills を直接開くと SkillListPage（実画面）が復元される", async () => {

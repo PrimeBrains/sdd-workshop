@@ -121,7 +121,7 @@
   - _Boundary: SkillListPage, SkillDocPage, OriginBadge_
   - _Depends: 1.1, 1.3, 2.4_
 
-- [ ] 6.3 (P) ADR ビューアを実装する
+- [x] 6.3 (P) ADR ビューアを実装する
   - `AdrListPage` で `useAdrList` の全 ADR を id・タイトル・`AdrStatusBadge`（proposed / accepted / deprecated / superseded の色分け）・date・関連 specs 付きで一覧表示し、選択で `/adr/:id` へ遷移する
   - 一覧は `groupByApp` で frontmatter `app` 別にグルーピングし（app 名昇順・各グループ内 id 昇順）、`app` が null の ADR は末尾の「リポジトリ横断」グループに表示する
   - `AdrDetailPage` で frontmatter メタ（`app` 含む）をヘッダ表示し、本文（Context / Decision / Consequences / Alternatives）を `MarkdownDoc` で散文描画する。frontmatter 不正の ADR は `RawBlockView` + 診断表示にフォールバックする

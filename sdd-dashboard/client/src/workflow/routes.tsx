@@ -11,7 +11,7 @@
  * プレースホルダは読み取り専用（書込操作 UI = button を持たない / Requirement 8.1）。
  */
 import { lazy, Suspense, type JSX } from "react";
-import { type RouteObject, useParams } from "react-router";
+import type { RouteObject } from "react-router";
 
 import { LoadingSkeleton } from "@/shared/LoadingSkeleton";
 
@@ -20,6 +20,8 @@ import { SteeringListPage } from "@/workflow/knowledge/steering/SteeringListPage
 import { SteeringDocPage } from "@/workflow/knowledge/steering/SteeringDocPage";
 import { SkillListPage } from "@/workflow/knowledge/skills/SkillListPage";
 import { SkillDocPage } from "@/workflow/knowledge/skills/SkillDocPage";
+import { AdrListPage } from "@/workflow/knowledge/adr/AdrListPage";
+import { AdrDetailPage } from "@/workflow/knowledge/adr/AdrDetailPage";
 
 /**
  * board ルートは @xyflow/react を遅延ロードし、レビュー画面の初期ロードに影響させない
@@ -35,24 +37,6 @@ function BoardRoute(): JSX.Element {
   );
 }
 
-/** 後続タスクで実画面に差し替わる最小プレースホルダ（見出しのみ） */
-function Placeholder({ testId, label }: { testId: string; label: string }): JSX.Element {
-  return (
-    <section data-testid={testId}>
-      <h1 className="text-lg font-semibold text-slate-800">{label}</h1>
-    </section>
-  );
-}
-
-function AdrListPlaceholder(): JSX.Element {
-  return <Placeholder testId="workflow-adr-list-page" label="ADR" />;
-}
-
-function AdrDetailPlaceholder(): JSX.Element {
-  const { id } = useParams();
-  return <Placeholder testId="workflow-adr-detail-page" label={`ADR: ${id ?? ""}`} />;
-}
-
 /**
  * 本スペックの URL 空間。review-ui の RESERVED_NAMESPACES に対応し、`app/router.tsx` の
  * 連結点で fallbackRoute より前に合成される。先頭スラッシュなしの相対パスで定義する
@@ -65,6 +49,6 @@ export const workflowRoutes: RouteObject[] = [
   { path: "steering/:name", element: <SteeringDocPage /> },
   { path: "skills", element: <SkillListPage /> },
   { path: "skills/:name", element: <SkillDocPage /> },
-  { path: "adr", element: <AdrListPlaceholder /> },
-  { path: "adr/:id", element: <AdrDetailPlaceholder /> },
+  { path: "adr", element: <AdrListPage /> },
+  { path: "adr/:id", element: <AdrDetailPage /> },
 ];
