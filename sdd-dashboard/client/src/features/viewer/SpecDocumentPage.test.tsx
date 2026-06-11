@@ -319,11 +319,11 @@ describe("document パラメータごとのビュー描画（Requirement 1.4）"
     expect(page.textContent).toContain("壊れたトレーサビリティ行");
   });
 
-  it("tasks はフォールバックでタスク階層・マーカー・注記・raw ブロックを描画する", async () => {
+  it("tasks は TasksView でタスク階層・マーカー・注記・raw ブロックを描画する", async () => {
     renderAt("/specs/foo/tasks");
     const page = await screen.findByTestId("spec-document-page");
-    // データ到着（本文描画）まで待つ
-    await screen.findByText(/ドキュメント表示ページを実装する/);
+    // データ到着（TasksView 描画）まで待つ（4.3 で SpecDocumentPage に結線）
+    await screen.findByTestId("tasks-view");
 
     expect(page.textContent).toContain("ドキュメント表示ページを実装する");
     expect(page.textContent).toContain("ルーティングを結線する");
