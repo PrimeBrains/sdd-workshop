@@ -49,11 +49,12 @@ export default tseslint.config(
   },
   {
     // design.md Security Considerations「書込能力の構造的排除」:
-    // `fetch` の直接使用は GET 限定ラッパ `src/api/client.ts` のみに閉じる。
+    // `fetch` の直接使用は GET 限定ラッパ `src/api/client.ts` と、書込専用ラッパ
+    // `src/workflow/api/writeClient.ts`（approvals / rollback の 2 メソッドのみ）に閉じる。
     // 既存ブロックの no-restricted-syntax を上書きしないよう、別ルール
     // （no-restricted-globals / no-restricted-properties）で禁止する。
     files: ["src/**/*.ts", "src/**/*.tsx"],
-    ignores: ["src/api/client.ts"],
+    ignores: ["src/api/client.ts", "src/workflow/api/writeClient.ts"],
     rules: {
       "no-restricted-globals": [
         "error",

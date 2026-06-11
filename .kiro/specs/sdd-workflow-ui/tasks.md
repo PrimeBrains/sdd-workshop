@@ -7,7 +7,7 @@
   - 完了条件: `/board` を直接開く・リロードすると同じビューが復元され、共通ナビから各 workflow ルートへ遷移でき、既存の `/specs/**` 画面が変わらず表示される
   - _Requirements: 1.5, 4.3, 9.1, 9.2_
 
-- [ ] 1.2 書込専用クライアントと承認・巻き戻し mutation を実装する
+- [x] 1.2 書込専用クライアントと承認・巻き戻し mutation を実装する
   - `workflow/api/writeClient.ts` に `updateApproval`（`PUT /api/specs/:feature/approvals`）と `rollback`（`POST /api/specs/:feature/rollback`）の 2 メソッドのみを実装し、非 2xx の `ApiError` とネットワーク断を `NormalizedApiError`（code / message / status / fieldErrors）へ正規化する。汎用 `post` / `put` は export しない
   - ESLint 設定の fetch 直接使用の許可ファイルに `workflow/api/writeClient.ts` を追加する（既存ルールの緩和ではなく許可対象の追加）
   - `useApprovalMutation` / `useRollbackMutation` を実装し、成功時に返却 `SpecSummary` をキャッシュへ反映して `['specs']` / `['spec', feature]` / `['trace', feature]` を invalidate する
