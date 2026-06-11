@@ -140,7 +140,7 @@
   - _Requirements: 5.2, 5.3, 5.4_
 
 - [ ] 8. validation レポート表示
-- [ ] 8.1 (P) validation レポート一覧を実装する
+- [x] 8.1 (P) validation レポート一覧を実装する
   - `ValidationList` を実装し、`SpecDetail.validations` の type / date / decision をバッジ付きで一覧表示して概要画面に組み込む。存在しない type は「未生成」プレースホルダを表示する
   - 完了条件: gap のみ存在するフィクスチャで gap がメタデータ付きで表示され、design / impl が未生成表示になるテストが通る
   - _Requirements: 6.1, 6.4_

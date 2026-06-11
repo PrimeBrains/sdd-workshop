@@ -16,6 +16,7 @@ import type { ArtifactName, SpecSummary } from "@contracts/spec";
 import { useSpecDetail } from "@/api/useSpecDetail";
 import { DocumentTabs, type DocumentTabItem } from "@/features/specs/DocumentTabs";
 import { SpecMetaBadges } from "@/features/specs/SpecMetaBadges";
+import { ValidationList } from "@/features/validation/ValidationList";
 import { ErrorPanel } from "@/shared/ErrorPanel";
 import { LoadingSkeleton } from "@/shared/LoadingSkeleton";
 
@@ -28,13 +29,6 @@ const DOCUMENT_ARTIFACTS = [
   "research",
 ] as const satisfies readonly ArtifactName[];
 
-/** validation 成果物フラグ → `/specs/:feature/validation/:type` の type への写像 */
-const VALIDATION_TABS = [
-  { artifact: "validationGap", type: "gap" },
-  { artifact: "validationDesign", type: "design" },
-  { artifact: "validationImpl", type: "impl" },
-] as const satisfies readonly { artifact: ArtifactName; type: string }[];
-
 function documentItems(
   feature: string,
   artifacts: SpecSummary["artifacts"],
@@ -44,18 +38,6 @@ function documentItems(
     label: name,
     available: artifacts[name],
     to: `/specs/${feature}/${name}`,
-  }));
-}
-
-function validationItems(
-  feature: string,
-  artifacts: SpecSummary["artifacts"],
-): DocumentTabItem[] {
-  return VALIDATION_TABS.map(({ artifact, type }) => ({
-    key: `validation-${type}`,
-    label: type,
-    available: artifacts[artifact],
-    to: `/specs/${feature}/validation/${type}`,
   }));
 }
 
@@ -124,9 +106,9 @@ export function SpecOverviewPage(): JSX.Element {
           </div>
           <h2 className="mt-5 text-sm font-semibold text-slate-700">validation レポート</h2>
           <div className="mt-2">
-            <DocumentTabs
-              label="validation レポート"
-              items={validationItems(detail.data.summary.feature, detail.data.summary.artifacts)}
+            <ValidationList
+              feature={detail.data.summary.feature}
+              validations={detail.data.validations}
             />
           </div>
         </>
