@@ -8,7 +8,7 @@
   - 完了条件: `npm run dev` で空のページが表示され、`@contracts/spec` の `SpecSummary` を `import type` したコードが型チェックを通る
   - _Requirements: 8.2_
 
-- [ ] 1.2 GET 限定 API クライアントと TanStack Query 基盤を実装する
+- [x] 1.2 GET 限定 API クライアントと TanStack Query 基盤を実装する
   - `api/client.ts` に `get<T>` のみの fetch ラッパを実装し、非 2xx の `ApiError` 形とネットワーク断を `NormalizedApiError`（code / message / status）へ正規化する。POST / PUT / DELETE は実装しない
   - `queryKeys.ts` にクエリキー（repo / specs / spec / trace）を集約し、`useRepoInfo` / `useSpecs` / `useSpecDetail` / `useTraceGraph` フックと `queryClient.ts` を実装する
   - `shared/ErrorPanel.tsx` を実装し、`code` と `message` の表示 + 再試行ボタン（refetch 発火）を持たせる
@@ -179,3 +179,11 @@
   - ビルド成果物（dist）に外部 URL 参照が含まれないことを検査するスクリプトを `npm run build` 後に実行する
   - 完了条件: 上記 2 アサーションを含むテストが green になり、UI 上に書込系の操作要素が存在しないことのチェック（SpecActionSlot が空であること）を含む
   - _Requirements: 8.1, 8.2_
+
+## Implementation Notes
+
+- 1.1: スケルトンクライアントは `sdd-dashboard/skeleton-client/` へ退避済み（root vite.config の `root` と root tsconfig の `include` を追従）。本実装クライアントは `sdd-dashboard/client/` の独立パッケージ
+- 1.1: vite dev proxy は `/api → http://localhost:7411`（sdd-core `DEFAULT_PORT`。定義は client/vite.config.ts の 1 箇所）。`@contracts/*` は tsconfig paths のみ（Vite alias に置かない）ことで値 import がビルドでも落ちる
+- 1.1: client tsconfig は `moduleResolution: "bundler"` で server types の NodeNext 形式 `.js` 指定子を解決できる。`@contracts/api` は `../errors/codes.js`（types/ 外 1 ファイル）へ推移参照する
+- 1.2: クライアント合成エラーコードは `NETWORK_ERROR`（ネットワーク断）に加え `UNEXPECTED_RESPONSE`（非 JSON・形不一致・空 code/message）の 2 つ。「code/message 必ず非空」の事後条件を満たすための合成（client.ts に文書化済み）
+- 1.2: QueryClient 既定は retry 1 / staleTime 30s / refetchOnWindowFocus false（`createQueryClient()` factory。main.tsx への組み立ては 1.3）。ESLint で `fetch` 直接使用は api/client.ts 以外禁止
