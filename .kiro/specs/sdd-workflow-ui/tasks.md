@@ -27,7 +27,7 @@
   - _Requirements: 8.1, 8.3_
 
 - [ ] 2. フェーズモデル純粋関数群
-- [ ] 2.1 (P) パイプライン段階モデルと承認可能判定を実装する
+- [x] 2.1 (P) パイプライン段階モデルと承認可能判定を実装する
   - `buildPipelineView` を実装する: `SpecSummary` から 4 段階（requirements / design / tasks / implementation）の状態（not-generated / generated / approved / unknown）・現在フェーズ・ready を導出する。approvals が null のスペックは全段階 unknown を返す
   - `approvablePhase` を実装する: generated かつ未承認かつ先行フェーズすべて承認済みのフェーズのみを返す（sdd-core の承認バリデーションと同条件）
   - 完了条件: approvals の全組合せ（未生成 / 生成済み未承認 / 承認済み / null、先行フェーズ未承認ケース含む）に対する厳密値の単体テストが通る
