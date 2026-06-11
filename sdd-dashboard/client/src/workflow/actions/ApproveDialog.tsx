@@ -14,7 +14,9 @@
 import { type JSX } from "react";
 import type { PhaseName } from "@contracts/spec";
 import { useApprovalMutation } from "@/workflow/api/useApprovalMutation";
+import { nextCommandAfterApproval } from "@/workflow/model/nextCommand";
 import { ConfirmDialog } from "./ConfirmDialog";
+import { NextActionGuide } from "./NextActionGuide";
 
 interface ApproveDialogProps {
   feature: string;
@@ -33,33 +35,21 @@ const PHASE_DOCUMENT: Record<PhaseName, string> = {
 export function ApproveDialog({ feature, phase, onClose }: ApproveDialogProps): JSX.Element {
   const mutation = useApprovalMutation(feature);
 
-  // 成功表示: キャッシュは mutation が更新済み。ここでは簡潔な確認のみ提示する（4.4 で拡張）。
+  // 成功表示: キャッシュは mutation が更新済み。次フェーズへ進む CLI コマンドを案内する（2.5 / 4.4）。
   if (mutation.isSuccess) {
     return (
-      <div
-        data-testid="confirm-dialog-backdrop"
-        role="dialog"
-        aria-modal="true"
-        aria-label={`承認完了: ${feature}`}
-        className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-      >
-        <div className="w-full max-w-md rounded-lg bg-white p-5 shadow-xl">
-          <h2 className="text-base font-semibold text-gray-900">承認しました</h2>
-          <p className="mt-3 text-sm text-gray-700">
+      <NextActionGuide
+        ariaLabel={`承認完了: ${feature}`}
+        heading="承認しました"
+        command={nextCommandAfterApproval(phase, feature)}
+        summary={
+          <>
             <span className="font-mono">{feature}</span> の{" "}
             <span className="font-mono">{PHASE_DOCUMENT[phase]}</span> を承認しました。
-          </p>
-          <div className="mt-5 flex justify-end">
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700"
-            >
-              閉じる
-            </button>
-          </div>
-        </div>
-      </div>
+          </>
+        }
+        onClose={onClose}
+      />
     );
   }
 

@@ -19,7 +19,9 @@ import { useState, type JSX } from "react";
 import type { PhaseName, SpecSummary } from "@contracts/spec";
 import { useRollbackMutation } from "@/workflow/api/useRollbackMutation";
 import { computeRollbackImpact } from "@/workflow/model/rollbackImpact";
+import { nextCommandAfterRollback } from "@/workflow/model/nextCommand";
 import { ConfirmDialog } from "./ConfirmDialog";
+import { NextActionGuide } from "./NextActionGuide";
 
 interface RollbackDialogProps {
   feature: string;
@@ -46,33 +48,22 @@ export function RollbackDialog({ feature, spec, onClose }: RollbackDialogProps):
   // SpecWorkflowActions の表示条件（≥1 生成・承認済み）により起こらない。
   const [target, setTarget] = useState<PhaseName | null>(selectablePhases[0] ?? null);
 
-  // 成功表示: キャッシュは mutation が更新済み。ここでは簡潔な確認のみ提示する（4.4 で拡張）。
-  if (mutation.isSuccess) {
+  // 成功表示: キャッシュは mutation が更新済み。巻き戻し先フェーズの再生成 CLI コマンドを案内する（3.5 / 4.4）。
+  // target は mutate のガード（onConfirm）により成功時点で常に非 null。
+  if (mutation.isSuccess && target !== null) {
     return (
-      <div
-        data-testid="confirm-dialog-backdrop"
-        role="dialog"
-        aria-modal="true"
-        aria-label={`手戻り完了: ${feature}`}
-        className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-      >
-        <div className="w-full max-w-md rounded-lg bg-white p-5 shadow-xl">
-          <h2 className="text-base font-semibold text-gray-900">巻き戻しました</h2>
-          <p className="mt-3 text-sm text-gray-700">
+      <NextActionGuide
+        ariaLabel={`手戻り完了: ${feature}`}
+        heading="巻き戻しました"
+        command={nextCommandAfterRollback(target, feature)}
+        summary={
+          <>
             <span className="font-mono">{feature}</span> を{" "}
             <span className="font-mono">{target}</span> まで巻き戻しました。
-          </p>
-          <div className="mt-5 flex justify-end">
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700"
-            >
-              閉じる
-            </button>
-          </div>
-        </div>
-      </div>
+          </>
+        }
+        onClose={onClose}
+      />
     );
   }
 

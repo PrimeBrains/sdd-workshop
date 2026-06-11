@@ -91,7 +91,7 @@
   - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.6_
   - _Depends: 1.2, 2.2_
 
-- [ ] 4.4 実行後の次アクション案内を実装する
+- [x] 4.4 実行後の次アクション案内を実装する
   - `NextActionGuide` を実装する: 承認・手戻りの mutation 成功後にダイアログを成功表示へ切り替え、更新後の状態サマリと次に実行すべき CLI コマンド（コピー操作付き）を提示する
   - 完了条件: requirements 承認成功後に `/kiro-spec-design {feature}`、requirements への手戻り成功後に `/kiro-spec-requirements {feature}` が厳密値で表示される結合テストが通る
   - _Requirements: 2.5, 3.5_

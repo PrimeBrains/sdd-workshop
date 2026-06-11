@@ -13,7 +13,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { MemoryRouter } from "react-router";
 import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
-import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import type { SpecApprovals, SpecSummary } from "@contracts/spec";
 
 import { queryKeys } from "@/api/queryKeys";
@@ -33,6 +33,13 @@ const DESIGN_GENERATED: SpecApprovals = {
 const DESIGN_APPROVED: SpecApprovals = {
   requirements: { generated: true, approved: true },
   design: { generated: true, approved: true },
+  tasks: { generated: false, approved: false },
+};
+
+// requirements 生成済み・未承認（approvablePhase = "requirements"）。
+const REQUIREMENTS_GENERATED: SpecApprovals = {
+  requirements: { generated: true, approved: false },
+  design: { generated: false, approved: false },
   tasks: { generated: false, approved: false },
 };
 
@@ -158,6 +165,63 @@ describe("ApproveDialog 確定（2.2 / 2.4）", () => {
     // 承認ボタンが消える（承認状態が UI に反映される・2.4）。成功表示も自然に解除される。
     await waitFor(() => expect(screen.queryByRole("button", { name: "承認" })).toBeNull());
     expect(screen.queryByText("承認しました")).toBeNull();
+  });
+});
+
+describe("ApproveDialog 次アクション案内（2.5 / 完了条件）", () => {
+  it("requirements 承認成功後に /kiro-spec-design {feature} を厳密値で案内し、コピーが厳密値を書き込む", async () => {
+    const writeText = vi.fn();
+    const clipboardOriginal = Object.getOwnPropertyDescriptor(navigator, "clipboard");
+    Object.defineProperty(navigator, "clipboard", {
+      value: { writeText },
+      configurable: true,
+    });
+
+    try {
+      // 承認応答は requirements 承認済みの状態を返す。一方 GET /api/specs は未承認状態を
+      // 維持させ、approvablePhase = requirements を保つことで成功ビュー（NextActionGuide）が
+      // unmount されず次コマンドの厳密値を観測できるようにする（命令は phase prop 由来で安定）。
+      const approved = makeSpec("sdd-workflow-ui", {
+        requirements: { generated: true, approved: true },
+        design: { generated: false, approved: false },
+        tasks: { generated: false, approved: false },
+      });
+      const stillApprovable = makeSpec("sdd-workflow-ui", REQUIREMENTS_GENERATED);
+      server.use(
+        http.put("/api/specs/:feature/approvals", async ({ request }) => {
+          putRequests.push({ url: new URL(request.url).pathname, body: await request.json() });
+          return HttpResponse.json(approved);
+        }),
+        http.get("/api/specs", () => HttpResponse.json([stillApprovable])),
+      );
+
+      openApproveDialog(
+        "sdd-workflow-ui",
+        makeSpec("sdd-workflow-ui", REQUIREMENTS_GENERATED),
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: "承認する" }));
+
+      // 成功見出し + 次コマンドの厳密値（2.5 完了条件）。
+      await screen.findByText("承認しました");
+      const command = await screen.findByTestId("next-command");
+      expect(command.textContent).toBe("/kiro-spec-design sdd-workflow-ui");
+
+      // コピーで navigator.clipboard.writeText に厳密値を渡す。
+      fireEvent.click(screen.getByRole("button", { name: "コピー" }));
+      expect(writeText).toHaveBeenCalledTimes(1);
+      expect(writeText).toHaveBeenCalledWith("/kiro-spec-design sdd-workflow-ui");
+
+      // PUT body は requirements 承認の厳密値。
+      expect(putRequests).toHaveLength(1);
+      expect(putRequests[0]?.body).toEqual({ phase: "requirements", approved: true });
+    } finally {
+      if (clipboardOriginal) {
+        Object.defineProperty(navigator, "clipboard", clipboardOriginal);
+      } else {
+        Reflect.deleteProperty(navigator as unknown as Record<string, unknown>, "clipboard");
+      }
+    }
   });
 });
 

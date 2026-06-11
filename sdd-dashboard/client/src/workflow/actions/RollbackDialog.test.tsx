@@ -179,6 +179,33 @@ describe("RollbackDialog 確定（3.4）", () => {
   });
 });
 
+describe("RollbackDialog 次アクション案内（3.5 / 完了条件）", () => {
+  it("requirements への手戻り成功後に /kiro-spec-requirements {feature} を厳密値で案内する", async () => {
+    const rolledBack = makeSpec("sdd-workflow-ui", AFTER_ROLLBACK, false);
+    server.use(
+      http.post("/api/specs/:feature/rollback", async ({ request }) => {
+        postRequests.push({ url: new URL(request.url).pathname, body: await request.json() });
+        return HttpResponse.json(rolledBack);
+      }),
+      http.get("/api/specs", () => HttpResponse.json([rolledBack])),
+    );
+
+    openRollbackDialog("sdd-workflow-ui", makeSpec("sdd-workflow-ui", ALL_APPROVED, true));
+
+    fireEvent.click(screen.getByRole("radio", { name: "requirements" }));
+    fireEvent.click(screen.getByRole("button", { name: "巻き戻す" }));
+
+    // 成功見出し + 次コマンドの厳密値（3.5 完了条件）。
+    await screen.findByText("巻き戻しました");
+    const command = await screen.findByTestId("next-command");
+    expect(command.textContent).toBe("/kiro-spec-requirements sdd-workflow-ui");
+
+    // POST body は requirements への手戻りの厳密値。
+    expect(postRequests).toHaveLength(1);
+    expect(postRequests[0]?.body).toEqual({ targetPhase: "requirements" });
+  });
+});
+
 describe("RollbackDialog 拒否（3.6）", () => {
   it("404 拒否でエラー code + message を厳密表示し、ダイアログを閉じず状態も不変", async () => {
     server.use(
