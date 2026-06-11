@@ -10,7 +10,7 @@ import { serve } from '@hono/node-server'
 import { readFileSync, readdirSync, existsSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 
-const REPO_ROOT = resolve(process.env.SDD_REPO_ROOT ?? join(import.meta.dirname, '..', '..'))
+const REPO_ROOT = resolve(process.env.SDD_REPO_ROOT ?? join(import.meta.dirname, '..'))
 const KIRO = join(REPO_ROOT, '.kiro')
 const SKILLS_DIR = join(REPO_ROOT, '.claude', 'skills')
 
