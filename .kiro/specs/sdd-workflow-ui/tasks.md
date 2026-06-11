@@ -105,7 +105,7 @@
   - _Depends: 2.3_
 
 - [ ] 6. ナレッジビューア
-- [ ] 6.1 (P) steering ビューアを実装する
+- [x] 6.1 (P) steering ビューアを実装する
   - `SteeringListPage` で `useSteeringList` の全 steering 文書を一覧表示し、選択で `/steering/:name` へ遷移する。`SteeringDocPage` は `SteeringDoc` を review-ui の `MarkdownDoc` で全文描画する（情報無欠落は markdown 基盤の不変則に乗る）
   - 完了条件: フィクスチャ steering 文書が一覧に全件表示され、本文表示の描画テキストに元文書の全セクション見出しが含まれるテストが通る
   - _Requirements: 5.1, 5.2_

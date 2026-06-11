@@ -89,6 +89,11 @@ function makeSpecSummary(feature: string): SpecSummary {
 const server = setupServer(
   http.get("/api/repo", () => HttpResponse.json(repoFixture)),
   http.get("/api/specs", () => HttpResponse.json([makeSpecSummary("sdd-review-ui")])),
+  // 6.1 で steering ルートが実画面（データ取得あり）に差し替わったため、最小フィクスチャを供給する。
+  http.get("/api/steering", () => HttpResponse.json([{ name: "product", title: "Product" }])),
+  http.get("/api/steering/:name", ({ params }) =>
+    HttpResponse.json({ name: String(params.name), content: "# Product\n本文", sections: [] }),
+  ),
 );
 
 beforeAll(() => server.listen({ onUnhandledRequest: "error" }));
@@ -132,8 +137,6 @@ describe("workflowRoutes（Requirement 1.5: URL によるビュー復元 / 9.1: 
   });
 
   it.each([
-    ["/steering", "workflow-steering-list-page", "Steering"],
-    ["/steering/product", "workflow-steering-doc-page", "Steering: product"],
     ["/skills", "workflow-skill-list-page", "Skills"],
     ["/skills/kiro-review", "workflow-skill-doc-page", "Skill: kiro-review"],
     ["/adr", "workflow-adr-list-page", "ADR"],
@@ -142,6 +145,22 @@ describe("workflowRoutes（Requirement 1.5: URL によるビュー復元 / 9.1: 
     const router = renderAt(url);
     expect((await screen.findByTestId(testId)).textContent).toBe(text);
     expect(router.state.location.pathname).toBe(url);
+  });
+
+  it("/steering を直接開くと SteeringListPage（実画面）が復元される", async () => {
+    const router = renderAt("/steering");
+    const page = await screen.findByTestId("workflow-steering-list-page");
+    // プレースホルダではなく実画面である証跡（一覧リンクが描画される）。
+    expect(within(page).getByRole("link", { name: "Product" })).toBeTruthy();
+    expect(router.state.location.pathname).toBe("/steering");
+  });
+
+  it("/steering/:name を直接開くと SteeringDocPage（実画面・本文描画）が復元される", async () => {
+    const router = renderAt("/steering/product");
+    const page = await screen.findByTestId("steering-doc-page");
+    // MarkdownDoc 経由で本文の見出しが描画される（プレースホルダではない証跡）。
+    expect(within(page).getByRole("heading", { name: "Product" })).toBeTruthy();
+    expect(router.state.location.pathname).toBe("/steering/product");
   });
 });
 

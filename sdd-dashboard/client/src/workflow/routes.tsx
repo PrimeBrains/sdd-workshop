@@ -16,6 +16,8 @@ import { type RouteObject, useParams } from "react-router";
 import { LoadingSkeleton } from "@/shared/LoadingSkeleton";
 
 import { HelpPage } from "@/workflow/help/HelpPage";
+import { SteeringListPage } from "@/workflow/knowledge/steering/SteeringListPage";
+import { SteeringDocPage } from "@/workflow/knowledge/steering/SteeringDocPage";
 
 /**
  * board ルートは @xyflow/react を遅延ロードし、レビュー画面の初期ロードに影響させない
@@ -38,15 +40,6 @@ function Placeholder({ testId, label }: { testId: string; label: string }): JSX.
       <h1 className="text-lg font-semibold text-slate-800">{label}</h1>
     </section>
   );
-}
-
-function SteeringListPlaceholder(): JSX.Element {
-  return <Placeholder testId="workflow-steering-list-page" label="Steering" />;
-}
-
-function SteeringDocPlaceholder(): JSX.Element {
-  const { name } = useParams();
-  return <Placeholder testId="workflow-steering-doc-page" label={`Steering: ${name ?? ""}`} />;
 }
 
 function SkillListPlaceholder(): JSX.Element {
@@ -75,8 +68,8 @@ function AdrDetailPlaceholder(): JSX.Element {
 export const workflowRoutes: RouteObject[] = [
   { path: "board", element: <BoardRoute /> },
   { path: "help", element: <HelpPage /> },
-  { path: "steering", element: <SteeringListPlaceholder /> },
-  { path: "steering/:name", element: <SteeringDocPlaceholder /> },
+  { path: "steering", element: <SteeringListPage /> },
+  { path: "steering/:name", element: <SteeringDocPage /> },
   { path: "skills", element: <SkillListPlaceholder /> },
   { path: "skills/:name", element: <SkillDocPlaceholder /> },
   { path: "adr", element: <AdrListPlaceholder /> },
