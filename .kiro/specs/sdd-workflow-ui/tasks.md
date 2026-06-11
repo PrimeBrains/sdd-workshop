@@ -55,7 +55,7 @@
   - _Boundary: GroupingModel_
 
 - [ ] 3. パイプライン俯瞰ボード
-- [ ] 3.1 ボードグラフ構築関数を実装する
+- [x] 3.1 ボードグラフ構築関数を実装する
   - `buildBoardGraph` を実装する: `SpecSummary[]` からスペックごとに 1 レーン（4 フェーズノード + 進行エッジ）と決定論的な格子座標を生成し、ノードデータに `PipelineView` と診断有無を埋め込む。spec.json 不正のスペックも省略せずレーンを生成する
   - 完了条件: 正常 / 一部未生成 / spec.json 破損の 3 スペックフィクスチャで、レーン数 = 入力数・ノード状態・診断フラグ・座標の決定性が厳密値で一致する単体テストが通る
   - _Requirements: 1.1, 1.3_
@@ -148,3 +148,4 @@
 ## Implementation Notes
 
 - 1.4: review-ui の `useChangeEvents(map)` は `map ?? DEFAULT_INVALIDATION_MAP` で **置換**（マージではない）。注入する map は必ず `{ ...DEFAULT_INVALIDATION_MAP, ...workflowInvalidationMap }` と DEFAULT を spread すること。怠ると spec カテゴリの `['specs']` 無効化（ボード自動更新）が壊れる。配線は AppShell の既存 `useChangeEvents` 呼び出し1箇所＋Provider 配下の `WorkflowSlotRegistrar`（hooks 制約のため main.tsx ではなく AppShell）。
+- 3.1: `@xyflow/react@^12.11` は型インポート（`Node`/`Edge`）が必要なため task 3.2 ではなく 3.1 のコミットで dependencies へ追加済み。3.2 は CSS ローカル import・`React.lazy`・読取専用設定（Pro 不使用）の追加のみ。ボードグラフは **one-node-per-lane** モデル（1 スペック=1 `specPipeline` ノード、`edges=[]`、フェーズ進行は SpecPipelineNode のノード内ビジュアル）。
