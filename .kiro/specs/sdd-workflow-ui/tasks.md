@@ -1,7 +1,7 @@
 # Implementation Plan
 
 - [ ] 1. 基盤: workflow 名前空間とシェル統合
-- [ ] 1.1 workflow ルート群とシェル連結を実装する
+- [x] 1.1 workflow ルート群とシェル連結を実装する
   - `workflow/routes.tsx` に `/board` `/help` `/steering` `/steering/:name` `/skills` `/skills/:name` `/adr` `/adr/:id` の `RouteObject[]` をプレースホルダページ付きで定義し、`app/router.tsx` の連結点（予約名前空間）へ合成する
   - `AppShell.tsx` の共通ナビゲーションへ Board / Help / Steering / Skills / ADR のリンクを追加する（既存リンク・レイアウト構造・`/specs/**` ルートには触れない）
   - 完了条件: `/board` を直接開く・リロードすると同じビューが復元され、共通ナビから各 workflow ルートへ遷移でき、既存の `/specs/**` 画面が変わらず表示される

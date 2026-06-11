@@ -172,11 +172,10 @@ describe("予約名前空間（workflow-ui 向け契約宣言）", () => {
     expect(RESERVED_NAMESPACES).toEqual(["/board", "/help", "/steering", "/skills", "/adr"]);
   });
 
-  it("予約名前空間（/board）は本スペックではルート未実装であり /specs へフォールバックする", async () => {
+  it("予約名前空間（/board）は sdd-workflow-ui のルート連結後はそのビューが復元される（/specs へ落ちない）", async () => {
     const router = renderAt("/board");
-    await waitFor(() => {
-      expect(router.state.location.pathname).toBe("/specs");
-    });
+    expect(await screen.findByTestId("workflow-board-page")).toBeTruthy();
+    expect(router.state.location.pathname).toBe("/board");
   });
 });
 

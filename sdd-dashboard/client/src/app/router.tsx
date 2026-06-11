@@ -16,6 +16,7 @@ import { SpecListPage } from "@/features/specs/SpecListPage";
 import { SpecOverviewPage } from "@/features/specs/SpecOverviewPage";
 import { ValidationReportPage } from "@/features/validation/ValidationReportPage";
 import { SpecDocumentPage } from "@/features/viewer/SpecDocumentPage";
+import { workflowRoutes } from "@/workflow/routes";
 
 /**
  * 予約名前空間（sdd-workflow-ui 向け契約宣言）。本スペックではルートとして実装しない。
@@ -47,6 +48,7 @@ export const routes: RouteObject[] = [
       ...reviewRoutes,
       // 連結点: sdd-workflow-ui はここに自身の RouteObject[] を連結する
       // （RESERVED_NAMESPACES のパスのみ。fallbackRoute より前であること）
+      ...workflowRoutes,
       fallbackRoute,
     ],
   },

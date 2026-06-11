@@ -36,6 +36,40 @@ function HeaderRepoName(): JSX.Element | null {
   );
 }
 
+/** workflow ルート（予約名前空間）への共通ナビ。spec サイドバーとは独立し /specs/** には触れない */
+const WORKFLOW_NAV_LINKS = [
+  { to: "/board", label: "Board" },
+  { to: "/help", label: "Help" },
+  { to: "/steering", label: "Steering" },
+  { to: "/skills", label: "Skills" },
+  { to: "/adr", label: "ADR" },
+] as const;
+
+function WorkflowNav(): JSX.Element {
+  return (
+    <nav aria-label="ワークフロー" className="border-b border-slate-200 p-3">
+      <ul className="space-y-1">
+        {WORKFLOW_NAV_LINKS.map((link) => (
+          <li key={link.to}>
+            <NavLink
+              to={link.to}
+              className={({ isActive }) =>
+                `block rounded px-2 py-1 text-sm ${
+                  isActive
+                    ? "bg-slate-200 font-medium text-slate-900"
+                    : "text-slate-600 hover:bg-slate-100"
+                }`
+              }
+            >
+              {link.label}
+            </NavLink>
+          </li>
+        ))}
+      </ul>
+    </nav>
+  );
+}
+
 function SpecSidebar(): JSX.Element {
   const specs = useSpecs();
   return (
@@ -91,6 +125,7 @@ export function AppShell(): JSX.Element {
         </header>
         <div className="flex flex-1">
           <aside className="w-56 shrink-0 border-r border-slate-200 bg-white">
+            <WorkflowNav />
             <SpecSidebar />
           </aside>
           <main className="flex-1 p-6">
