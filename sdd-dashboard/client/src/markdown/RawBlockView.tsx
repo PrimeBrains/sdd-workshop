@@ -12,8 +12,9 @@
  * MarkdownDoc は本モジュールの `safeMarkdownOptions` を共有する（安全設定の単一定義）。
  */
 import { memo } from "react";
-import Markdown, { type Options } from "react-markdown";
+import Markdown, { type Components, type Options } from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { MermaidBlock } from "@/markdown/MermaidBlock";
 
 export interface RawBlockViewProps {
   markdown: string;
@@ -48,13 +49,57 @@ export function safeUrlTransform(url: string): string | undefined {
   }
 }
 
+/** フェンスコードブロックの言語クラス。hast properties では配列、React props では文字列になりうる */
+const MERMAID_LANGUAGE_CLASS = "language-mermaid";
+
+function hasMermaidLanguageClass(className: unknown): boolean {
+  if (typeof className === "string") {
+    return className.split(/\s+/).includes(MERMAID_LANGUAGE_CLASS);
+  }
+  return Array.isArray(className) && className.includes(MERMAID_LANGUAGE_CLASS);
+}
+
+/**
+ * 言語指定 `mermaid` のフェンスコードブロックを MermaidBlock へディスパッチする
+ * コンポーネント上書き（design.md / Requirements 2.8, 2.9）。それ以外の言語・インライン
+ * コードはデフォルト描画のまま変更しない。`pre` は mermaid のときのみアンラップし、
+ * `<pre>` 内に図コンテナを入れない。
+ */
+const markdownComponents: Components = {
+  code({ node, className, children, ...rest }) {
+    void node; // DOM 要素へ spread しないよう rest から除外するためだけに取り出す
+    if (hasMermaidLanguageClass(className)) {
+      // フェンス内ソース全文を渡す（react-markdown は末尾に改行 1 つを付与するため除去）
+      return <MermaidBlock code={String(children ?? "").replace(/\n$/, "")} />;
+    }
+    return (
+      <code className={className} {...rest}>
+        {children}
+      </code>
+    );
+  },
+  pre({ node, children, ...rest }) {
+    const codeChild = node?.children.find(
+      (child) => child.type === "element" && child.tagName === "code",
+    );
+    if (
+      codeChild?.type === "element" &&
+      hasMermaidLanguageClass(codeChild.properties.className)
+    ) {
+      return <>{children}</>;
+    }
+    return <pre {...rest}>{children}</pre>;
+  },
+};
+
 /**
  * RawBlockView / MarkdownDoc が共有する安全描画設定（単一定義）。
- * remarkPlugins はモジュールレベルで固定し、再レンダー間で参照安定にする。
+ * remarkPlugins / components はモジュールレベルで固定し、再レンダー間で参照安定にする。
  */
 export const safeMarkdownOptions = {
   remarkPlugins: [remarkGfm],
   urlTransform: safeUrlTransform,
+  components: markdownComponents,
 } satisfies Options;
 
 /**
