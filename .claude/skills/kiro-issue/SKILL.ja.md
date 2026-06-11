@@ -30,8 +30,8 @@ main では、コードベースとユーザー判断が必要な部分だけを
 
 - **main コンテキスト**: brief を読む、Issue ドラフトを組み立てる、milestone を決める、
   ラベルを推定する、確認ゲートをユーザーと回す。
-- **サブエージェント**: 確定済み（承認済み）の Issue spec を受け取り、すべての gh /
-  GraphQL 呼び出しを実行し、コンパクトな要約（番号・URL・各フィールドの結果）を返す。
+- **サブエージェント**（`sdd-issue-creator`）: 確定済み（承認済み）の Issue spec を受け取り、
+  すべての gh / GraphQL 呼び出しを実行し、コンパクトな要約（番号・URL・各フィールドの結果）を返す。
 
 サブエージェントに製品判断をさせたり、欠けたフィールドを埋めさせたりしないこと。
 サブエージェントは承認済みの計画を実行するだけ。曖昧な点は派遣前に main でユーザーと解消する。
@@ -41,11 +41,11 @@ main では、コードベースとユーザー判断が必要な部分だけを
 ```
 REPO              = PrimeBrains/sdd-workshop
 PROJECT           = pj-sdd-workshop  (number 13)
-PROJECT_ID        = PVT_kwDOAPzWfc4BaWSa
-STATUS_FIELD_ID   = PVTSSF_lADOAPzWfc4BaWSazhVOjC0
-STATUS_TODO_OPT   = f75ad846        # "Todo" single-select option
 DEFAULT_ASSIGNEE  = pbnakao
 ```
+
+Projects V2 の id（PROJECT_ID / STATUS_FIELD_ID / Status option）は GraphQL を叩く
+`sdd-issue-creator` agent 定義側に持たせている。一元管理してドリフトを避ける。
 
 milestone はハードコードしない — 新しいアプリが増えてもこのスキルを編集せずに済むよう、
 実行時に動的取得する。
@@ -121,71 +121,22 @@ gh label list --repo PrimeBrains/sdd-workshop
 
 ### 6. 作成サブエージェントの派遣
 
-セットが承認されたら、確定 spec を `Agent` ツールで 1 体のサブエージェントに渡す。spec を
-構造化データ + 正確な手順として渡す。テンプレート：
+セットが承認されたら、確定 spec を専用の **`sdd-issue-creator`** サブエージェント
+（`.claude/agents/sdd-issue-creator.md` に定義）に渡す。手順・定数・ガードレール・出力
+フォーマットはすべて agent 定義側に持たせてあるので、渡すのは承認済み Issue spec の JSON
+だけでよい。`Agent` ツールで `subagent_type: "sdd-issue-creator"` を指定して派遣する：
 
 ```
-You are creating already-approved GitHub issues. Do NOT change any field, add fields, or
-make product decisions. Execute exactly as specified and report back compact results.
+Create these already-approved issues and report results as your JSON contract:
 
-Constants:
-- REPO = PrimeBrains/sdd-workshop
-- PROJECT_ID = PVT_kwDOAPzWfc4BaWSa
-- STATUS_FIELD_ID = PVTSSF_lADOAPzWfc4BaWSazhVOjC0
-- STATUS_TODO_OPT = f75ad846
-
-Issues to create (JSON):
 [
   {"title": "...", "body": "...", "milestone": "evm-studio",
    "labels": ["enhancement"], "assignee": "pbnakao", "status": "Todo"}
 ]
-
-For EACH issue, in order:
-1. Create it (milestone is REQUIRED — if a spec is missing it, skip that issue and record a
-   warning, do NOT create it):
-     gh issue create --repo PrimeBrains/sdd-workshop \
-       --title "<title>" --body "<body>" \
-       --milestone "<milestone>" \
-       --label "<comma-joined labels>"   # omit --label if empty
-       --assignee "<assignee>"           # omit if empty
-   Capture the issue number from the returned URL.
-2. Get the node id:
-     gh issue view <number> --repo PrimeBrains/sdd-workshop --json id --jq .id
-3. Add to the project, capture the returned item id:
-     gh api graphql -f query='mutation {
-       addProjectV2ItemById(input: {
-         projectId: "PVT_kwDOAPzWfc4BaWSa"
-         contentId: "<node_id>"
-       }) { item { id } }
-     }'
-4. Set Status = Todo:
-     gh api graphql -f query='mutation {
-       updateProjectV2ItemFieldValue(input: {
-         projectId: "PVT_kwDOAPzWfc4BaWSa"
-         itemId: "<item_id>"
-         fieldId: "PVTSSF_lADOAPzWfc4BaWSazhVOjC0"
-         value: { singleSelectOptionId: "f75ad846" }
-       }) { projectV2Item { id } }
-     }'
-
-Failure handling: the issue body itself is the success criterion. If step 1 succeeds but a
-later step fails, still count the issue as created and record the failure as a warning —
-do not retry destructively or delete the issue. You cannot ask the user anything; if a spec
-is ambiguous or missing a required field, skip it and report a warning instead of guessing.
-
-Return ONLY this JSON (no prose):
-{
-  "created": [
-    {"number": 0, "url": "...", "title": "...", "milestone": "...",
-     "labels": [...], "assignee": "...", "added_to_project": true, "status_set": true}
-  ],
-  "warnings": ["..."]
-}
 ```
 
-承認バッチ全体を 1 体のサブエージェントで処理する（内部でループ）。body にシェルの
-インライン引用で扱いにくい文字が含まれる場合は、body を一時ファイルに書いて `--body-file`
-を使うようサブエージェントに指示する。
+承認バッチ全体を 1 回の派遣で渡す（agent が内部でループする）。gh / GraphQL の手順をここに
+再掲しないこと — 定義は agent 側に一元化し、二重管理によるドリフトを避ける。
 
 ### 7. 報告（日本語）
 

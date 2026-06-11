@@ -31,8 +31,9 @@ the codebase and the user's judgment:
 
 - **Main context**: read briefs, assemble issue drafts, decide the milestone, infer
   labels, and run the confirmation gate with the user.
-- **Subagent**: take the finalized, already-approved issue specs and execute every gh /
-  GraphQL call, then return a compact summary (numbers, URLs, per-field results).
+- **Subagent** (`sdd-issue-creator`): take the finalized, already-approved issue specs and
+  execute every gh / GraphQL call, then return a compact summary (numbers, URLs, per-field
+  results).
 
 Never let the subagent make product decisions or invent missing fields — it executes an
 approved plan. Anything ambiguous is resolved with the user in the main context *before*
@@ -43,11 +44,12 @@ dispatch.
 ```
 REPO              = PrimeBrains/sdd-workshop
 PROJECT           = pj-sdd-workshop  (number 13)
-PROJECT_ID        = PVT_kwDOAPzWfc4BaWSa
-STATUS_FIELD_ID   = PVTSSF_lADOAPzWfc4BaWSazhVOjC0
-STATUS_TODO_OPT   = f75ad846        # "Todo" single-select option
 DEFAULT_ASSIGNEE  = pbnakao
 ```
+
+The Projects V2 ids (PROJECT_ID / STATUS_FIELD_ID / Status option) live in the
+`sdd-issue-creator` agent definition, since only it makes the GraphQL calls — keep them in
+one place to avoid drift.
 
 Milestones are NOT hardcoded — fetch them live so new apps work without editing this skill.
 
@@ -127,71 +129,23 @@ rejects; never dispatch an unconfirmed or milestone-less issue.
 
 ### 6. Dispatch the creation subagent
 
-Once the set is approved, hand the finalized specs to one subagent via the `Agent` tool.
-Pass the specs as structured data plus the exact procedure. Template:
+Once the set is approved, hand the finalized specs to the dedicated **`sdd-issue-creator`**
+subagent (defined in `.claude/agents/sdd-issue-creator.md`). It holds the full procedure,
+constants, guardrails, and output format, so the only thing you pass is the approved issue
+specs as JSON. Dispatch via the `Agent` tool with `subagent_type: "sdd-issue-creator"`:
 
 ```
-You are creating already-approved GitHub issues. Do NOT change any field, add fields, or
-make product decisions. Execute exactly as specified and report back compact results.
+Create these already-approved issues and report results as your JSON contract:
 
-Constants:
-- REPO = PrimeBrains/sdd-workshop
-- PROJECT_ID = PVT_kwDOAPzWfc4BaWSa
-- STATUS_FIELD_ID = PVTSSF_lADOAPzWfc4BaWSazhVOjC0
-- STATUS_TODO_OPT = f75ad846
-
-Issues to create (JSON):
 [
   {"title": "...", "body": "...", "milestone": "evm-studio",
    "labels": ["enhancement"], "assignee": "pbnakao", "status": "Todo"}
 ]
-
-For EACH issue, in order:
-1. Create it (milestone is REQUIRED — if a spec is missing it, skip that issue and record a
-   warning, do NOT create it):
-     gh issue create --repo PrimeBrains/sdd-workshop \
-       --title "<title>" --body "<body>" \
-       --milestone "<milestone>" \
-       --label "<comma-joined labels>"   # omit --label if empty
-       --assignee "<assignee>"           # omit if empty
-   Capture the issue number from the returned URL.
-2. Get the node id:
-     gh issue view <number> --repo PrimeBrains/sdd-workshop --json id --jq .id
-3. Add to the project, capture the returned item id:
-     gh api graphql -f query='mutation {
-       addProjectV2ItemById(input: {
-         projectId: "PVT_kwDOAPzWfc4BaWSa"
-         contentId: "<node_id>"
-       }) { item { id } }
-     }'
-4. Set Status = Todo:
-     gh api graphql -f query='mutation {
-       updateProjectV2ItemFieldValue(input: {
-         projectId: "PVT_kwDOAPzWfc4BaWSa"
-         itemId: "<item_id>"
-         fieldId: "PVTSSF_lADOAPzWfc4BaWSazhVOjC0"
-         value: { singleSelectOptionId: "f75ad846" }
-       }) { projectV2Item { id } }
-     }'
-
-Failure handling: the issue body itself is the success criterion. If step 1 succeeds but a
-later step fails, still count the issue as created and record the failure as a warning —
-do not retry destructively or delete the issue. You cannot ask the user anything; if a spec
-is ambiguous or missing a required field, skip it and report a warning instead of guessing.
-
-Return ONLY this JSON (no prose):
-{
-  "created": [
-    {"number": 0, "url": "...", "title": "...", "milestone": "...",
-     "labels": [...], "assignee": "...", "added_to_project": true, "status_set": true}
-  ],
-  "warnings": ["..."]
-}
 ```
 
-Use one subagent for the whole approved batch (it loops internally). If a body contains
-characters awkward for inline shell quoting, instruct the subagent to write the body to a
-temp file and use `--body-file`.
+Send the whole approved batch in one dispatch (the agent loops internally). Do not restate
+the gh / GraphQL steps here — they live in the agent definition; keeping them in one place
+avoids drift.
 
 ### 7. Report (Japanese)
 
