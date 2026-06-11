@@ -10,11 +10,9 @@
  */
 import { createBrowserRouter, Navigate, type RouteObject } from "react-router";
 import { AppShell } from "@/app/AppShell";
-import {
-  MatrixPagePlaceholder,
-  ValidationReportPagePlaceholder,
-} from "@/app/placeholders";
+import { ValidationReportPagePlaceholder } from "@/app/placeholders";
 import { ComparePage } from "@/features/compare/ComparePage";
+import { MatrixPage } from "@/features/matrix/MatrixPage";
 import { SpecListPage } from "@/features/specs/SpecListPage";
 import { SpecOverviewPage } from "@/features/specs/SpecOverviewPage";
 import { SpecDocumentPage } from "@/features/viewer/SpecDocumentPage";
@@ -32,7 +30,7 @@ const reviewRoutes: RouteObject[] = [
   { path: "specs/:feature", element: <SpecOverviewPage /> },
   // 静的セグメント（compare / matrix / validation）は :document より優先して一致する
   { path: "specs/:feature/compare", element: <ComparePage /> },
-  { path: "specs/:feature/matrix", element: <MatrixPagePlaceholder /> },
+  { path: "specs/:feature/matrix", element: <MatrixPage /> },
   { path: "specs/:feature/validation/:type", element: <ValidationReportPagePlaceholder /> },
   { path: "specs/:feature/:document", element: <SpecDocumentPage /> },
 ];
