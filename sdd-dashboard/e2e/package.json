@@ -6,6 +6,9 @@
   "type": "module",
   "scripts": {
     "test:e2e": "playwright test",
+    "check:dist": "node --import tsx check-dist-no-external-urls.ts",
+    "selftest:dist": "node --import tsx check-dist-no-external-urls.ts --self-test",
+    "verify:local": "npm --prefix ../client run build && npm run check:dist",
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "devDependencies": {
