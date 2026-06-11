@@ -1,7 +1,7 @@
 # Implementation Plan
 
 - [ ] 1. 基盤: クライアントパッケージと共有基盤の構築
-- [ ] 1.1 sdd-dashboard/client パッケージの scaffolding を作成する
+- [x] 1.1 sdd-dashboard/client パッケージの scaffolding を作成する
   - Vite + React 19 + TypeScript strict（`any` 禁止・noImplicitAny）+ TailwindCSS 4 のプロジェクトを `sdd-dashboard/client/` に作成し、Vitest + Testing Library の実行環境を整える
   - tsconfig paths に `@/* → src/*` と `@contracts/* → ../server/src/types/*` を定義し、ESLint で `@contracts` からの `import type` 以外の import と `dangerouslySetInnerHTML` の使用を禁止する
   - index.html・依存パッケージに外部 CDN / 外部 URL 参照が一切ないこと

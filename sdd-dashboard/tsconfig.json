@@ -10,5 +10,5 @@
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "types": ["node"]
   },
-  "include": ["server", "client/src"]
+  "include": ["server", "skeleton-client/src"]
 }
