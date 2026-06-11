@@ -7,13 +7,13 @@
  * - 書込操作 UI（button 等）が成功状態のシェルに存在しない（Requirement 8.1）
  */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { RepoInfo } from "@contracts/api";
-import type { SpecSummary } from "@contracts/spec";
+import type { SpecDetail, SpecSummary } from "@contracts/spec";
 import { routes } from "@/app/router";
 
 const repoFixture: RepoInfo = { repoRoot: "/home/user/ghq/sdd-workshop", name: "sdd-workshop" };
@@ -67,6 +67,18 @@ function mockSuccess() {
     http.get("/api/repo", () => HttpResponse.json(repoFixture)),
     http.get("/api/specs", () =>
       HttpResponse.json([makeSpecSummary("sdd-review-ui"), makeSpecSummary("sdd-core")]),
+    ),
+    // SpecDocumentPage（3.2 で実装済み）がコンテンツ領域で取得する詳細の最小フィクスチャ
+    http.get("/api/specs/:feature", ({ params }) =>
+      HttpResponse.json({
+        summary: makeSpecSummary(String(params.feature)),
+        brief: null,
+        requirements: { requirements: [], otherBlocks: [] },
+        design: null,
+        tasks: null,
+        research: null,
+        validations: [],
+      } satisfies SpecDetail),
     ),
   );
 }
@@ -142,6 +154,10 @@ describe("AppShell", () => {
     await screen.findByTestId("spec-document-page");
     await screen.findByTestId("repo-name");
     await screen.findByRole("link", { name: "sdd-core" });
+    // ドキュメント詳細の読込完了（成功状態）まで待ってから全体を検査する
+    await waitFor(() => {
+      expect(screen.queryByTestId("loading-skeleton")).toBeNull();
+    });
     expect(screen.queryAllByRole("button")).toHaveLength(0);
   });
 });

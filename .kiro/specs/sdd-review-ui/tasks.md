@@ -44,7 +44,7 @@
   - 完了条件: `<script>` と外部画像入り markdown が不活性テキストとして表示され script / 外部 img 要素が DOM に存在しないテスト、および structured / raw 混在フィクスチャで描画テキスト連結が元文書全文と一致する情報無欠落テストが通る
   - _Requirements: 2.5, 2.6, 2.7_
 
-- [ ] 3.2 ドキュメント表示ページとルーティング結線を実装する
+- [x] 3.2 ドキュメント表示ページとルーティング結線を実装する
   - `SpecDocumentPage` が `/specs/:feature/:document` のパラメータから対応ビューア（4.x で実装。それまでは MarkdownDoc フォールバック）へディスパッチし、URL ハッシュのアンカー位置を復元する
   - リロードまたは共有リンクとして開かれたフォーカス対象付き URL（ディープリンク）で同じビューを復元し、フォーカス対象を画面内にスクロールする
   - 完了条件: document パラメータごとに対応するビューが描画され、リロード・共有 URL の直接オープンで同一ドキュメント + フォーカス対象が復元されスクロールされる
@@ -191,3 +191,5 @@
 - 1.3: 将来ページのプレースホルダは `app/placeholders.tsx`（2.x/3.2/6.x/7.x/8.x で差し替え）。layout から子ルートの params を読むには `useParams` でなく `useMatches()` の最深 match を使う（SpecActionSlotOutlet 実装済み）
 - 3.1: 安全描画設定は `RawBlockView` の `safeMarkdownOptions`（module 定数）が単一所有。react-markdown 10 は rehype-raw なしで raw HTML をテキストノード化（不活性テキスト表示は標準動作）。`safeUrlTransform` は許可リスト方式（fragment / 相対 / 同一オリジン http(s) のみ）
 - 3.1: `DocBlockList` の `StructuredItem` memo はレンダラの参照安定が前提 — 4.x ビューアで `renderStructured` をインライン arrow にすると memo が無効化される点に注意
+- 3.2: SpecDocumentPage の DocumentKind switch が 4.x ビューアの差し替え点。アンカー `req-<id>`/`task-<id>` は暫定払い出しで 5.2 anchorIdOf が単一所有者になる。4.1 への引き継ぎ: RequirementsFallback は otherBlocks の SectionNode children（入れ子見出し）をタイトルのみ描画 — 4.1 で MarkdownDoc 相当に置換すること
+- 3.2: `navigation/useHashScrollRestore.ts`（data-ready ゲート + getElementById + scrollIntoView block:center）は 5.2 useJump と合成する前提の最小フック。hash 変化でも再スクロールする（in-app 遷移と両立）

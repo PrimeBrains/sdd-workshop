@@ -88,7 +88,11 @@ export function useSpecActionSlot(): SpecActionSlotApi {
   return api;
 }
 
-function toDocumentKind(value: string | undefined): DocumentKind | null {
+/**
+ * `:document` ルートパラメータを DocumentKind へ検証付きで変換する（語彙の単一定義）。
+ * 未知の値は null（SpecDocumentPage は概要へフォールバックする — Requirement 1.4）。
+ */
+export function toDocumentKind(value: string | undefined): DocumentKind | null {
   return value !== undefined && (DOCUMENT_KINDS as readonly string[]).includes(value)
     ? (value as DocumentKind)
     : null;

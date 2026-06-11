@@ -1,0 +1,329 @@
+/**
+ * SpecDocumentPage — `/specs/:feature/:document` のディスパッチページ
+ * （tasks.md 3.2 / Requirements 1.4, 3.9 / design.md ルート表・File Structure Plan）。
+ *
+ * - document パラメータを DocumentKind（語彙は SpecActionSlot の単一定義を再利用）へ
+ *   検証し、種別ごとの明示的 switch でビューへディスパッチする。4.x の構造化ビューア
+ *   （RequirementsView / DesignView / TasksView）はこの switch の該当 case を置き換える
+ * - 未知の document パラメータは概要 `/specs/:feature` へリダイレクトする。URL が
+ *   ビュー位置の唯一の真実（design.md State Management）であり、未知 URL を既知ビューへ
+ *   フォールバックさせるルーターの規律（1.4）に揃えた選択（not-found 表示ではなく遷移）
+ * - URL ハッシュのフォーカス対象はデータ到着後に useHashScrollRestore で復元する（3.9）
+ * - 4.x までのフォールバック描画（情報無欠落の範囲で契約が運ぶ内容を全描画）:
+ *   - brief / research: MarkdownDoc（全文 + セクション。2.7 と同経路）
+ *   - requirements: requirements + otherBlocks を position 順にマージし、構造化要件
+ *     （ID・タイトル・objective・AC 英文+和訳）と raw ブロック全文を描画
+ *   - design: セクションツリー + Traceability 行（DocBlockList で raw 行も欠落なし）+
+ *     コンポーネント参照。本文テキストは DesignDoc 契約に含まれない（DesignView 4.2 が
+ *     構造化ビューとして引き受ける）
+ *   - tasks: tasks + otherBlocks を position 順にマージし、タスク階層・マーカー・注記と
+ *     raw ブロック全文を描画
+ * - 不在成果物（null）は「未作成」の非エラー表示（Requirement 1.3 パターン）
+ * - 読込中 LoadingSkeleton / 失敗 ErrorPanel + 再試行（Requirement 1.5 パターン）
+ * - ビューの key は feature + document（URL 由来）で安定させ、データ更新（SSE 再取得 →
+ *   7.2）でアンマウントされないようにする
+ *
+ * アンカー ID（`req-<id>` / `task-<id>`）は design.md JumpNavigation の規約に揃えた
+ * 暫定払い出し。5.2 の anchors.ts（anchorIdOf）が規約の単一所有者となり、4.x ビューアは
+ * そちらを使用する。
+ */
+import { useMemo, type JSX, type ReactNode } from "react";
+import { Navigate, useParams } from "react-router";
+import type { RawBlock, SectionNode } from "@contracts/document";
+import type {
+  ComponentRequirements,
+  DesignDoc,
+  RequirementsDoc,
+  SpecDetail,
+  TaskEntry,
+  TasksDoc,
+  TraceabilityRow,
+} from "@contracts/spec";
+import type { RefToken } from "@contracts/trace";
+import { useSpecDetail } from "@/api/useSpecDetail";
+import { toDocumentKind, type DocumentKind } from "@/app/SpecActionSlot";
+import { DocBlockList, type StructuredBlock } from "@/markdown/DocBlockList";
+import { MarkdownDoc } from "@/markdown/MarkdownDoc";
+import { RawBlockView } from "@/markdown/RawBlockView";
+import { useHashScrollRestore } from "@/navigation/useHashScrollRestore";
+import { ErrorPanel } from "@/shared/ErrorPanel";
+import { LoadingSkeleton } from "@/shared/LoadingSkeleton";
+
+export function SpecDocumentPage(): JSX.Element {
+  // ルートパラメータ由来（`/specs/:feature/:document` で必ず供給される。?? "" は型の絞り込みのみ）
+  const params = useParams();
+  const feature = params.feature ?? "";
+  const kind = toDocumentKind(params.document);
+  const detail = useSpecDetail(feature);
+
+  // フォーカス対象の復元はドキュメント本体の描画後（データ到着後）に 1 回だけ行う（3.9）
+  useHashScrollRestore(kind !== null && detail.data !== undefined);
+
+  if (kind === null) {
+    // 未知 document → 概要へ（URL がビュー位置の真実。未知 URL は既知ビューへフォールバック: 1.4）
+    return <Navigate to={`/specs/${feature}`} replace />;
+  }
+
+  return (
+    <section data-testid="spec-document-page">
+      <h1 data-testid="spec-document-heading" className="text-lg font-semibold">
+        {feature}/{kind}
+      </h1>
+      {detail.isPending && <LoadingSkeleton label="ドキュメントを読み込み中…" />}
+      {detail.isError && (
+        <ErrorPanel
+          error={detail.error}
+          onRetry={() => {
+            void detail.refetch();
+          }}
+        />
+      )}
+      {detail.data !== undefined && (
+        // key は URL 由来（feature + document）で安定させる（7.2 の前提: データ同一性で key しない）
+        <div key={`${feature}/${kind}`} className="mt-4">
+          <DocumentView kind={kind} detail={detail.data} />
+        </div>
+      )}
+    </section>
+  );
+}
+
+/**
+ * DocumentKind ごとの明示的ディスパッチ。4.x（RequirementsView / DesignView / TasksView）は
+ * 該当 case の Fallback をそのまま置き換える。
+ */
+function DocumentView({ kind, detail }: { kind: DocumentKind; detail: SpecDetail }): JSX.Element {
+  switch (kind) {
+    case "brief":
+      return detail.brief !== null ? <MarkdownDoc doc={detail.brief} /> : <MissingArtifact kind={kind} />;
+    case "requirements":
+      return detail.requirements !== null ? (
+        <RequirementsFallback doc={detail.requirements} />
+      ) : (
+        <MissingArtifact kind={kind} />
+      );
+    case "design":
+      return detail.design !== null ? <DesignFallback doc={detail.design} /> : <MissingArtifact kind={kind} />;
+    case "tasks":
+      return detail.tasks !== null ? <TasksFallback doc={detail.tasks} /> : <MissingArtifact kind={kind} />;
+    case "research":
+      return detail.research !== null ? <MarkdownDoc doc={detail.research} /> : <MissingArtifact kind={kind} />;
+  }
+}
+
+/** 不在成果物の非エラー表示（Requirement 1.3 パターン: 不在はエラーではない） */
+function MissingArtifact({ kind }: { kind: DocumentKind }): JSX.Element {
+  return (
+    <p
+      data-testid="document-missing"
+      className="rounded-md border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500"
+    >
+      {kind} は未作成です
+    </p>
+  );
+}
+
+/** RefToken 列の原文表示（解釈しない: 構造化解釈は RefChip 5.x の責務） */
+function refsRawText(refs: readonly RefToken[]): string {
+  return refs.map((ref) => ref.raw).join(", ");
+}
+
+// ---------------------------------------------------------------------------
+// requirements フォールバック
+// ---------------------------------------------------------------------------
+
+type RequirementBlock = RequirementsDoc["requirements"][number];
+type StructuredRequirement = Extract<RequirementBlock, { kind: "structured" }>;
+type CriterionPayload = { id: string; text: string; translationJa: string | null };
+
+/** AC 1 件の描画（DocBlockList へ渡すため module-level で参照安定にする） */
+function renderCriterion(block: StructuredBlock<CriterionPayload>): ReactNode {
+  return (
+    // アンカー ID `req-<id>`（design.md JumpNavigation 規約。5.2 anchors.ts が単一所有者になる）
+    <div id={`req-${block.id}`} className="text-sm">
+      <p>
+        <span className="font-mono font-semibold">{block.id}.</span> {block.text}
+      </p>
+      {block.translationJa !== null && <p className="mt-0.5 text-slate-600">和訳: {block.translationJa}</p>}
+    </div>
+  );
+}
+
+function RequirementCard({ requirement }: { requirement: StructuredRequirement }): JSX.Element {
+  return (
+    <section id={`req-${requirement.id}`} className="rounded-md border border-slate-200 p-3">
+      <h2 className="text-base font-semibold">
+        Requirement {requirement.id}: {requirement.title}
+      </h2>
+      {requirement.objective !== null && <p className="mt-1 text-sm text-slate-700">{requirement.objective}</p>}
+      <div className="mt-2 space-y-2">
+        <DocBlockList blocks={requirement.criteria} renderStructured={renderCriterion} />
+      </div>
+    </section>
+  );
+}
+
+type MergedRequirementsBlock = RequirementBlock | RequirementsDoc["otherBlocks"][number];
+
+/**
+ * requirements + otherBlocks を position（startOffset）順にマージする。
+ * サーバー側不変則（position 連結 = 元文書全体）を表示順でも保つ（情報無欠落、2.5）。
+ */
+function mergeRequirementsBlocks(doc: RequirementsDoc): MergedRequirementsBlock[] {
+  return [...doc.requirements, ...doc.otherBlocks].sort(
+    (a, b) => a.position.startOffset - b.position.startOffset,
+  );
+}
+
+/**
+ * 4.1 RequirementsView までの最小フォールバック。契約が運ぶ全フィールドを文書順で描画する。
+ * 注: otherBlocks の構造化セクションは契約上 SectionNode（見出し階層）のみを運ぶため、
+ * 見出しを描画する（セクション本文は契約に含まれない。構造化されない範囲は raw として届く）。
+ */
+function RequirementsFallback({ doc }: { doc: RequirementsDoc }): JSX.Element {
+  const blocks = useMemo(() => mergeRequirementsBlocks(doc), [doc]);
+  return (
+    <article className="space-y-3">
+      {blocks.map((block) => {
+        if (block.kind === "raw") {
+          return (
+            <RawBlockView key={block.position.startOffset} markdown={block.markdown} reason={block.reason} />
+          );
+        }
+        if ("section" in block) {
+          return (
+            <h2 key={block.position.startOffset} className="text-base font-semibold">
+              {block.section.title}
+            </h2>
+          );
+        }
+        return <RequirementCard key={block.position.startOffset} requirement={block} />;
+      })}
+    </article>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// design フォールバック
+// ---------------------------------------------------------------------------
+
+/** Traceability 行（DocBlockList へ渡すため module-level で参照安定にする） */
+function renderTraceabilityRow(block: StructuredBlock<TraceabilityRow>): ReactNode {
+  return (
+    <p className="text-sm">
+      <span className="font-mono font-semibold">{refsRawText(block.refs)}</span> — {block.summary} /{" "}
+      {block.components} / {block.interfaces} / {block.flows}
+    </p>
+  );
+}
+
+function SectionTree({ sections }: { sections: readonly SectionNode[] }): JSX.Element {
+  return (
+    <ul className="list-disc space-y-1 pl-5 text-sm">
+      {sections.map((section) => (
+        <li key={section.position.startOffset}>
+          {section.title}
+          {section.children.length > 0 && <SectionTree sections={section.children} />}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/**
+ * 4.2 DesignView までの最小フォールバック。DesignDoc 契約はセクション見出し階層・
+ * Traceability 行・コンポーネント参照を運ぶ（本文テキストは契約に含まれないため、
+ * 内容を発明せず契約が提供する範囲を描画する）。
+ */
+function DesignFallback({ doc }: { doc: DesignDoc }): JSX.Element {
+  return (
+    <article className="space-y-6">
+      <section>
+        <h2 className="text-base font-semibold">セクション構成</h2>
+        <div className="mt-2">
+          <SectionTree sections={doc.sections} />
+        </div>
+      </section>
+      <section>
+        <h2 className="text-base font-semibold">Requirements Traceability</h2>
+        <div className="mt-2 space-y-2">
+          <DocBlockList blocks={doc.traceability} renderStructured={renderTraceabilityRow} />
+        </div>
+      </section>
+      {doc.componentRequirements.length > 0 && (
+        <section>
+          <h2 className="text-base font-semibold">コンポーネント参照</h2>
+          <ul className="mt-2 list-disc space-y-1 pl-5 text-sm">
+            {doc.componentRequirements.map((entry: ComponentRequirements) => (
+              <li key={entry.position.startOffset}>
+                {entry.component}: {refsRawText(entry.refs)}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+    </article>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// tasks フォールバック
+// ---------------------------------------------------------------------------
+
+function TaskItem({ task }: { task: TaskEntry }): JSX.Element {
+  return (
+    // アンカー ID `task-<id>`（design.md JumpNavigation 規約。5.2 anchors.ts が単一所有者になる）
+    <div id={`task-${task.id}`} className="text-sm">
+      <p>
+        <span className="font-mono">{task.checked ? "[x]" : "[ ]"}</span>{" "}
+        <span className="font-mono font-semibold">{task.id}</span> {task.description}
+        {task.parallel && <span className="ml-1 text-slate-500">(P)</span>}
+        {task.optional && <span className="ml-1 text-slate-500">（後送り可）</span>}
+      </p>
+      {task.details.length > 0 && (
+        <ul className="mt-1 list-disc space-y-0.5 pl-5">
+          {task.details.map((line, index) => (
+            <li key={index}>{line}</li>
+          ))}
+        </ul>
+      )}
+      {task.requirements.length > 0 && (
+        <p className="mt-1 text-slate-600">Requirements: {refsRawText(task.requirements)}</p>
+      )}
+      {task.depends.length > 0 && <p className="mt-1 text-slate-600">Depends: {task.depends.join(", ")}</p>}
+      {task.boundary !== null && <p className="mt-1 text-slate-600">Boundary: {task.boundary}</p>}
+      {task.subtasks.length > 0 && (
+        <div className="mt-2 space-y-2 border-l border-slate-200 pl-4">
+          {task.subtasks.map((subtask) => (
+            <TaskItem key={subtask.id} task={subtask} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+type MergedTasksBlock = TaskEntry | RawBlock;
+
+/** tasks + otherBlocks を position（startOffset）順にマージする（情報無欠落、2.5） */
+function mergeTasksBlocks(doc: TasksDoc): MergedTasksBlock[] {
+  return [...doc.tasks, ...doc.otherBlocks].sort(
+    (a, b) => a.position.startOffset - b.position.startOffset,
+  );
+}
+
+/** 4.3 TasksView までの最小フォールバック。契約が運ぶ全フィールドを文書順で描画する */
+function TasksFallback({ doc }: { doc: TasksDoc }): JSX.Element {
+  const blocks = useMemo(() => mergeTasksBlocks(doc), [doc]);
+  return (
+    <article className="space-y-3">
+      {blocks.map((block) =>
+        "kind" in block ? (
+          <RawBlockView key={block.position.startOffset} markdown={block.markdown} reason={block.reason} />
+        ) : (
+          <TaskItem key={block.position.startOffset} task={block} />
+        ),
+      )}
+    </article>
+  );
+}

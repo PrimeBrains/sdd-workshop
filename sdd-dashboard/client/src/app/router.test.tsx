@@ -88,10 +88,11 @@ function renderAt(url: string) {
 }
 
 describe("ルートレジストリ（Requirement 1.4: URL によるビュー復元）", () => {
-  it("/specs/foo/requirements を直接開くと SpecDocumentPage プレースホルダが feature=foo, document=requirements で復元される", async () => {
+  it("/specs/foo/requirements を直接開くと SpecDocumentPage（3.2 で実装済み）が feature=foo, document=requirements で復元される", async () => {
     const router = renderAt("/specs/foo/requirements");
-    const page = await screen.findByTestId("spec-document-page");
-    expect(page.textContent).toBe("foo/requirements");
+    await screen.findByTestId("spec-document-page");
+    const heading = await screen.findByTestId("spec-document-heading");
+    expect(heading.textContent).toBe("foo/requirements");
     expect(router.state.location.pathname).toBe("/specs/foo/requirements");
   });
 
@@ -162,7 +163,7 @@ describe("予約名前空間（workflow-ui 向け契約宣言）", () => {
 });
 
 describe("書込操作 UI の不在（Requirement 8.1）", () => {
-  it("ドキュメント画面（プレースホルダ + シェル）に button が 1 つも存在しない", async () => {
+  it("ドキュメント画面（SpecDocumentPage + シェル）に button が 1 つも存在しない", async () => {
     renderAt("/specs/foo/requirements");
     await screen.findByTestId("spec-document-page");
     // サイドバーのスペック一覧の読込完了まで待ってから全体を検査する

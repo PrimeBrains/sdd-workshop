@@ -13,11 +13,11 @@ import { AppShell } from "@/app/AppShell";
 import {
   ComparePagePlaceholder,
   MatrixPagePlaceholder,
-  SpecDocumentPagePlaceholder,
   ValidationReportPagePlaceholder,
 } from "@/app/placeholders";
 import { SpecListPage } from "@/features/specs/SpecListPage";
 import { SpecOverviewPage } from "@/features/specs/SpecOverviewPage";
+import { SpecDocumentPage } from "@/features/viewer/SpecDocumentPage";
 
 /**
  * 予約名前空間（sdd-workflow-ui 向け契約宣言）。本スペックではルートとして実装しない。
@@ -34,7 +34,7 @@ const reviewRoutes: RouteObject[] = [
   { path: "specs/:feature/compare", element: <ComparePagePlaceholder /> },
   { path: "specs/:feature/matrix", element: <MatrixPagePlaceholder /> },
   { path: "specs/:feature/validation/:type", element: <ValidationReportPagePlaceholder /> },
-  { path: "specs/:feature/:document", element: <SpecDocumentPagePlaceholder /> },
+  { path: "specs/:feature/:document", element: <SpecDocumentPage /> },
 ];
 
 /** 未知 URL（未実装の予約名前空間を含む）→ /specs フォールバック。必ず末尾に置く */
