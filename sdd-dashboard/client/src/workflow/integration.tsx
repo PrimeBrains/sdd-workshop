@@ -19,6 +19,7 @@ import {
 } from "@/api/sse/useChangeEvents";
 import { useSpecActionSlot, type SpecActionSlotApi } from "@/app/SpecActionSlot";
 import { workflowInvalidationMap } from "@/workflow/api/invalidationMap";
+import { SpecWorkflowActions } from "@/workflow/actions/SpecWorkflowActions";
 
 /**
  * ライブ Bridge へ渡す結合済み写像。DEFAULT を spread して `spec`（review-ui 所有）を保持しつつ、
@@ -32,10 +33,10 @@ export const appChangeEventsMap: InvalidationMap = {
 
 /**
  * SpecActionSlot へワークフローの操作 UI レンダラを登録する。戻り値は解除関数。
- * タスク 4.1 までは何も描画しない（`SpecWorkflowActions` は 4.1 で差し替える）。
+ * 描画コンテキスト（feature）から `SpecWorkflowActions` を描画する（承認・手戻りボタン、4.1）。
  */
 export function registerWorkflow(slot: SpecActionSlotApi): () => void {
-  return slot.register(() => null);
+  return slot.register((ctx) => <SpecWorkflowActions feature={ctx.feature} />);
 }
 
 /**

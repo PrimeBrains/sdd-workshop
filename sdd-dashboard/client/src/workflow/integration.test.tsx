@@ -9,15 +9,18 @@
  * - steering イベント → ['steering'] 無効化（8.1）
  * - other イベント → 無効化なし（8.3）
  * - spec イベント → ['specs'] 無効化が依然発火（merge-not-replace の回帰）
- * - registerWorkflow は unregister 関数を返し、SpecActionSlot へ 4.1 までは何も描画しないレンダラを登録する
+ * - registerWorkflow は unregister 関数を返し、SpecActionSlot へ SpecWorkflowActions を登録する
  */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, cleanup, renderHook } from "@testing-library/react";
+import { act, cleanup, render, renderHook, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
+import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ChangeEvent } from "@contracts/events";
+import type { SpecSummary } from "@contracts/spec";
 import { useChangeEvents } from "@/api/sse/useChangeEvents";
-import type { SpecActionSlotApi } from "@/app/SpecActionSlot";
+import { queryKeys } from "@/api/queryKeys";
+import type { SpecActionContext, SpecActionSlotApi } from "@/app/SpecActionSlot";
 import { appChangeEventsMap, registerWorkflow } from "@/workflow/integration";
 
 /** フェイク EventSource: 生成インスタンスを記録し、テストから change を emit できる */
@@ -189,18 +192,53 @@ describe("registerWorkflow", () => {
     expect(returned).toBe(unregister);
   });
 
-  it("4.1 実装までは何も描画しないレンダラを登録する（null を返す）", () => {
-    let captured: ((ctx: unknown) => unknown) | undefined;
+  it("SpecWorkflowActions を登録し、該当 feature の操作ボタンを描画する（4.1）", async () => {
+    let captured: ((ctx: SpecActionContext) => ReactNode) | undefined;
     const slot: SpecActionSlotApi = {
       register: (render) => {
-        captured = render as (ctx: unknown) => unknown;
+        captured = render;
         return () => {};
       },
     };
 
     registerWorkflow(slot);
-
     expect(captured).toBeDefined();
-    expect(captured?.({ feature: "f", document: null })).toBeNull();
+
+    const spec: SpecSummary = {
+      feature: "integ-spec",
+      app: "sdd-dashboard",
+      phase: "design",
+      language: "ja",
+      approvals: {
+        requirements: { generated: true, approved: true },
+        design: { generated: true, approved: false },
+        tasks: { generated: false, approved: false },
+      },
+      readyForImplementation: false,
+      createdAt: null,
+      updatedAt: null,
+      artifacts: {
+        brief: false,
+        requirements: true,
+        design: true,
+        tasks: false,
+        research: false,
+        validationGap: false,
+        validationDesign: false,
+        validationImpl: false,
+      },
+      diagnostics: [],
+    };
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    queryClient.setQueryData(queryKeys.specs, [spec]);
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>{captured?.({ feature: "integ-spec", document: null })}</MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    expect(await screen.findByRole("button", { name: "承認" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "手戻り" })).toBeTruthy();
   });
 });

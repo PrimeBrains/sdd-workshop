@@ -193,7 +193,7 @@ describe("AppShell", () => {
     expect(await screen.findByTestId("spec-list-page")).toBeTruthy();
   });
 
-  it("成功状態のシェル全体に button が 1 つも存在しない（Requirement 8.1: 承認ボタン等の書込 UI なし）", async () => {
+  it("成功状態のシェルで review-ui 自身は書込 UI（button）を持たない（Requirement 8.1: workflow-ui の SpecActionSlot 以外に承認/手戻りボタンなし）", async () => {
     mockSuccess();
     renderShell("/specs/sdd-review-ui/requirements");
     await screen.findByTestId("spec-document-page");
@@ -203,7 +203,13 @@ describe("AppShell", () => {
     await waitFor(() => {
       expect(screen.queryByTestId("loading-skeleton")).toBeNull();
     });
-    expect(screen.queryAllByRole("button")).toHaveLength(0);
+    // review-ui のシェル本体（サイドバー・ヘッダ・本文）には書込 UI を一切置かない（8.1）。
+    // button が存在しうるのは workflow-ui が所有する拡張点 SpecActionSlot の内側のみ。
+    const slot = screen.queryByTestId("spec-action-slot");
+    for (const button of screen.queryAllByRole("button")) {
+      expect(slot).not.toBeNull();
+      expect(slot?.contains(button)).toBe(true);
+    }
   });
 
   // --- 9.2: ConnectionBanner 配線 + SseInvalidationBridge 常駐（Requirements 7.3） ---
