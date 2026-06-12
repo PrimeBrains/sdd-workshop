@@ -249,12 +249,12 @@ describe("本文全文描画（情報無欠落、postmortem #0004）", () => {
     expect(overview?.getAttribute("data-node-name")).toBe("Overview");
   });
 
-  it("Traceability テーブル → 本文見出しが文書順で描画される", () => {
+  it("本文見出し → Traceability テーブルが文書順で描画される（8.1）", () => {
     renderInRouter(<DesignView doc={fixtureDoc} />);
     expectDocumentOrder([
-      screen.getByRole("table"),
       screen.getByRole("heading", { name: "Overview" }),
       screen.getByRole("heading", { name: "Goals" }),
+      screen.getByRole("table"),
     ]);
   });
 });

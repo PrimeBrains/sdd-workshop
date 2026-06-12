@@ -59,7 +59,7 @@
   - _Boundary: MermaidBlock_
 
 - [ ] 4. DesignView の読書体験（本スペック唯一の構造変更）
-- [ ] 4.1 セクション順を「本文 → Traceability」へ入替え、順序固定テストを新契約へ更新する
+- [x] 4.1 セクション順を「本文 → Traceability」へ入替え、順序固定テストを新契約へ更新する
   - `DesignView.tsx` article 内の `<section>` 2 ブロックを交換するのみ。testid（design-section-nav / design-body / traceability-row）・`trace-row-*` アンカー・`data-node-*` は不変
   - `DesignView.test.tsx` の順序固定テスト 1 件のみを「本文見出し → Traceability テーブル」へ更新する（5.3 の唯一の例外。他のテストは無変更）
   - 完了条件: design 画面のファーストビューに本文（Overview）が表示され、DesignView.test 全件 green

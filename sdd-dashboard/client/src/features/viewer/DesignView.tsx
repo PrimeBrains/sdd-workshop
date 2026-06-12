@@ -217,6 +217,11 @@ export function DesignView({ doc }: DesignViewProps): JSX.Element {
       </nav>
 
       <article className="min-w-0 flex-1 space-y-6">
+        {/* 本文: design.md 全文（情報無欠落）。見出しに design アンカー・data-node-* を付与する */}
+        <section data-testid="design-body" className="space-y-3 leading-relaxed">
+          <Markdown {...designMarkdownOptions}>{doc.content}</Markdown>
+        </section>
+
         {/* Requirements Traceability: 構造化テーブル（raw 行は DocBlockList で全文描画） */}
         <section>
           <h2 className="text-base font-semibold">Requirements Traceability</h2>
@@ -234,11 +239,6 @@ export function DesignView({ doc }: DesignViewProps): JSX.Element {
               <DocBlockList blocks={doc.traceability} renderStructured={renderTraceabilityRow} />
             </tbody>
           </table>
-        </section>
-
-        {/* 本文: design.md 全文（情報無欠落）。見出しに design アンカー・data-node-* を付与する */}
-        <section data-testid="design-body" className="space-y-3 leading-relaxed">
-          <Markdown {...designMarkdownOptions}>{doc.content}</Markdown>
         </section>
       </article>
     </div>
