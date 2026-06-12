@@ -82,7 +82,7 @@
   - _Boundary: FeatureReskin specs_
   - _Depends: 1.4_
 
-- [ ] 5.2 (P) viewer の残りビューを再スキンする
+- [x] 5.2 (P) viewer の残りビューを再スキンする
   - RequirementsView / TasksView / DocumentView / SpecDocumentPage の色クラスを置換する（DesignView はタスク 4 が全て所有するため対象外）
   - 要件カード・AC 行・TOC・タスク行を skeleton 準拠の装飾へ、ページ見出しを .page-title / .page-sub 階層へ揃える
   - 完了条件: `viewer/` 配下（DesignView.test を除く）の既存テストが無変更で green

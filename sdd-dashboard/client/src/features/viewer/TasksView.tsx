@@ -28,6 +28,7 @@ import type { NodeRef, RefToken } from "@contracts/trace";
 import { RefChip } from "@/features/crosslink/RefChip";
 import { DocBlockList, type StructuredBlock } from "@/markdown/DocBlockList";
 import { anchorIdOf } from "@/navigation/anchors";
+import { badgeClass, cardClass } from "@/shared/ui";
 
 export interface TasksViewProps {
   doc: TasksDoc;
@@ -67,7 +68,7 @@ function CompletionMark({ checked }: { checked: boolean }): JSX.Element {
       data-testid="task-checkbox"
       data-checked={checked}
       aria-hidden="true"
-      className="shrink-0 font-mono text-slate-500"
+      className="shrink-0 font-mono text-ink-soft"
     >
       {checked ? "[x]" : "[ ]"}
     </span>
@@ -83,7 +84,7 @@ function DependsLinks({ depends }: { depends: readonly string[] }): JSX.Element 
           key={id}
           data-testid="task-depends-link"
           href={`#${taskAnchorId(id)}`}
-          className="font-mono text-xs text-sky-700 hover:underline"
+          className="font-mono text-xs text-brand hover:underline"
         >
           {id}
         </a>
@@ -105,25 +106,22 @@ function TaskItem({ task }: { task: TaskEntry }): JSX.Element {
     >
       {/* タスク自身の行（マーカー・注記・details）。サブタスクは別の入れ子ブロックに分離し、
           このタスク固有の内容だけを task-row として参照可能にする */}
-      <div data-testid="task-row" data-task-id={task.id}>
-        <p className="flex flex-wrap items-baseline gap-1">
+      <div
+        data-testid="task-row"
+        data-task-id={task.id}
+        className="border-t border-dashed border-line py-1.5"
+      >
+        <p className="flex flex-wrap items-baseline gap-2.5">
         <CompletionMark checked={task.checked} />
-        <span className="font-mono font-semibold">{task.id}</span>
+        <span className="font-mono text-[11.5px] text-ink-soft">{task.id}</span>
         <span>{task.description}</span>
         {task.parallel && (
-          <span
-            data-testid="task-parallel-badge"
-            className="rounded bg-sky-100 px-1.5 py-0.5 font-mono text-xs font-semibold text-sky-700"
-          >
+          <span data-testid="task-parallel-badge" className={badgeClass("warn")}>
             (P)
           </span>
         )}
         {task.optional && (
-          <span
-            data-testid="task-optional-badge"
-            title="後送り可"
-            className="rounded bg-amber-100 px-1.5 py-0.5 font-mono text-xs font-semibold text-amber-700"
-          >
+          <span data-testid="task-optional-badge" title="後送り可" className={badgeClass("warn")}>
             *
           </span>
         )}
@@ -138,29 +136,29 @@ function TaskItem({ task }: { task: TaskEntry }): JSX.Element {
       )}
 
       {task.requirements.length > 0 && (
-        <p className="mt-1 flex flex-wrap items-baseline gap-1 text-slate-600">
-          <span className="text-xs font-semibold text-slate-500">Requirements</span>
+        <p className="mt-1 flex flex-wrap items-baseline gap-1 text-ink-soft">
+          <span className="text-xs font-semibold text-ink-soft">Requirements</span>
           <RefChipList refs={task.requirements} origin={{ type: "task", id: task.id }} />
         </p>
       )}
 
       {task.depends.length > 0 && (
-        <p className="mt-1 flex flex-wrap items-baseline gap-1 text-slate-600">
-          <span className="text-xs font-semibold text-slate-500">Depends</span>
+        <p className="mt-1 flex flex-wrap items-baseline gap-1 text-ink-soft">
+          <span className="text-xs font-semibold text-ink-soft">Depends</span>
           <DependsLinks depends={task.depends} />
         </p>
       )}
 
         {task.boundary !== null && (
-          <p className="mt-1 text-slate-600">
-            <span className="text-xs font-semibold text-slate-500">Boundary</span>{" "}
+          <p className="mt-1 text-ink-soft">
+            <span className="text-xs font-semibold text-ink-soft">Boundary</span>{" "}
             <span data-testid="task-boundary">{task.boundary}</span>
           </p>
         )}
       </div>
 
       {task.subtasks.length > 0 && (
-        <div className="mt-2 space-y-2 border-l border-slate-200 pl-4">
+        <div className="mt-2 space-y-2 border-l border-line pl-4">
           {task.subtasks.map((subtask) => (
             <TaskItem key={subtask.id} task={subtask} />
           ))}
@@ -196,7 +194,7 @@ function renderTaskBlock(block: StructuredBlock<TaskPayload>): ReactNode {
 export function TasksView({ doc }: TasksViewProps): JSX.Element {
   const blocks = useMemo(() => mergeTasksBlocks(doc), [doc]);
   return (
-    <article data-testid="tasks-view" className="space-y-3">
+    <article data-testid="tasks-view" className={`${cardClass()} space-y-3`}>
       <DocBlockList<TaskPayload> blocks={blocks} renderStructured={renderTaskBlock} />
     </article>
   );

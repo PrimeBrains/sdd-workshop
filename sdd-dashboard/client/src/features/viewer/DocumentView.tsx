@@ -18,6 +18,7 @@ import { DesignView } from "@/features/viewer/DesignView";
 import { RequirementsView } from "@/features/viewer/RequirementsView";
 import { TasksView } from "@/features/viewer/TasksView";
 import { MarkdownDoc } from "@/markdown/MarkdownDoc";
+import { cardClass } from "@/shared/ui";
 
 export function DocumentView({
   kind,
@@ -65,7 +66,7 @@ export function MissingArtifact({ kind }: { kind: DocumentKind }): JSX.Element {
   return (
     <p
       data-testid="document-missing"
-      className="rounded-md border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500"
+      className={`${cardClass()} text-sm text-ink-soft`}
     >
       {kind} は未作成です
     </p>

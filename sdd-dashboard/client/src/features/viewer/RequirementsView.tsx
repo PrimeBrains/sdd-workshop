@@ -23,6 +23,7 @@ import type { RequirementsDoc } from "@contracts/spec";
 import { RefChip } from "@/features/crosslink/RefChip";
 import { DocBlockList, type StructuredBlock } from "@/markdown/DocBlockList";
 import { anchorIdOf } from "@/navigation/anchors";
+import { cardClass } from "@/shared/ui";
 
 export interface RequirementsViewProps {
   doc: RequirementsDoc;
@@ -73,7 +74,10 @@ function SectionHeadingTree({ section }: { section: SectionNode }): JSX.Element 
 function renderCriterion(block: StructuredBlock<CriterionPayload>): ReactNode {
   return (
     // アンカー ID `req-<AC id>`（design.md JumpNavigation 規約。anchors.ts が単一所有者）
-    <div id={anchorIdOf({ type: "requirement", id: block.id })} className="flex items-start gap-2 text-sm">
+    <div
+      id={anchorIdOf({ type: "requirement", id: block.id })}
+      className="flex items-start gap-2.5 border-t border-dashed border-line py-2 text-[13px]"
+    >
       {/* AC ID チップ = RefChip（5.3）。クリックで coverOf（design / task）対応先を提示しジャンプする（3.1）。
           origin はこの AC（要件ノード）。token は AC 自身の ID（id kind） */}
       <span className="shrink-0">
@@ -86,7 +90,7 @@ function renderCriterion(block: StructuredBlock<CriterionPayload>): ReactNode {
         <p>{block.text}</p>
         {/* 英文と和訳を同一項目内にペア表示（2.2）。和訳なしは英文のみ（空要素を出さない） */}
         {block.translationJa !== null && (
-          <p data-testid="ac-translation" className="mt-0.5 text-slate-600">
+          <p data-testid="ac-translation" className="mt-0.5 text-[12.5px] text-ink-soft">
             {block.translationJa}
           </p>
         )}
@@ -104,15 +108,15 @@ function RequirementCard({ requirement }: { requirement: StructuredRequirement }
       // 通常のドキュメント表示では無視され、ComparePane のみが解釈する。
       data-node-type="requirement"
       data-node-id={requirement.id}
-      className="rounded-md border border-slate-200 p-3"
+      className={cardClass()}
     >
-      <h2 className="text-base font-semibold">
+      <h2 className="text-[14.5px] font-bold">
         Requirement {requirement.id}: {requirement.title}
       </h2>
       {requirement.objective !== null && (
-        <p className="mt-1 text-sm text-slate-700">{requirement.objective}</p>
+        <p className="mt-1 text-[12.5px] text-ink-soft">{requirement.objective}</p>
       )}
-      <div className="mt-2 space-y-2">
+      <div className="mt-2">
         <DocBlockList blocks={requirement.criteria} renderStructured={renderCriterion} />
       </div>
     </section>

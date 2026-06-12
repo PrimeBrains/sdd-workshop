@@ -65,7 +65,7 @@ export function SpecDocumentPage(): JSX.Element {
       <CrosslinkJumpProvider>
         <TraceIndexProvider index={traceIndex}>
           <section data-testid="spec-document-page">
-            <h1 data-testid="spec-document-heading" className="text-lg font-semibold">
+            <h1 data-testid="spec-document-heading" className="mb-1 text-[19px] font-bold">
               {feature}/{kind}
             </h1>
             {/* 出自へ戻る UI（履歴が無いときは自身で非表示 → 3.4） */}
