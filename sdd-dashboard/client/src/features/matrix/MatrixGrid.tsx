@@ -111,13 +111,13 @@ export function MatrixGrid({ index, onJump }: MatrixGridProps): JSX.Element {
     <div className="overflow-auto">
       <table
         data-testid="matrix-grid"
-        className="w-full border-collapse text-left text-sm"
+        className="w-full border-collapse text-left text-[12.5px]"
       >
         <thead>
           <tr>
             <th
               scope="col"
-              className="sticky left-0 z-10 border-b border-slate-200 bg-white px-3 py-2 font-semibold"
+              className="sticky left-0 z-10 border border-line bg-fill-soft px-[9px] py-[5px] text-[11.5px] font-semibold"
             >
               要件 / 要素
             </th>
@@ -127,7 +127,7 @@ export function MatrixGrid({ index, onJump }: MatrixGridProps): JSX.Element {
                 scope="col"
                 data-testid={`matrix-col-${designKey(node.name)}`}
                 data-col-group="design"
-                className="cursor-pointer border-b border-slate-200 px-3 py-2 font-medium text-slate-700 hover:underline"
+                className="cursor-pointer border border-line bg-fill-soft px-[9px] py-[5px] text-[11.5px] font-medium text-ink hover:underline"
                 onClick={() => onJump(node)}
               >
                 {node.name}
@@ -139,7 +139,7 @@ export function MatrixGrid({ index, onJump }: MatrixGridProps): JSX.Element {
                 scope="col"
                 data-testid={`matrix-col-${taskKey(node.id)}`}
                 data-col-group="task"
-                className="cursor-pointer border-b border-slate-200 px-3 py-2 font-medium text-slate-700 hover:underline"
+                className="cursor-pointer border border-line bg-fill-soft px-[9px] py-[5px] text-[11.5px] font-medium text-ink hover:underline"
                 onClick={() => onJump(node)}
               >
                 {node.id}
@@ -173,14 +173,14 @@ export function MatrixGrid({ index, onJump }: MatrixGridProps): JSX.Element {
                 data-uncovered={uncovered ? "true" : "false"}
                 className={
                   uncovered
-                    ? `border-b border-slate-100 ${UNCOVERED_ROW_CLASS} bg-amber-50`
-                    : "border-b border-slate-100"
+                    ? `border-b border-line ${UNCOVERED_ROW_CLASS} bg-uncovered-row`
+                    : "border-b border-line"
                 }
               >
                 <th
                   scope="row"
                   data-testid={`matrix-rowhead-${reqId}`}
-                  className="sticky left-0 z-10 cursor-pointer bg-inherit px-3 py-2 font-mono text-xs font-semibold text-slate-700 hover:underline"
+                  className="sticky left-0 z-10 cursor-pointer border border-line bg-inherit px-[9px] py-[5px] font-mono text-xs font-semibold text-ink hover:underline"
                   onClick={() => onJump({ type: "requirement", id: reqId })}
                 >
                   {reqId}
@@ -229,7 +229,7 @@ function MatrixCell({ reqId, colKey, views, onClick }: MatrixCellProps): JSX.Ele
   return (
     <td
       data-testid={`matrix-cell-${reqId}-${colKey}`}
-      className="cursor-pointer px-3 py-2 text-center align-middle"
+      className="cursor-pointer border border-line px-[9px] py-[5px] text-center align-middle"
       onClick={onClick}
     >
       {views?.map((view, i) => (
@@ -241,7 +241,7 @@ function MatrixCell({ reqId, colKey, views, onClick }: MatrixCellProps): JSX.Ele
           data-legacy-expanded={view.legacyExpanded ? "true" : "false"}
           title={SOURCE_LABEL[view.source]}
           aria-label={SOURCE_LABEL[view.source]}
-          className="inline-block text-slate-700"
+          className="inline-block text-ink"
         >
           {SOURCE_GLYPH[view.source]}
         </span>

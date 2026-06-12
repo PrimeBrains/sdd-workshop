@@ -14,6 +14,7 @@
  */
 import type { JSX } from "react";
 import type { NodeRef, TraceDiagnostic } from "@contracts/trace";
+import { badgeClass, cardClass } from "@/shared/ui";
 import type { TraceIndex } from "@/trace/traceIndex";
 
 interface DiagnosticsPanelProps {
@@ -44,11 +45,11 @@ export function DiagnosticsPanel({ index }: DiagnosticsPanelProps): JSX.Element 
   return (
     <section
       data-testid="diagnostics-panel"
-      className="mt-6 rounded border border-slate-200 bg-white p-3"
+      className={`mt-6 ${cardClass()}`}
     >
-      <h2 className="text-sm font-semibold text-slate-700">診断（リンク切れ / 解析不能参照）</h2>
+      <h2 className="text-sm font-semibold text-ink">診断（リンク切れ / 解析不能参照）</h2>
       {linkDiagnostics.length === 0 ? (
-        <p data-testid="diagnostics-panel-empty" className="mt-2 text-sm text-slate-500">
+        <p data-testid="diagnostics-panel-empty" className="mt-2 text-sm text-ink-soft">
           診断なし
         </p>
       ) : (
@@ -59,26 +60,22 @@ export function DiagnosticsPanel({ index }: DiagnosticsPanelProps): JSX.Element 
               key={`${diagnostic.kind}-${i}`}
               data-testid={`diagnostic-${diagnostic.kind}-${i}`}
               data-kind={diagnostic.kind}
-              className="flex flex-wrap items-center gap-2 rounded bg-amber-50 px-2 py-1 text-xs"
+              className="flex flex-wrap items-center gap-2 rounded bg-warn-soft px-2 py-1 text-xs"
             >
               <span
-                className={
-                  diagnostic.kind === "broken-link"
-                    ? "rounded bg-rose-100 px-1 font-medium text-rose-700"
-                    : "rounded bg-amber-100 px-1 font-medium text-amber-700"
-                }
+                className={badgeClass(diagnostic.kind === "broken-link" ? "bad" : "warn")}
               >
                 {diagnostic.kind === "broken-link" ? "リンク切れ" : "解析不能"}
               </span>
-              <code data-testid="diagnostic-raw" className="font-mono text-slate-800">
+              <code data-testid="diagnostic-raw" className="font-mono text-ink">
                 {rawTextOf(diagnostic)}
               </code>
-              <span className="text-slate-500">発生元:</span>
-              <span data-testid="diagnostic-origin" className="font-mono text-slate-700">
+              <span className="text-ink-soft">発生元:</span>
+              <span data-testid="diagnostic-origin" className="font-mono text-ink">
                 {originLabel(diagnostic.where)}
               </span>
-              <span className="text-slate-500">行:</span>
-              <span data-testid="diagnostic-line" className="font-mono text-slate-700">
+              <span className="text-ink-soft">行:</span>
+              <span data-testid="diagnostic-line" className="font-mono text-ink">
                 {diagnostic.position.startLine}
               </span>
             </li>

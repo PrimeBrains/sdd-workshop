@@ -89,7 +89,7 @@
   - _Requirements: 4.2, 2.4_
   - _Boundary: FeatureReskin viewer_
 
-- [ ] 5.3 (P) matrix を再スキンする
+- [x] 5.3 (P) matrix を再スキンする
   - MatrixGrid / DiagnosticsPanel / MatrixPage の色クラスを置換し、focus 行は `focus-row`・uncovered 行は `uncovered-row` トークンへ
   - `UNCOVERED_ROW_CLASS` の定数名・クラス名は不変。ページ見出しを .page-title / .page-sub 階層へ揃える
   - 完了条件: `matrix/` 配下の既存テスト（UNCOVERED_ROW_CLASS 契約含む）が無変更で green

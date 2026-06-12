@@ -56,7 +56,7 @@ export function MatrixPage(): JSX.Element {
 
   return (
     <section data-testid="matrix-page" className="flex h-full flex-col">
-      <h1 data-testid="matrix-page-heading" className="text-lg font-semibold">
+      <h1 data-testid="matrix-page-heading" className="mb-1 text-[19px] font-bold">
         {feature}/matrix
       </h1>
 
