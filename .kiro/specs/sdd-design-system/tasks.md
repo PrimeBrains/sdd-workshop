@@ -1,7 +1,7 @@
 # Implementation Plan
 
 - [ ] 1. Foundation: デザイントークン基盤
-- [ ] 1.1 Tailwind v4 `@theme` にデザイントークンを一元定義し既定パレットを削除する
+- [x] 1.1 Tailwind v4 `@theme` にデザイントークンを一元定義し既定パレットを削除する
   - `client/src/index.css` に `@theme` を追加: `--color-*: initial` で既定パレットを削除した上で、design.md のトークン表（paper / paper-warm / ink / ink-soft / line / brand / brand-soft、ok・warn・bad の各系、gray-mid・gray-soft、sidebar 系、chip 系、focus-row・uncovered-row、fill-soft、pre 系、overlay）と `white` / `black` を定義する
   - 既存の `.jump-highlight` / `.correspondence-highlight` は一字も変更しない
   - 完了条件: dev 起動で `bg-paper` 等のトークン utility が効き、`bg-slate-50` が CSS を生成しない（置換前の画面が無装飾化するのは想定内の中間状態。テストは色クラスに依存しないため green を維持）

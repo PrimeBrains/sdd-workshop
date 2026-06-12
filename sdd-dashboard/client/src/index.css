@@ -1,6 +1,58 @@
 @import "tailwindcss";
 
 /*
+ * デザイントークン（単一定義元）。正典: skeleton-client/src/styles.css（値の改変禁止）。
+ * `--color-*: initial` で Tailwind 既定パレット（slate / amber / emerald …）を削除し、
+ * トークン外の色 utility が CSS を生成しないことをビルドレベルで強制する。
+ */
+@theme {
+  --color-*: initial;
+  --color-white: #fff;
+  --color-black: #000;
+
+  --color-paper: #f7f4ec;
+  --color-paper-warm: #fbf9f2;
+  --color-ink: #2a2722;
+  --color-ink-soft: #6b655a;
+  --color-line: #e3ddcf;
+  --color-brand: #7ea61f;
+  --color-brand-soft: #eef3df;
+
+  --color-ok: #5d8a3a;
+  --color-ok-soft: #e7efdc;
+  --color-ok-line: #c9dcb4;
+  --color-warn: #c89a2d;
+  --color-warn-soft: #f7eed3;
+  --color-warn-line: #e6d49a;
+  --color-warn-ink: #8a6a14;
+  --color-bad: #b8482e;
+  --color-bad-soft: #f6e0da;
+  --color-bad-line: #e7bcae;
+
+  --color-gray-mid: #9a958a;
+  --color-gray-soft: #eceae3;
+
+  --color-sidebar: #26301a;
+  --color-sidebar-ink: #e9ecdf;
+  --color-sidebar-muted: #cdd5bd;
+  --color-sidebar-soft: #9fae84;
+  --color-sidebar-section: #8d9a73;
+
+  --color-chip-ink: #50691a;
+  --color-chip-line: #d2dfb0;
+  --color-chip-hover: #dfe9c4;
+
+  --color-focus-row: #fdf3cf;
+  --color-uncovered-row: #f9e9e4;
+
+  --color-fill-soft: #efece2;
+  --color-pre-bg: #2c2a25;
+  --color-pre-ink: #e8e4d8;
+
+  --color-overlay: rgb(30 28 20 / 0.45);
+}
+
+/*
  * ジャンプ着地時の一時ハイライト（navigation/anchors.ts HIGHLIGHT_CLASS）。
  * useJump が対象アンカーへ付与し ~2 秒後に除去する。クラス名は anchors.ts が単一所有する。
  */
