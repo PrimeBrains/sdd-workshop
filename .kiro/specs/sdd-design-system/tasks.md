@@ -7,7 +7,7 @@
   - 完了条件: dev 起動で `bg-paper` 等のトークン utility が効き、`bg-slate-50` が CSS を生成しない（置換前の画面が無装飾化するのは想定内の中間状態。テストは色クラスに依存しないため green を維持）
   - _Requirements: 1.1, 1.3, 1.4, 1.5, 5.2_
 
-- [ ] 1.2 Inter / JetBrains Mono を自己ホストしフォントトークンを定義する
+- [x] 1.2 Inter / JetBrains Mono を自己ホストしフォントトークンを定義する
   - `@fontsource-variable/inter` / `@fontsource-variable/jetbrains-mono` を `client/package.json` の dependencies に追加し、`index.css` 冒頭で `@import` する
   - `--font-sans` / `--font-mono` を design.md 記載のスタック（日本語はシステムフォールバック）で定義する
   - 完了条件: dev 画面の本文が Inter Variable・コードが JetBrains Mono Variable で描画され、ブラウザの Network にフォントの外部 URL 取得が現れない
@@ -148,3 +148,6 @@
   - 変更が視覚表現 + Requirement 8 の範囲に限定されていることを diff で確認する
   - 完了条件: 比較・確認の証跡が記録され、差異があればスケルトン準拠へ修正済み
   - _Requirements: 5.4, 7.1, 7.2, 8.1, 8.3, 8.4, 8.5_
+
+## Implementation Notes
+- 1.2: Vite の既定 assetsInlineLimit(4KB) は小さい woff2 を data: URI 化し check-dist-no-external-urls.ts が fail する。vite.config.ts で .woff2 のみ inline 無効化済み（counterfactual ビルドで必要性実証済み）

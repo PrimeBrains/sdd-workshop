@@ -23,4 +23,13 @@ export default defineConfig({
       "/api": SDD_CORE_SERVER_ORIGIN,
     },
   },
+  build: {
+    /**
+     * 自己ホストフォント（FontProvisioning, Requirements 6.1/6.3）: 小さい woff2 サブセットも
+     * data: URI へインライン化せず dist/assets/ に相対 URL のファイルとして同梱する
+     * （design.md「woff2 は Vite のアセットパイプラインで dist/assets/ に同梱され、
+     * 相対 URL で参照される」。e2e check-dist-no-external-urls は data: URI を違反として扱う）。
+     */
+    assetsInlineLimit: (filePath) => (filePath.endsWith(".woff2") ? false : undefined),
+  },
 });

@@ -1,3 +1,6 @@
+/* 自己ホストフォント（FontProvisioning）。woff2 は Vite が dist/assets/ に同梱する。 */
+@import "@fontsource-variable/inter";
+@import "@fontsource-variable/jetbrains-mono";
 @import "tailwindcss";
 
 /*
@@ -50,6 +53,9 @@
   --color-pre-ink: #e8e4d8;
 
   --color-overlay: rgb(30 28 20 / 0.45);
+
+  --font-sans: 'Inter Variable', system-ui, -apple-system, 'Hiragino Sans', 'Noto Sans JP', sans-serif;
+  --font-mono: 'JetBrains Mono Variable', ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
 /*
