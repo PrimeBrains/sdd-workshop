@@ -5,12 +5,12 @@ sdd-dashboard アプリには、リッチで見やすい「スケルトン」（
 
 スケルトンの配色・フォントは steering の Prime Brains ブランドトークン（`product.md` の Design Tokens: 濃緑 `#7ea61f` / paper `#f7f4ec` / Inter・JetBrains Mono 等）と一致しており、これを正典とする根拠となる。
 
-対象は**見た目のみ**であり、本番の機能・画面構成・情報設計・テストの振る舞いは維持する。スケルトンはデザインの参照源としてリポジトリに残す。デザイントークンの具体的な実装機構（本番採用の Tailwind v4 のテーマ機能を用いる方針）の詳細は design フェーズで確定する。
+対象は原則として**見た目のみ**であり、本番の機能・画面構成・情報設計・テストの振る舞いは維持する。ただし、ドキュメントビューア（特に design 文書）は現状「56行のトレーサビリティ表が先頭を占有し本文が2画面以上先」「図が画面を突き破る」「ナビが追従しない」「行長無制限」という可読性の問題を抱えており、装飾だけでは解消できない。このため Requirement 8 に定める範囲に限り、読書体験のためのレイアウト調整（表示順序・追従表示・オーバーフロー制御・行長制御）をスコープに含める。スケルトンはデザインの参照源としてリポジトリに残す。デザイントークンの具体的な実装機構（本番採用の Tailwind v4 のテーマ機能を用いる方針）の詳細は design フェーズで確定する。
 
 ## Boundary Context
-- **In scope**: 本番クライアントの全画面をスケルトンのデザイン言語に一致させる再スキン。デザイントークン（色・タイポグラフィ）の単一定義化と、シェル・共有プリミティブ・各機能ビューへの適用。
-- **Out of scope**: 機能追加・挙動変更・画面構成や情報設計の変更。バックエンド/API/データモデルの変更。スケルトンにあって本番に無い画面・レイアウトの機能的取り込み。skeleton-client 自体の改変。新規画面・新規ナビゲーション項目の追加。
-- **Adjacent expectations**: 既存の単体テスト（`client/src/**/*.test.tsx`）・E2E（`sdd-dashboard/e2e/*.spec.ts`）が依存するマークアップ契約（`data-testid` / `aria-label` / `role` / 可視テキスト / インタラクション用クラス）に依存し、それらを壊さない。デザインの正典は `skeleton-client/src/styles.css`。ローカル完結方針（外部 URL 非依存）を継承する。
+- **In scope**: 本番クライアントの全画面をスケルトンのデザイン言語に一致させる再スキン。デザイントークン（色・タイポグラフィ）の単一定義化と、シェル・共有プリミティブ・各機能ビューへの適用。ドキュメントビューアの可読性レイアウト調整（design 文書のセクション表示順・ナビの追従表示・埋め込み要素のオーバーフロー制御・本文の行長制御。Requirement 8 に定める範囲に限定）。
+- **Out of scope**: 機能追加・挙動変更・Requirement 8 に定める範囲を超える画面構成や情報設計の変更。バックエンド/API/データモデルの変更。スケルトンにあって本番に無い画面・レイアウトの機能的取り込み。skeleton-client 自体の改変。新規画面・新規ナビゲーション項目の追加。スクロール連動のセクションハイライト等の新規インタラクション。
+- **Adjacent expectations**: 既存の単体テスト（`client/src/**/*.test.tsx`）・E2E（`sdd-dashboard/e2e/*.spec.ts`）が依存するマークアップ契約（`data-testid` / `aria-label` / `role` / 可視テキスト / インタラクション用クラス）に依存し、それらを壊さない。例外は Requirement 8.1 の表示順変更に伴い**旧順序を固定している既存テスト**（例: `DesignView.test.tsx` の「Traceability テーブル → 本文見出しが文書順で描画される」）のみで、新仕様の順序を検証するよう更新する。デザインの正典は `skeleton-client/src/styles.css`。ローカル完結方針（外部 URL 非依存）を継承する。
 
 ## Requirements
 
@@ -83,10 +83,10 @@ sdd-dashboard アプリには、リッチで見やすい「スケルトン」（
    - 和訳: sdd-dashboard クライアントは、既存の `data-testid` / `aria-label` / `role` / 可視テキストを変更しない。
 2. The sdd-dashboard client shall preserve the names and roles of the existing interaction classes (`.jump-highlight` / `.correspondence-highlight` / `.uncovered-row`).
    - 和訳: sdd-dashboard クライアントは、既存のインタラクション用クラス（`.jump-highlight` / `.correspondence-highlight` / `.uncovered-row`）の名称と役割を維持する。
-3. When the existing unit tests and E2E are run after the re-skin, the sdd-dashboard client shall make them all pass just as before the re-skin.
-   - 和訳: 再スキン後に既存の単体テストおよび E2E を実行したとき、sdd-dashboard クライアントは、それらを再スキン前と同じく全件成功させる。
-4. The sdd-dashboard client shall not change screen composition, information architecture, or functional behavior, and shall limit changes to visual presentation.
-   - 和訳: sdd-dashboard クライアントは、画面構成・情報設計・機能挙動を変更せず、変更を視覚表現に限定する。
+3. When the existing unit tests and E2E are run after the re-skin, the sdd-dashboard client shall make them all pass, where tests that pin the previous section order changed by Requirement 8.1 may be updated to assert the new specified order.
+   - 和訳: 再スキン後に既存の単体テストおよび E2E を実行したとき、sdd-dashboard クライアントは、それらを全件成功させる。ただし Requirement 8.1 が変更するセクション表示順を固定していたテストに限り、新仕様の順序を検証するよう更新してよい。
+4. The sdd-dashboard client shall not change screen composition, information architecture, or functional behavior beyond the scope defined in Requirement 8, and shall limit all other changes to visual presentation.
+   - 和訳: sdd-dashboard クライアントは、Requirement 8 に定める範囲を超えて画面構成・情報設計・機能挙動を変更せず、それ以外の変更を視覚表現に限定する。
 
 ### Requirement 6: ローカル完結・外部依存なし
 **Objective:** オフライン環境の利用者として、インターネット接続なしでデザインが完全に表示されてほしい。現場環境でも見た目が崩れないようにするため。
@@ -109,3 +109,19 @@ sdd-dashboard アプリには、リッチで見やすい「スケルトン」（
    - 和訳: sdd-dashboard プロジェクトは、skeleton-client をデザインの参照源として保持し、本作業で改変・削除しない。
 2. If a styling discrepancy is found between production and the skeleton, then the design policy shall treat the skeleton as canonical.
    - 和訳: 本番とスケルトンで装飾の差異が判明した場合、デザイン方針はスケルトンを正典として優先する。
+
+### Requirement 8: ドキュメントビューアの読書体験
+**Objective:** ダッシュボード閲覧者として、design のような長大な構造化文書を「読む気になる」画面で通読・レビューしたい。先頭の表の壁・画面を突き破る図・追従しないナビ・無制限の行長といった可読性の障害を取り除くため。
+
+#### Acceptance Criteria
+
+1. When a design document is displayed, the sdd-dashboard client shall present the document body (Overview onward) first and place the Requirements Traceability table after the body as a dedicated section.
+   - 和訳: design ドキュメントを表示したとき、sdd-dashboard クライアントは、本文（Overview 以降）を先頭に表示し、Requirements Traceability 表は本文の後の専用セクションとして配置する。
+2. The sdd-dashboard client shall render the Requirements Traceability table with the skeleton matrix-table styling (cell borders, header background, and compact typography).
+   - 和訳: sdd-dashboard クライアントは、Requirements Traceability 表をスケルトンの matrix 表装飾（セル罫線・ヘッダ背景・コンパクトなタイポグラフィ）で描画する。
+3. Where an embedded element (Mermaid diagram, code block, or table) exceeds the content column width, the sdd-dashboard client shall contain the overflow with horizontal scrolling inside that element's frame and shall not cause page-level horizontal scrolling.
+   - 和訳: 埋め込み要素（Mermaid 図・コードブロック・表）がコンテンツカラム幅を超える場合、sdd-dashboard クライアントは、その要素の枠内の横スクロールでオーバーフローを収め、ページ全体の横スクロールを発生させない。
+4. While the user scrolls a design document, the sdd-dashboard client shall keep the section navigation visible as a sticky sidebar with its own internal scrolling (per the skeleton `.toc` definition).
+   - 和訳: design ドキュメントのスクロール中、sdd-dashboard クライアントは、セクションナビをスケルトンの `.toc` 定義に準じた sticky サイドバー（内部スクロール付き）として表示し続ける。
+5. The sdd-dashboard client shall constrain the document body to a readable maximum width consistent with the skeleton layout (`.main` max-width and the two-column viewer grid).
+   - 和訳: sdd-dashboard クライアントは、ドキュメント本文をスケルトンのレイアウト（`.main` の最大幅と 2 カラムの viewer グリッド）に整合する読みやすい最大幅に制約する。
