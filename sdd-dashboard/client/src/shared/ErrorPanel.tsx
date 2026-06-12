@@ -15,14 +15,14 @@ export function ErrorPanel({ error, onRetry }: ErrorPanelProps) {
   return (
     <div
       role="alert"
-      className="m-4 rounded-md border border-red-300 bg-red-50 p-4 text-sm text-red-900"
+      className="m-4 rounded-md border border-bad-line bg-bad-soft p-4 text-sm text-bad"
     >
       <p className="font-mono text-xs font-semibold tracking-wide">{error.code}</p>
       <p className="mt-1">{error.message}</p>
       <button
         type="button"
         onClick={onRetry}
-        className="mt-3 rounded border border-red-300 bg-white px-3 py-1 font-medium hover:bg-red-100"
+        className="mt-3 rounded border border-bad-line bg-white px-3 py-1 font-medium hover:bg-bad-soft"
       >
         再試行
       </button>

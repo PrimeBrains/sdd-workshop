@@ -15,7 +15,7 @@ export function LoadingSkeleton({ label = "読み込み中…" }: LoadingSkeleto
       role="status"
       aria-live="polite"
       data-testid="loading-skeleton"
-      className="m-4 animate-pulse rounded-md border border-slate-200 bg-slate-100 p-4 text-sm text-slate-400"
+      className="m-4 animate-pulse rounded-md border border-line bg-paper-warm p-4 text-sm text-ink-soft"
     >
       {label}
     </div>

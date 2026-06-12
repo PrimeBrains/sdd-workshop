@@ -25,7 +25,7 @@ export function ConnectionBanner({ status }: ConnectionBannerProps): JSX.Element
     <div
       role="status"
       data-testid="connection-banner"
-      className="fixed inset-x-0 bottom-0 z-50 border-t border-amber-300 bg-amber-50 px-4 py-2 text-center text-sm text-amber-900"
+      className="fixed inset-x-0 bottom-0 z-50 border-t border-warn-line bg-warn-soft px-4 py-2 text-center text-sm text-warn-ink"
     >
       再接続中…
     </div>

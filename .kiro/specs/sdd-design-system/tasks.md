@@ -36,7 +36,7 @@
   - _Requirements: 2.1, 2.2, 2.3, 8.5_
   - _Boundary: AppShellReskin_
 
-- [ ] 2.2 (P) 共有プリミティブ 3 件を状態色トークンへ再スキンする
+- [x] 2.2 (P) 共有プリミティブ 3 件を状態色トークンへ再スキンする
   - ErrorPanel → bad 系 / ConnectionBanner → warn 系 / LoadingSkeleton → line・paper-warm 系
   - `role="alert"` / `role="status"` と文言は不変
   - 完了条件: `shared/` 配下の既存テストが無変更で green、dev 画面のエラーパネル・接続バナーがブランド状態色になる
