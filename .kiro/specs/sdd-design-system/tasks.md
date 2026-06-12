@@ -103,7 +103,7 @@
   - _Requirements: 4.4, 2.4_
   - _Boundary: FeatureReskin compare, FeatureReskin validation_
 
-- [ ] 5.5 (P) crosslink（チップ・ポップオーバー）を再スキンする
+- [x] 5.5 (P) crosslink（チップ・ポップオーバー）を再スキンする
   - RefChip / JumpBackBar / CounterpartPopover の色クラスを置換し、ポップオーバーは設計のモーダル・ポップオーバー装飾規約（paper-warm 背景・影）へ
   - 完了条件: `crosslink/` 配下の既存テストが無変更で green
   - _Requirements: 3.2_

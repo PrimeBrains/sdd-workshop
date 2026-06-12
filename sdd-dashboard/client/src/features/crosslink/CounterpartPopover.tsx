@@ -110,13 +110,13 @@ export function CounterpartPopover({ groups, onSelect, onClose }: CounterpartPop
       aria-describedby={dialogId}
       tabIndex={-1}
       data-testid="counterpart-popover"
-      className="absolute z-10 mt-1 min-w-48 rounded-md border border-slate-300 bg-white p-2 text-sm shadow-lg"
+      className="absolute z-10 mt-1 min-w-48 rounded-[10px] border border-line bg-paper-warm p-2 text-sm shadow-[0_12px_36px_rgba(0,0,0,0.18)]"
     >
-      <p id={dialogId} className="mb-1 text-xs font-semibold text-slate-500">
+      <p id={dialogId} className="mb-1 text-xs font-semibold text-ink-soft">
         対応先
       </p>
       {isEmpty && (
-        <p data-testid="counterpart-empty" className="px-1 py-0.5 text-slate-500">
+        <p data-testid="counterpart-empty" className="px-1 py-0.5 text-ink-soft">
           対応先がありません
         </p>
       )}
@@ -125,7 +125,7 @@ export function CounterpartPopover({ groups, onSelect, onClose }: CounterpartPop
         if (items.length === 0) return null;
         return (
           <div key={groupKey} className="mb-1 last:mb-0">
-            <p className="px-1 text-xs font-semibold text-slate-400">{GROUP_LABELS[groupKey]}</p>
+            <p className="px-1 text-xs font-semibold text-ink-soft">{GROUP_LABELS[groupKey]}</p>
             <ul>
               {items.map((item) => (
                 <li key={`${item.node.type}:${item.label}`}>
@@ -134,7 +134,7 @@ export function CounterpartPopover({ groups, onSelect, onClose }: CounterpartPop
                       data-testid="counterpart-broken"
                       data-counterpart-kind={item.node.type}
                       title={item.brokenReason}
-                      className="block px-1 py-0.5 font-mono text-xs text-rose-700 line-through"
+                      className="block px-1 py-0.5 font-mono text-xs text-bad line-through"
                     >
                       {item.label}
                     </span>
@@ -145,7 +145,7 @@ export function CounterpartPopover({ groups, onSelect, onClose }: CounterpartPop
                       data-testid="counterpart-item"
                       data-counterpart-kind={item.node.type}
                       onClick={() => onSelect(item)}
-                      className="block w-full rounded px-1 py-0.5 text-left font-mono text-xs text-sky-700 hover:bg-sky-50"
+                      className="block w-full rounded px-1 py-0.5 text-left font-mono text-xs text-ink hover:bg-brand-soft"
                     >
                       {item.label}
                     </button>

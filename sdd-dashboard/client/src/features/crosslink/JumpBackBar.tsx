@@ -42,13 +42,13 @@ export function JumpBackBar(): JSX.Element | null {
   return (
     <div
       data-testid="jump-back-bar"
-      className="mb-3 flex items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs text-slate-600"
+      className="mb-3 flex items-center gap-2 rounded-md border border-line bg-paper-warm px-3 py-1.5 text-xs text-ink"
     >
       <button
         type="button"
         data-testid="jump-back-button"
         onClick={() => back()}
-        className="rounded bg-slate-200 px-2 py-0.5 font-semibold text-slate-700 hover:bg-slate-300"
+        className="rounded bg-gray-soft px-2 py-0.5 font-semibold text-ink hover:bg-line"
       >
         ← 戻る
       </button>

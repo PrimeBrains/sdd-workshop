@@ -31,6 +31,7 @@ import { useCrosslinkJumpFromContextOrLocal } from "@/navigation/JumpContext";
 import type { JumpTarget } from "@/navigation/useJump";
 import type { TraceIndex } from "@/trace/traceIndex";
 import { useTraceIndexContext } from "@/trace/TraceIndexContext";
+import { badgeClass, chipClass } from "@/shared/ui";
 import { CounterpartPopover, type CounterpartItem } from "./CounterpartPopover";
 
 export interface RefChipProps {
@@ -97,9 +98,12 @@ function counterpartsForId(
   return groups;
 }
 
-/** チップの基本スタイル（kind ごとに色味を変える） */
-const BASE_CHIP =
-  "inline-flex items-center gap-1 rounded px-1.5 py-0.5 font-mono text-xs font-semibold";
+/**
+ * 警告チップ（unparsable 用）: chipClass に warn variant が無いため、スケルトン .chip の
+ * 形状に warn 系トークンを合わせて構成する（意味マッピング: amber-* → warn 系。3.2 / 5.1）。
+ */
+const WARN_CHIP =
+  "inline-block font-mono text-[11px] px-[7px] rounded-md border mx-0.5 my-px cursor-default bg-warn-soft text-warn-ink border-warn-line";
 
 export function RefChip({ token, origin }: RefChipProps): JSX.Element {
   const index = useTraceIndexContext();
@@ -118,7 +122,7 @@ export function RefChip({ token, origin }: RefChipProps): JSX.Element {
         data-testid="ref-chip"
         data-ref-kind="unparsable"
         title="解釈できない参照表記"
-        className={`${BASE_CHIP} bg-amber-100 text-amber-800`}
+        className={WARN_CHIP}
       >
         {token.raw}
       </span>
@@ -141,7 +145,7 @@ export function RefChip({ token, origin }: RefChipProps): JSX.Element {
             )}`,
           )
         }
-        className={`${BASE_CHIP} bg-violet-100 text-violet-800 hover:bg-violet-200`}
+        className={chipClass("default")}
       >
         {token.raw}
       </button>
@@ -159,7 +163,7 @@ export function RefChip({ token, origin }: RefChipProps): JSX.Element {
         <span
           data-testid="ref-chip-legacy-badge"
           title="旧範囲表記の展開（legacy）"
-          className="rounded bg-slate-200 px-1 py-0.5 text-[10px] font-semibold text-slate-600"
+          className={badgeClass("gray")}
         >
           legacy
         </span>
@@ -176,7 +180,7 @@ export function RefChip({ token, origin }: RefChipProps): JSX.Element {
       <span
         data-testid="ref-chip"
         data-ref-kind="id"
-        className={`${BASE_CHIP} bg-slate-100 text-slate-700`}
+        className={chipClass("plain")}
       >
         {token.raw}
       </span>
@@ -192,7 +196,7 @@ export function RefChip({ token, origin }: RefChipProps): JSX.Element {
         data-ref-kind="id"
         data-broken="true"
         title="リンク切れ（対応先が見つかりません）"
-        className={`${BASE_CHIP} bg-rose-50 text-rose-700 line-through`}
+        className={`${chipClass("danger")} line-through`}
       >
         {token.raw}
       </span>
@@ -235,7 +239,7 @@ export function RefChip({ token, origin }: RefChipProps): JSX.Element {
         aria-haspopup="dialog"
         aria-expanded={open}
         onClick={() => setOpen((prev) => !prev)}
-        className={`${BASE_CHIP} bg-slate-100 text-slate-700 hover:bg-slate-200`}
+        className={chipClass("default")}
       >
         {token.raw}
       </button>
@@ -243,7 +247,7 @@ export function RefChip({ token, origin }: RefChipProps): JSX.Element {
         <CounterpartPopover groups={groups} onSelect={handleSelect} onClose={() => setOpen(false)} />
       )}
       {notice !== null && (
-        <span data-testid="ref-chip-notice" role="status" className="ml-1 text-xs text-amber-700">
+        <span data-testid="ref-chip-notice" role="status" className="ml-1 text-xs text-warn-ink">
           {notice}
         </span>
       )}
