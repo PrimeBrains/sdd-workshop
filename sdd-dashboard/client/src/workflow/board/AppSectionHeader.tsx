@@ -20,19 +20,19 @@ export function AppSectionHeader({ app, summary }: AppSectionHeaderProps): JSX.E
   const appLabel = app === null ? "未分類" : app;
   return (
     <header data-testid={`app-section-header-${app ?? "未分類"}`} className="mb-2">
-      <h2 className="text-base font-semibold text-slate-800" data-testid="app-section-name">
+      <h2 className="text-base font-semibold text-ink" data-testid="app-section-name">
         {appLabel}
       </h2>
-      <dl className="mt-1 flex gap-4 text-xs text-slate-600">
+      <dl className="mt-1 flex gap-4 text-xs text-ink-soft">
         <div className="flex gap-1">
           <dt>スペック数</dt>
-          <dd data-testid="app-section-spec-count" className="font-medium text-slate-800">
+          <dd data-testid="app-section-spec-count" className="font-medium text-ink">
             {summary.specCount}
           </dd>
         </div>
         <div className="flex gap-1">
           <dt>READY</dt>
-          <dd data-testid="app-section-ready-count" className="font-medium text-slate-800">
+          <dd data-testid="app-section-ready-count" className="font-medium text-ink">
             {summary.readyCount}
           </dd>
         </div>
@@ -40,7 +40,7 @@ export function AppSectionHeader({ app, summary }: AppSectionHeaderProps): JSX.E
           <dt>実装完了</dt>
           <dd
             data-testid="app-section-impl-complete-count"
-            className="font-medium text-slate-800"
+            className="font-medium text-ink"
           >
             {summary.implementationCompleteCount}
           </dd>

@@ -38,7 +38,7 @@ export function BoardPage(): JSX.Element {
 
   return (
     <section data-testid="workflow-board-page" className="p-4">
-      <h1 className="mb-4 text-lg font-semibold text-slate-800">Board</h1>
+      <h1 className="mb-4 text-[19px] font-bold">Board</h1>
       {groups.map((group) => {
         const sectionKey = group.app ?? "未分類";
         const graph = buildBoardGraph(group.items);
@@ -54,7 +54,7 @@ export function BoardPage(): JSX.Element {
             <div
               data-testid={`app-section-flow-${sectionKey}`}
               style={{ height: SECTION_FLOW_HEIGHT, width: "100%" }}
-              className="rounded-md border border-slate-200"
+              className="rounded-md border border-line"
             >
               <PipelineFlow nodes={graph.nodes} edges={graph.edges} />
             </div>

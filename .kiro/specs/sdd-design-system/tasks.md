@@ -109,7 +109,7 @@
   - _Requirements: 3.2_
   - _Boundary: FeatureReskin crosslink_
 
-- [ ] 5.6 (P) workflow の board / knowledge を再スキンする
+- [x] 5.6 (P) workflow の board / knowledge を再スキンする
   - board: パイプラインノードを approved → ok 系 / generated → warn 系へ（既存 indigo は warn へ）。knowledge: AdrStatusBadge（ステータス間 className 差分契約を維持）・steering / skills 一覧の色クラス置換
   - ページ見出しを .page-title / .page-sub 階層へ揃える
   - 完了条件: `workflow/board` `workflow/knowledge` 配下の既存テストが無変更で green

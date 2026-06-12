@@ -16,6 +16,8 @@ import { Link } from "react-router";
 import { ErrorPanel } from "@/shared/ErrorPanel";
 import { LoadingSkeleton } from "@/shared/LoadingSkeleton";
 
+import { badgeClass } from "@/shared/ui";
+
 import { useSkillList } from "@/workflow/api/useSkillList";
 import { groupSkillsByOrigin } from "@/workflow/model/grouping";
 
@@ -35,18 +37,18 @@ export function SkillListPage(): JSX.Element {
 
   return (
     <section data-testid="workflow-skill-list-page" className="space-y-6 p-4">
-      <header className="space-y-1">
-        <h1 className="text-lg font-semibold text-slate-800">Skills</h1>
-        <p className="text-sm text-slate-600">
+      <header>
+        <h1 className="mb-1 text-[19px] font-bold">Skills</h1>
+        <p className="text-ink-soft text-[12.5px]">
           各スキルの説明を英語・日本語で参照できます。由来分類ごとに一覧化しています。
         </p>
       </header>
 
       {groups.map((group) => (
         <div key={group.origin ?? "unclassified"} data-testid="skill-origin-group" className="space-y-2">
-          <h2 className="flex items-baseline gap-2 text-sm font-semibold text-slate-700">
+          <h2 className="flex items-baseline gap-2 text-sm font-semibold text-ink">
             <span>{originLabel(group.origin)}</span>
-            <span data-testid="skill-group-count" className="text-xs font-normal text-slate-500">
+            <span data-testid="skill-group-count" className="text-xs font-normal text-ink-soft">
               {group.count}
             </span>
           </h2>
@@ -57,23 +59,17 @@ export function SkillListPage(): JSX.Element {
                 <Link
                   to={`/skills/${skill.name}`}
                   data-testid="skill-list-item"
-                  className="flex items-center justify-between gap-2 rounded-md border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-800 shadow-sm hover:bg-slate-50"
+                  className="flex items-center justify-between gap-2 rounded-md border border-line bg-white px-4 py-3 text-sm font-medium text-ink shadow-sm hover:bg-paper-warm"
                 >
                   <span>{skill.name}</span>
                   <span className="flex items-center gap-1">
                     {skill.hasEn ? (
-                      <span
-                        data-testid="skill-badge-en"
-                        className="rounded border border-slate-300 bg-slate-50 px-1.5 py-0.5 text-xs text-slate-600"
-                      >
+                      <span data-testid="skill-badge-en" className={badgeClass("gray")}>
                         EN
                       </span>
                     ) : null}
                     {skill.hasJa ? (
-                      <span
-                        data-testid="skill-badge-ja"
-                        className="rounded border border-slate-300 bg-slate-50 px-1.5 py-0.5 text-xs text-slate-600"
-                      >
+                      <span data-testid="skill-badge-ja" className={badgeClass("gray")}>
                         JA
                       </span>
                     ) : null}

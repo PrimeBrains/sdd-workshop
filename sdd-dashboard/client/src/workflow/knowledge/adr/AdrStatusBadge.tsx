@@ -11,29 +11,32 @@
  */
 import type { JSX } from "react";
 
+import { badgeClass } from "@/shared/ui";
+
 export interface AdrStatusBadgeProps {
   /** AdrFrontmatter.status（proposed / accepted / deprecated / superseded、または規約外の文字列） */
   status: string;
 }
 
-/** status → 色分け className（既知 4 status は固有、未知は中立フォールバック）。 */
+/**
+ * status → 色分け className（既知 4 status は固有、未知は中立フォールバック）。
+ * variant 対応はスケルトン Knowledge.tsx の STATUS_CLS（accepted=ok / proposed=warn /
+ * deprecated=gray / superseded=bad）準拠。
+ */
 const STATUS_CLASS: Record<string, string> = {
-  proposed: "border-sky-300 bg-sky-50 text-sky-700",
-  accepted: "border-emerald-300 bg-emerald-50 text-emerald-700",
-  deprecated: "border-amber-300 bg-amber-50 text-amber-700",
-  superseded: "border-slate-300 bg-slate-100 text-slate-600",
+  proposed: badgeClass("warn"),
+  accepted: badgeClass("ok"),
+  deprecated: badgeClass("gray"),
+  superseded: badgeClass("bad"),
 };
 
-const FALLBACK_CLASS = "border-slate-300 bg-white text-slate-500";
+/** 未知 status: gray 系に破線枠を加え、既知 4 status のどの className とも一致させない。 */
+const FALLBACK_CLASS = `${badgeClass("gray")} border-dashed`;
 
 export function AdrStatusBadge({ status }: AdrStatusBadgeProps): JSX.Element {
   const colorClass = STATUS_CLASS[status] ?? FALLBACK_CLASS;
   return (
-    <span
-      data-testid="adr-status-badge"
-      data-status={status}
-      className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${colorClass}`}
-    >
+    <span data-testid="adr-status-badge" data-status={status} className={colorClass}>
       {status}
     </span>
   );

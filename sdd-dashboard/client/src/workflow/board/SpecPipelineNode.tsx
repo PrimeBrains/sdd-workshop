@@ -17,15 +17,21 @@ import type { JSX } from "react";
 import { Link } from "react-router";
 import type { Node, NodeProps } from "@xyflow/react";
 
+import { badgeClass } from "@/shared/ui";
+
 import type { SpecPipelineNodeData } from "@/workflow/board/buildBoardGraph";
 import type { PhaseStepState } from "@/workflow/model/phaseModel";
 
-/** フェーズ段階状態 → テスト・支援技術向けの安定ラベルと表示クラス。 */
+/**
+ * フェーズ段階状態 → テスト・支援技術向けの安定ラベルと表示クラス。
+ * 配色はスケルトン .pipe .node 準拠（approved = ok 系の淡塗り、generated = warn 系。
+ * unknown は診断状態として warn の強枠で generated と区別する）。
+ */
 const STEP_STYLE: Record<PhaseStepState["kind"], { label: string; className: string }> = {
-  "not-generated": { label: "未生成", className: "border border-dashed border-slate-300 bg-white text-slate-300" },
-  generated: { label: "生成済み", className: "border border-indigo-400 bg-white text-indigo-700" },
-  approved: { label: "承認済み", className: "border border-emerald-500 bg-emerald-500 text-white" },
-  unknown: { label: "不明", className: "border border-amber-400 bg-amber-50 text-amber-700" },
+  "not-generated": { label: "未生成", className: "border border-dashed border-line bg-white text-gray-mid" },
+  generated: { label: "生成済み", className: "border border-warn-line bg-warn-soft text-warn-ink" },
+  approved: { label: "承認済み", className: "border border-ok-line bg-ok-soft text-ok font-semibold" },
+  unknown: { label: "不明", className: "border border-warn bg-warn-soft text-warn-ink" },
 };
 
 /** フェーズ名の表示ラベル（固定順は pipeline.steps 側が保証する）。 */
@@ -43,21 +49,21 @@ export function SpecPipelineNode(props: NodeProps<Node<SpecPipelineNodeData>>): 
     <div
       data-testid={`spec-lane-${feature}`}
       data-feature={feature}
-      className="rounded-md border border-slate-200 bg-white p-3 shadow-sm"
+      className="rounded-md border border-line bg-white p-3 shadow-sm"
     >
       {/* 読取専用・one-node-per-lane モデル（エッジ無し）のため接続ハンドルは持たない（buildBoardGraph 注記参照）。 */}
       <div className="mb-2 flex items-center gap-2">
         <Link
           to={`/specs/${feature}`}
           data-testid={`spec-lane-link-${feature}`}
-          className="text-sm font-semibold text-slate-800 hover:underline"
+          className="text-sm font-semibold text-ink hover:underline"
         >
           {feature}
         </Link>
         {pipeline.ready === true && (
           <span
             data-testid={`spec-lane-ready-${feature}`}
-            className="rounded bg-emerald-100 px-1.5 py-0.5 text-xs font-medium text-emerald-800"
+            className={badgeClass("ok")}
           >
             READY
           </span>
@@ -67,7 +73,7 @@ export function SpecPipelineNode(props: NodeProps<Node<SpecPipelineNodeData>>): 
             data-testid={`spec-lane-diagnostic-${feature}`}
             role="img"
             aria-label="診断あり"
-            className="rounded bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-800"
+            className={badgeClass("warn")}
           >
             ⚠ 診断あり
           </span>
@@ -86,7 +92,7 @@ export function SpecPipelineNode(props: NodeProps<Node<SpecPipelineNodeData>>): 
               className={[
                 "rounded px-2 py-1 text-xs",
                 style.className,
-                step.current ? "ring-2 ring-offset-1 ring-indigo-500" : "",
+                step.current ? "ring-2 ring-offset-1 ring-brand" : "",
               ]
                 .filter(Boolean)
                 .join(" ")}

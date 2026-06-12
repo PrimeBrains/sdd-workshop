@@ -63,20 +63,20 @@ export function SkillDocPage(): JSX.Element {
   return (
     <section data-testid="skill-doc-page" className="space-y-4 p-4">
       <header data-testid="skill-doc-header" className="flex items-center gap-3">
-        <h1 className="text-lg font-semibold text-slate-800">{doc.name}</h1>
+        <h1 className="text-[19px] font-bold">{doc.name}</h1>
         <OriginBadge origin={doc.origin} />
       </header>
 
-      <div role="tablist" aria-label="言語" className="flex gap-2 border-b border-slate-200">
+      <div role="tablist" aria-label="言語" className="flex gap-2 border-b-2 border-line">
         <button
           type="button"
           role="tab"
           aria-selected={activeLang === "en"}
           onClick={() => selectLang("en")}
-          className={`border-b-2 px-3 py-1.5 text-sm font-medium ${
+          className={`-mb-0.5 border-b-2 px-3 py-1.5 text-sm font-medium ${
             activeLang === "en"
-              ? "border-slate-700 text-slate-800"
-              : "border-transparent text-slate-500 hover:text-slate-700"
+              ? "border-brand text-ink"
+              : "border-transparent text-ink-soft hover:text-ink"
           }`}
         >
           EN
@@ -88,10 +88,10 @@ export function SkillDocPage(): JSX.Element {
           aria-disabled={!jaAvailable}
           disabled={!jaAvailable}
           onClick={() => selectLang("ja")}
-          className={`border-b-2 px-3 py-1.5 text-sm font-medium ${
+          className={`-mb-0.5 border-b-2 px-3 py-1.5 text-sm font-medium ${
             activeLang === "ja"
-              ? "border-slate-700 text-slate-800"
-              : "border-transparent text-slate-500 hover:text-slate-700"
+              ? "border-brand text-ink"
+              : "border-transparent text-ink-soft hover:text-ink"
           } ${!jaAvailable ? "cursor-not-allowed opacity-50" : ""}`}
         >
           JA
@@ -99,7 +99,7 @@ export function SkillDocPage(): JSX.Element {
       </div>
 
       {!jaAvailable ? (
-        <p data-testid="skill-ja-missing" className="text-sm text-slate-500">
+        <p data-testid="skill-ja-missing" className="text-sm text-ink-soft">
           日本語版は未作成
         </p>
       ) : null}

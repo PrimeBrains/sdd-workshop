@@ -21,6 +21,7 @@ import type { AdrSummary } from "@contracts/resources";
 
 import { ErrorPanel } from "@/shared/ErrorPanel";
 import { LoadingSkeleton } from "@/shared/LoadingSkeleton";
+import { badgeClass, chipClass } from "@/shared/ui";
 
 import { useAdrList } from "@/workflow/api/useAdrList";
 import { groupByApp } from "@/workflow/model/grouping";
@@ -71,9 +72,9 @@ export function AdrListPage(): JSX.Element {
 
   return (
     <section data-testid="workflow-adr-list-page" className="space-y-6 p-4">
-      <header className="space-y-1">
-        <h1 className="text-lg font-semibold text-slate-800">ADR</h1>
-        <p className="text-sm text-slate-600">
+      <header>
+        <h1 className="mb-1 text-[19px] font-bold">ADR</h1>
+        <p className="text-ink-soft text-[12.5px]">
           プロジェクト横断のアーキテクチャ決定（ADR）を所属アプリ別に一覧表示します。
         </p>
       </header>
@@ -87,7 +88,7 @@ export function AdrListPage(): JSX.Element {
             data-app={group.app ?? ""}
             className="space-y-2"
           >
-            <h2 className="text-sm font-semibold text-slate-700">
+            <h2 className="text-sm font-semibold text-ink">
               {group.app ?? CROSS_CUTTING_LABEL}
             </h2>
 
@@ -101,13 +102,10 @@ export function AdrListPage(): JSX.Element {
                       <Link
                         to={`/adr/${summary.name}`}
                         data-testid="adr-list-item"
-                        className="flex items-center justify-between gap-3 rounded-md border border-dashed border-amber-400/70 bg-amber-50/40 px-4 py-3 text-sm text-slate-700 hover:bg-amber-50"
+                        className="flex items-center justify-between gap-3 rounded-md border border-dashed border-warn-line bg-warn-soft/40 px-4 py-3 text-sm text-ink hover:bg-warn-soft"
                       >
                         <span className="font-medium">{summary.name}</span>
-                        <span
-                          data-testid="adr-item-diagnostic"
-                          className="rounded border border-amber-300 bg-amber-100 px-1.5 py-0.5 text-xs text-amber-700"
-                        >
+                        <span data-testid="adr-item-diagnostic" className={badgeClass("warn")}>
                           メタデータ不正
                         </span>
                       </Link>
@@ -119,25 +117,22 @@ export function AdrListPage(): JSX.Element {
                     <Link
                       to={`/adr/${summary.name}`}
                       data-testid="adr-list-item"
-                      className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-md border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 shadow-sm hover:bg-slate-50"
+                      className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-md border border-line bg-white px-4 py-3 text-sm text-ink shadow-sm hover:bg-paper-warm"
                     >
-                      <span data-testid="adr-item-id" className="font-mono text-slate-500">
+                      <span data-testid="adr-item-id" className="font-mono text-ink-soft">
                         {fm.id}
                       </span>
                       <span data-testid="adr-item-title" className="font-medium">
                         {fm.title}
                       </span>
                       <AdrStatusBadge status={fm.status} />
-                      <span data-testid="adr-item-date" className="text-xs text-slate-500">
+                      <span data-testid="adr-item-date" className="text-xs text-ink-soft">
                         {fm.date}
                       </span>
                       {fm.specs.length > 0 ? (
                         <span data-testid="adr-item-specs" className="flex flex-wrap gap-1">
                           {fm.specs.map((spec) => (
-                            <span
-                              key={spec}
-                              className="rounded border border-slate-300 bg-slate-50 px-1.5 py-0.5 text-xs text-slate-600"
-                            >
+                            <span key={spec} className={chipClass("plain")}>
                               {spec}
                             </span>
                           ))}

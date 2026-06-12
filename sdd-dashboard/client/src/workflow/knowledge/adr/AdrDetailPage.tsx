@@ -47,7 +47,7 @@ export function AdrDetailPage(): JSX.Element {
     return (
       <section data-testid="adr-detail-page" className="space-y-4 p-4">
         <header className="space-y-1">
-          <h1 className="text-lg font-semibold text-slate-800">{doc.name}</h1>
+          <h1 className="mb-1 text-[19px] font-bold">{doc.name}</h1>
         </header>
 
         {doc.diagnostics.length > 0 ? (
@@ -56,7 +56,7 @@ export function AdrDetailPage(): JSX.Element {
               <li
                 key={`${diag.kind}-${index}`}
                 data-testid="adr-diagnostic"
-                className="rounded border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs text-amber-700"
+                className="rounded border border-warn-line bg-warn-soft px-3 py-1.5 text-xs text-warn-ink"
               >
                 <span className="font-semibold">{diag.kind}</span>: {diag.message}
               </li>
@@ -75,34 +75,34 @@ export function AdrDetailPage(): JSX.Element {
     <section data-testid="adr-detail-page" className="space-y-4 p-4">
       <header data-testid="adr-detail-header" className="space-y-2">
         <div className="flex flex-wrap items-center gap-3">
-          <span data-testid="adr-detail-id" className="font-mono text-sm text-slate-500">
+          <span data-testid="adr-detail-id" className="font-mono text-sm text-ink-soft">
             {fm.id}
           </span>
-          <h1 data-testid="adr-detail-title" className="text-lg font-semibold text-slate-800">
+          <h1 data-testid="adr-detail-title" className="text-[19px] font-bold">
             {fm.title}
           </h1>
           <AdrStatusBadge status={fm.status} />
         </div>
 
-        <dl className="grid grid-cols-[max-content_1fr] gap-x-3 gap-y-1 text-sm text-slate-600">
-          <dt className="font-medium text-slate-500">date</dt>
+        <dl className="grid grid-cols-[max-content_1fr] gap-x-3 gap-y-1 text-sm text-ink">
+          <dt className="font-medium text-ink-soft">date</dt>
           <dd data-testid="adr-detail-date">{fm.date}</dd>
 
-          <dt className="font-medium text-slate-500">app</dt>
+          <dt className="font-medium text-ink-soft">app</dt>
           <dd data-testid="adr-detail-app">{fm.app ?? CROSS_CUTTING_LABEL}</dd>
 
-          <dt className="font-medium text-slate-500">specs</dt>
+          <dt className="font-medium text-ink-soft">specs</dt>
           <dd data-testid="adr-detail-specs">{fm.specs.length > 0 ? fm.specs.join(", ") : "—"}</dd>
 
-          <dt className="font-medium text-slate-500">requirements</dt>
+          <dt className="font-medium text-ink-soft">requirements</dt>
           <dd data-testid="adr-detail-requirements">
             {fm.requirements.length > 0 ? fm.requirements.join(", ") : "—"}
           </dd>
 
-          <dt className="font-medium text-slate-500">supersedes</dt>
+          <dt className="font-medium text-ink-soft">supersedes</dt>
           <dd data-testid="adr-detail-supersedes">{fm.supersedes ?? "—"}</dd>
 
-          <dt className="font-medium text-slate-500">superseded_by</dt>
+          <dt className="font-medium text-ink-soft">superseded_by</dt>
           <dd data-testid="adr-detail-superseded-by">{fm.superseded_by ?? "—"}</dd>
         </dl>
       </header>

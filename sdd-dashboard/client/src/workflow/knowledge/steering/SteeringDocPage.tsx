@@ -34,8 +34,8 @@ export function SteeringDocPage(): JSX.Element {
 
   return (
     <section data-testid="steering-doc-page" className="space-y-4 p-4">
-      <header className="space-y-1">
-        <h1 className="text-lg font-semibold text-slate-800">{doc.name}</h1>
+      <header>
+        <h1 className="mb-1 text-[19px] font-bold">{doc.name}</h1>
       </header>
       {/* SteeringDoc は { content, sections } を持ち MarkdownContent を構造的に満たす */}
       <MarkdownDoc doc={doc} />

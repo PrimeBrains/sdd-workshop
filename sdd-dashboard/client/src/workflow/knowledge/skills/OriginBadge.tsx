@@ -10,6 +10,8 @@
  */
 import type { JSX } from "react";
 
+import { badgeClass } from "@/shared/ui";
+
 export interface OriginBadgeProps {
   /** SkillSummary / SkillDoc の origin（"cc-sdd" | "custom" | null、または規約外の文字列） */
   origin: string | null;
@@ -27,11 +29,9 @@ export function originLabel(origin: string | null): string {
 }
 
 export function OriginBadge({ origin }: OriginBadgeProps): JSX.Element {
+  // スケルトン Knowledge.tsx 準拠: custom は warn バッジ、それ以外（cc-sdd / 未分類）は gray バッジ。
   return (
-    <span
-      data-testid="origin-badge"
-      className="inline-flex items-center rounded-full border border-slate-300 bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700"
-    >
+    <span data-testid="origin-badge" className={badgeClass(origin === "custom" ? "warn" : "gray")}>
       {originLabel(origin)}
     </span>
   );

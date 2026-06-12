@@ -30,9 +30,9 @@ export function SteeringListPage(): JSX.Element {
 
   return (
     <section data-testid="workflow-steering-list-page" className="space-y-4 p-4">
-      <header className="space-y-1">
-        <h1 className="text-lg font-semibold text-slate-800">Steering</h1>
-        <p className="text-sm text-slate-600">
+      <header>
+        <h1 className="mb-1 text-[19px] font-bold">Steering</h1>
+        <p className="text-ink-soft text-[12.5px]">
           プロジェクト横断のルール・文脈をまとめた steering 文書の一覧です。
         </p>
       </header>
@@ -42,7 +42,7 @@ export function SteeringListPage(): JSX.Element {
           <li key={doc.name}>
             <Link
               to={`/steering/${doc.name}`}
-              className="block rounded-md border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-800 shadow-sm hover:bg-slate-50"
+              className="block rounded-md border border-line bg-white px-4 py-3 text-sm font-medium text-ink shadow-sm hover:bg-paper-warm"
             >
               {doc.title ?? doc.name}
             </Link>
