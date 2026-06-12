@@ -72,7 +72,7 @@ export const MermaidBlock = memo(function MermaidBlock({ code }: MermaidBlockPro
     return (
       <div
         data-testid="mermaid-block"
-        className="mermaid-block overflow-x-auto"
+        className="mermaid-block overflow-x-auto rounded-lg border border-line bg-white p-3.5 text-center"
         // eslint-disable-next-line no-restricted-syntax -- design.md Security Considerations が規定する管理された唯一の例外: securityLevel 'strict' の mermaid が生成した SVG 文字列のみを注入する（markdown 由来 HTML は通らない）
         dangerouslySetInnerHTML={{ __html: state.svg }}
       />
@@ -83,9 +83,9 @@ export const MermaidBlock = memo(function MermaidBlock({ code }: MermaidBlockPro
     return (
       <div
         role="alert"
-        className="rounded border border-red-400/70 bg-red-50/60 px-3 py-2 text-sm"
+        className="rounded border border-bad-line bg-bad-soft px-3 py-2 text-sm"
       >
-        <p className="font-medium text-red-700">
+        <p className="font-medium text-bad">
           mermaid の描画に失敗しました: {state.message}
         </p>
         {/* 生コード全文をそのまま表示する（黙って欠落させない: 2.9） */}

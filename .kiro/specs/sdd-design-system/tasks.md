@@ -51,7 +51,7 @@
   - _Requirements: 3.4_
   - _Boundary: RawBlockView, MarkdownDoc_
 
-- [ ] 3.2 (P) MermaidBlock の図枠装飾をスケルトン準拠にする
+- [x] 3.2 (P) MermaidBlock の図枠装飾をスケルトン準拠にする
   - コンテナへ skeleton `.mermaid-block` 準拠の図枠（白背景・line 罫線・角丸 8px・中央寄せ）を utility で付与し、コンテナの `overflow-x-auto` を維持する
   - エラー表示を bad 系トークンへ置換する（`role` と文言は不変）
   - 完了条件: Mermaid 図が図枠付きで描画され、MermaidBlock 関連テストが無変更で green
