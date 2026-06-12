@@ -28,7 +28,7 @@
   - _Depends: 1.1_
 
 - [ ] 2. シェルと共有プリミティブの再スキン
-- [ ] 2.1 AppShell を濃緑サイドバー + warm paper ヘッダへ再スキンし main に最大幅を適用する
+- [x] 2.1 AppShell を濃緑サイドバー + warm paper ヘッダへ再スキンし main に最大幅を適用する
   - サイドバー: `bg-sidebar` + 淡色テキスト、active ナビは `bg-brand/25` + 左罫線 3px brand（skeleton .sidebar 準拠）。ヘッダ: `bg-paper-warm` + `border-line`
   - `main` に `max-w-[1280px]` とパディング(skeleton `.main` 準拠)を適用し、あわせて `min-w-0` を付与する（フレックス子のオーバーフロー封じ込め下地。8.3 のページ横スクロール検証自体は 4.2 / 6.4 で実施）
   - NavLink の構造・`aria-label`・可視テキストは不変（className のみ）

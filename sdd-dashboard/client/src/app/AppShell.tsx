@@ -31,7 +31,7 @@ function HeaderRepoName(): JSX.Element | null {
   const repo = useRepoInfo();
   if (repo.data === undefined) return null;
   return (
-    <span data-testid="repo-name" className="text-sm text-slate-500">
+    <span data-testid="repo-name" className="text-sm text-ink-soft">
       {repo.data.name}
     </span>
   );
@@ -48,17 +48,17 @@ const WORKFLOW_NAV_LINKS = [
 
 function WorkflowNav(): JSX.Element {
   return (
-    <nav aria-label="ワークフロー" className="border-b border-slate-200 p-3">
+    <nav aria-label="ワークフロー" className="border-b border-white/10 p-3">
       <ul className="space-y-1">
         {WORKFLOW_NAV_LINKS.map((link) => (
           <li key={link.to}>
             <NavLink
               to={link.to}
               className={({ isActive }) =>
-                `block rounded px-2 py-1 text-sm ${
+                `block border-l-[3px] py-1 pl-[5px] pr-2 text-sm ${
                   isActive
-                    ? "bg-slate-200 font-medium text-slate-900"
-                    : "text-slate-600 hover:bg-slate-100"
+                    ? "border-brand bg-brand/25 font-medium text-white"
+                    : "border-transparent text-sidebar-muted hover:bg-white/[0.06] hover:text-white"
                 }`
               }
             >
@@ -75,7 +75,7 @@ function SpecSidebar(): JSX.Element {
   const specs = useSpecs();
   return (
     <nav aria-label="スペック一覧" className="p-3">
-      {specs.isPending && <p className="px-2 text-sm text-slate-400">読み込み中…</p>}
+      {specs.isPending && <p className="px-2 text-sm text-sidebar-soft">読み込み中…</p>}
       {specs.isError && (
         <ErrorPanel
           error={specs.error}
@@ -91,10 +91,10 @@ function SpecSidebar(): JSX.Element {
               <NavLink
                 to={`/specs/${spec.feature}`}
                 className={({ isActive }) =>
-                  `block rounded px-2 py-1 text-sm ${
+                  `block border-l-[3px] py-1 pl-[5px] pr-2 text-sm ${
                     isActive
-                      ? "bg-slate-200 font-medium text-slate-900"
-                      : "text-slate-600 hover:bg-slate-100"
+                      ? "border-brand bg-brand/25 font-medium text-white"
+                      : "border-transparent text-sidebar-muted hover:bg-white/[0.06] hover:text-white"
                   }`
                 }
               >
@@ -116,9 +116,9 @@ export function AppShell(): JSX.Element {
     <SpecActionSlotProvider>
       {/* SpecActionSlot へ workflow 操作 UI を登録する（Provider 配下で実行する必要がある） */}
       <WorkflowSlotRegistrar />
-      <div className="flex min-h-screen flex-col bg-slate-50 text-slate-800">
-        <header className="flex items-center gap-3 border-b border-slate-200 bg-white px-4 py-3">
-          <Link to="/specs" className="text-base font-bold text-slate-800">
+      <div className="flex min-h-screen flex-col bg-paper text-ink">
+        <header className="flex items-center gap-3 border-b border-line bg-paper-warm px-4 py-3">
+          <Link to="/specs" className="text-base font-bold text-ink">
             SDD Review UI
           </Link>
           <HeaderRepoName />
@@ -128,11 +128,11 @@ export function AppShell(): JSX.Element {
           </div>
         </header>
         <div className="flex flex-1">
-          <aside className="w-56 shrink-0 border-r border-slate-200 bg-white">
+          <aside className="w-56 shrink-0 bg-sidebar text-sidebar-ink">
             <WorkflowNav />
             <SpecSidebar />
           </aside>
-          <main className="flex-1 p-6">
+          <main className="min-w-0 max-w-[1280px] flex-1 px-[34px] py-[26px]">
             <Outlet />
           </main>
         </div>
