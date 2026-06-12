@@ -13,7 +13,7 @@
   - 完了条件: dev 画面の本文が Inter Variable・コードが JetBrains Mono Variable で描画され、ブラウザの Network にフォントの外部 URL 取得が現れない
   - _Requirements: 1.2, 6.1, 6.3_
 
-- [ ] 1.3 markdown 用 `.md` コンポーネント CSS をスケルトンから移植する
+- [x] 1.3 markdown 用 `.md` コンポーネント CSS をスケルトンから移植する
   - `index.css` の `@layer components` に skeleton styles.css 121–135 行相当（h1–h4 / code / pre / pre code / table / th・td / th / blockquote）を移植し、色は全て `var(--color-*)` 参照にする
   - `.md pre` / `.md table` は `overflow-x: auto`（table は `display: block; max-width: 100%`）で要素内封じ込めにする
   - 完了条件: `.md` クラスを付けた検証要素で、表に罫線・セル余白・ヘッダ背景（fill-soft）、引用に brand 左罫線 + brand-soft 背景、pre に暗背景が付く
@@ -151,3 +151,4 @@
 
 ## Implementation Notes
 - 1.2: Vite の既定 assetsInlineLimit(4KB) は小さい woff2 を data: URI 化し check-dist-no-external-urls.ts が fail する。vite.config.ts で .woff2 のみ inline 無効化済み（counterfactual ビルドで必要性実証済み）
+- 1.3: `.md` ベース font-size 13.5px（skeleton 122 行）は設計の対象セレクタ外として未移植。3.1 で `md` クラス付与時に utility（text-[13.5px] 等）での補完要否を判断すること

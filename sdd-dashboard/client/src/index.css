@@ -59,6 +59,26 @@
 }
 
 /*
+ * MarkdownTheme（design.md: utility 運用の唯一の例外）。react-markdown が生成する
+ * 内部要素へスケルトン styles.css 121–135 行相当の `.md` スコープ装飾を与える。
+ * 正典: skeleton-client/src/styles.css（構造・値は一致、色は @theme トークン参照に変換）。
+ * `.md pre` / `.md table` の overflow-x: auto は要素内封じ込め（8.3）の契約。
+ */
+@layer components {
+  .md h1 { font-size: 19px; border-bottom: 2px solid var(--color-line); padding-bottom: 6px; }
+  .md h2 { font-size: 16px; margin-top: 28px; border-bottom: 1px solid var(--color-line); padding-bottom: 4px; }
+  .md h3 { font-size: 14px; margin-top: 22px; }
+  .md h4 { font-size: 13px; margin-top: 18px; }
+  .md code { font-family: var(--font-mono); font-size: 11.5px; background: var(--color-fill-soft); padding: 1px 5px; border-radius: 4px; }
+  .md pre { background: var(--color-pre-bg); color: var(--color-pre-ink); padding: 14px 16px; border-radius: 8px; overflow-x: auto; }
+  .md pre code { background: none; color: inherit; }
+  .md table { border-collapse: collapse; display: block; overflow-x: auto; max-width: 100%; }
+  .md th, .md td { border: 1px solid var(--color-line); padding: 4px 9px; font-size: 12px; }
+  .md th { background: var(--color-fill-soft); }
+  .md blockquote { border-left: 3px solid var(--color-brand); margin: 10px 0; padding: 2px 14px; color: var(--color-ink-soft); background: var(--color-brand-soft); border-radius: 0 6px 6px 0; }
+}
+
+/*
  * ジャンプ着地時の一時ハイライト（navigation/anchors.ts HIGHLIGHT_CLASS）。
  * useJump が対象アンカーへ付与し ~2 秒後に除去する。クラス名は anchors.ts が単一所有する。
  */
