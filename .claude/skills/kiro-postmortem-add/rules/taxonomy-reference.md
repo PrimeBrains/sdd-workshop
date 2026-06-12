@@ -64,6 +64,9 @@
 | `progress-tracking` | `.kiro/specs/progress-tracking/` 配下。日次進捗スナップショット・`progress.*` API・`ProgressInputPanel`。 | (該当時に記録) |
 | `dashboard` | `.kiro/specs/dashboard/` 配下。`WorkbenchPage` 単一ページ・shell / summary / gantt / charts / inspector / atoms コンポーネント群・モーダル系・トークン。 | `fmtMD` 単位スケール混入、Inspector の `±0.0 MD` ハードコード |
 | `defect-pdca` | `.kiro/specs/defect-pdca/` 配下。本スペック自身に起因する不具合。 | (該当時に記録) |
+| `sdd-core` | `.kiro/specs/sdd-core/` 配下 (sdd-dashboard アプリ)。読取/書込 API・Markdown/spec パーサー・トレースグラフ等のバックエンドと共通契約 (`server/src/types/`)。 | `parseDesign` が情報無欠落不変則を満たさず design 本文を破棄 |
+| `sdd-review-ui` | `.kiro/specs/sdd-review-ui/` 配下 (sdd-dashboard アプリ)。spec 閲覧 UI (requirements/design/tasks ビューア・比較・トレーサビリティマトリクス・検証レポート)。 | DesignView が見出しのみ描画 / TasksView の amber 帯 |
+| `sdd-workflow-ui` | `.kiro/specs/sdd-workflow-ui/` 配下 (sdd-dashboard アプリ)。board・承認/手戻りワークフロー UI。 | (該当時に記録) |
 | `seed` | DB シード関連 (`server/seeds/`)。タクソノミーとして spec 縦割りでなく seed 自体を横断レイヤとして扱う。 | seed.ts の `sqlite_sequence` 累積 |
 | `e2e` | エンドツーエンドテスト (`evm-studio/e2e/`)。Playwright のテストファイル・config・fixtures。 | Playwright `text=` セレクター脆弱性 |
 | `formatters` | 表示フォーマッタ純関数 (`client/src/lib/formatters.ts` 等)。dashboard 内のサブモジュールだが、単位契約が独立に重要なので個別ラベル。 | `fmtMD` 単位スケール (細粒度) |

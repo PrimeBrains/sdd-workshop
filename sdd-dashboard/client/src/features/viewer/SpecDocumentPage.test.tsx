@@ -138,6 +138,7 @@ const fullDetail: SpecDetail = {
         position: pos(20, 20, 400, 430),
       },
     ],
+    content: "## Overview\n\n### Architecture\n\n設計本文。\n",
   },
   tasks: {
     tasks: [

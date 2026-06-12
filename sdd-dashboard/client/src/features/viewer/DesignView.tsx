@@ -1,29 +1,34 @@
 /**
  * DesignView — design.md の構造化ビューア
- * （tasks.md 4.2 / Requirements 2.3 / design.md DesignView・Requirements Traceability 2.3）。
+ * （tasks.md 4.2 / Requirements 2.3 / design.md DesignView・Requirements Traceability 2.3。
+ * postmortem #0004 で本文全文描画を追加）。
  *
  * - `SectionNode` ツリーを左ナビとして描画し、クリックで該当セクションの
  *   `design-<slug>` 要素へスクロールする（2.3）。スクロール挙動は
  *   useHashScrollRestore / useJump（5.2）と同じ `scrollIntoView({ block: "center" })`
- * - 本文（セクション見出し）は DocBlockList で描画する。各見出しに design 要素アンカー
- *   `design-<slug>` を払い出す（slug 正規化: trim → 小文字 → 非英数を `-`）。
- *   anchors.ts（anchorIdOf）が規約の単一所有者であり本ビューアはそれを使用する
  * - Requirements Traceability を構造化テーブル（`<table>`）として描画し、各行の
- *   `refs: RefToken[]` を参照チップ列として描画する。チップは 5.3（RefChip）までは
- *   静的・非インタラクティブで、RefToken の kind 別に原文（raw）を忠実に表示する
- * - パースできなかった Traceability 行（raw）は DocBlockList 経由で全文描画する
- *   （情報無欠落、2.5）。並べ替え・スキップをしない
+ *   `refs: RefToken[]` を参照チップ列として描画する（RefChip 5.3）
+ * - 本文（design.md 全文）を Markdown として全文描画する（情報無欠落、postmortem #0004）。
+ *   正典スケルトン SpecViewer の DesignTab と同じく、構造化ビュー（ナビ + Traceability 表）と
+ *   並べて本文を全文表示する。design.md は大半がプローズ・図表のため、見出しだけでなく
+ *   本文・図・コードを欠落させない
+ * - 本文の各見出しに design 要素アンカー `design-<slug>` と `data-node-*` を払い出す
+ *   （slug 正規化は anchors.ts の anchorIdOf が単一所有）。これにより左ナビのスクロール先・
+ *   比較ビュー（6.2）の選択/対応ハイライトが本文見出し上で成立する
+ * - パースできなかった Traceability 行（raw）は DocBlockList 経由で全文描画する（2.5）
  * - DocBlockList の memo 前提を守るため、renderStructured はモジュールレベル関数で参照安定
  *
- * 境界: セクションツリーナビ・本文・Traceability テーブルのみ。RefChip の対応先解決・
+ * 境界: セクションツリーナビ・Traceability テーブル・本文全文描画のみ。RefChip の対応先解決・
  * ジャンプ（5.3）、anchors.ts / useJump（5.2）は本タスクの範囲外。
  */
 import type { JSX, ReactNode } from "react";
+import Markdown, { type Components } from "react-markdown";
 import type { SectionNode } from "@contracts/document";
 import type { DesignDoc, TraceabilityRow } from "@contracts/spec";
 import type { NodeRef, RefToken } from "@contracts/trace";
 import { RefChip } from "@/features/crosslink/RefChip";
 import { DocBlockList, type StructuredBlock } from "@/markdown/DocBlockList";
+import { safeMarkdownOptions } from "@/markdown/RawBlockView";
 import { anchorIdOf } from "@/navigation/anchors";
 
 export interface DesignViewProps {
@@ -54,38 +59,6 @@ function RefChipList({ refs, origin }: { refs: readonly RefToken[]; origin: Node
         <RefChip key={refTokenKey(token, index)} token={token} origin={origin} />
       ))}
     </span>
-  );
-}
-
-/** SectionNode.depth（1-6）→ 見出しタグ。範囲外の depth は h6 に丸める */
-const HEADING_TAGS = ["h1", "h2", "h3", "h4", "h5", "h6"] as const;
-
-function headingTag(depth: number): (typeof HEADING_TAGS)[number] {
-  return HEADING_TAGS[Math.min(Math.max(depth, 1), 6) - 1] ?? "h6";
-}
-
-/**
- * セクション見出しツリーを本文として再帰描画する。各見出しに design 要素アンカー
- * （`design-<slug>`）を払い出す（契約 SectionNode は見出し階層のみを運ぶ）。
- */
-function SectionHeadingTree({ section }: { section: SectionNode }): JSX.Element {
-  const Heading = headingTag(section.depth);
-  return (
-    <>
-      <Heading
-        id={designAnchorId(section.title)}
-        // 比較ビュー（6.2）の選択起点 / 対応ハイライト対象。delegation で NodeRef（design 名）を
-        // 復元するための種別 / 名。slug は不可逆のため名前を保持する。
-        data-node-type="design"
-        data-node-name={section.title}
-        className="text-base font-semibold"
-      >
-        {section.title}
-      </Heading>
-      {section.children.map((child) => (
-        <SectionHeadingTree key={child.position.startOffset} section={child} />
-      ))}
-    </>
   );
 }
 
@@ -162,6 +135,75 @@ function renderTraceabilityRow(block: StructuredBlock<TraceabilityRow>): ReactNo
   );
 }
 
+/** hast ノードからプレーンテキストを抽出する（見出しの design 名 / アンカー算出用） */
+function hastText(node: unknown): string {
+  if (node === null || typeof node !== "object") return "";
+  const n = node as { type?: string; value?: unknown; children?: unknown };
+  if ((n.type === "text" || n.type === "inlineCode") && typeof n.value === "string") {
+    return n.value;
+  }
+  if (Array.isArray(n.children)) {
+    return n.children.map(hastText).join("");
+  }
+  return "";
+}
+
+/** 見出しレベル別の見た目（最小限。詳細な意匠は sdd-design-system の再スキンで扱う） */
+const HEADING_CLASS: Record<string, string> = {
+  h1: "mt-4 text-lg font-bold",
+  h2: "mt-4 text-base font-semibold",
+  h3: "mt-3 text-sm font-semibold",
+  h4: "mt-2 text-sm font-semibold",
+  h5: "mt-2 text-sm font-semibold",
+  h6: "mt-2 text-sm font-semibold",
+};
+
+/**
+ * design 本文の見出しコンポーネント工場。見出しに design 要素アンカー（`design-<slug>`）と
+ * 比較ビュー（6.2）の選択用 `data-node-type` / `data-node-name` を払い出す。名は hast 由来の
+ * 見出しテキスト（SectionNode.title と同じ抽出規則）で、左ナビのスクロール先と一致する。
+ */
+function makeDesignHeading(Tag: "h1" | "h2" | "h3" | "h4" | "h5" | "h6") {
+  return function DesignHeading({
+    node,
+    children,
+  }: {
+    node?: unknown;
+    children?: ReactNode;
+  }): JSX.Element {
+    const title = hastText(node).trim();
+    return (
+      <Tag
+        id={designAnchorId(title)}
+        data-node-type="design"
+        data-node-name={title}
+        className={HEADING_CLASS[Tag]}
+      >
+        {children}
+      </Tag>
+    );
+  };
+}
+
+/**
+ * 本文描画の Markdown 設定。安全設定（raw HTML 不活性化・外部 URL 無効化・mermaid 図）は
+ * RawBlockView の `safeMarkdownOptions` を共有し、見出しのみ design アンカー付きへ上書きする。
+ */
+const designMarkdownComponents: Components = {
+  ...(safeMarkdownOptions.components as Components),
+  h1: makeDesignHeading("h1"),
+  h2: makeDesignHeading("h2"),
+  h3: makeDesignHeading("h3"),
+  h4: makeDesignHeading("h4"),
+  h5: makeDesignHeading("h5"),
+  h6: makeDesignHeading("h6"),
+};
+
+const designMarkdownOptions = {
+  ...safeMarkdownOptions,
+  components: designMarkdownComponents,
+};
+
 export function DesignView({ doc }: DesignViewProps): JSX.Element {
   return (
     <div className="flex gap-6">
@@ -175,13 +217,6 @@ export function DesignView({ doc }: DesignViewProps): JSX.Element {
       </nav>
 
       <article className="min-w-0 flex-1 space-y-6">
-        {/* 本文: セクション見出しツリー（design アンカー付き） */}
-        <section className="space-y-1">
-          {doc.sections.map((section) => (
-            <SectionHeadingTree key={section.position.startOffset} section={section} />
-          ))}
-        </section>
-
         {/* Requirements Traceability: 構造化テーブル（raw 行は DocBlockList で全文描画） */}
         <section>
           <h2 className="text-base font-semibold">Requirements Traceability</h2>
@@ -199,6 +234,11 @@ export function DesignView({ doc }: DesignViewProps): JSX.Element {
               <DocBlockList blocks={doc.traceability} renderStructured={renderTraceabilityRow} />
             </tbody>
           </table>
+        </section>
+
+        {/* 本文: design.md 全文（情報無欠落）。見出しに design アンカー・data-node-* を付与する */}
+        <section data-testid="design-body" className="space-y-3 leading-relaxed">
+          <Markdown {...designMarkdownOptions}>{doc.content}</Markdown>
         </section>
       </article>
     </div>

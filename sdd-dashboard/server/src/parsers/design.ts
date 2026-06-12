@@ -57,7 +57,8 @@ export function parseDesign(source: string): DesignDoc {
     );
   }
 
-  return { sections, traceability, componentRequirements };
+  // content は design.md 全文（情報無欠落）。ビューアが構造化ビューと並べて本文を全文描画する。
+  return { sections, traceability, componentRequirements, content: source };
 }
 
 // ---------------------------------------------------------------------------
@@ -98,6 +99,7 @@ function parseTraceabilityTable(table: Table, source: string): TraceabilityBlock
         position,
         markdown: source.slice(position.startOffset, position.endOffset),
         reason: `Traceability 行のセル数が ${TRACEABILITY_COLUMNS} 列ではない（実際: ${row.children.length} 列）`,
+        severity: "failure", // 真の構造化失敗 → 表示側で警告装飾を付ける（postmortem #0004）
       });
       continue;
     }

@@ -298,13 +298,13 @@ sequenceDiagram
 
 ```mermaid
 flowchart TD
-  Click[ユーザーが ProjectRail で別プロジェクトをクリック] --> CB[onProjectChange(newId) を呼ぶ]
-  CB --> SetId[WorkbenchPage が setProjectId(newId)]
+  Click[ユーザーが ProjectRail で別プロジェクトをクリック] --> CB["onProjectChange(newId) を呼ぶ"]
+  CB --> SetId["WorkbenchPage が setProjectId(newId)"]
   SetId --> Effect[useEffect が projectId 変化を検知]
   Effect --> Reset[selectedTaskId=null, inspectorMode='task', inspectorMemberId=null にリセット]
   SetId --> Refetch[useEvm の queryKey が変わり TanStack Query が refetch]
   Refetch --> NewData[新しい EvmCalculateOutput を取得]
-  NewData --> InitTask[useEffect で selectedTaskId を新プロジェクトの<br/>最初の進行中タスク (0<progress<100) に設定]
+  NewData --> InitTask["useEffect で selectedTaskId を新プロジェクトの<br/>最初の進行中タスク (0&lt;progress&lt;100) に設定"]
   InitTask --> Render[全子コンポーネントが再描画]
 ```
 

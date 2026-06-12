@@ -20,6 +20,12 @@ export interface RawBlockViewProps {
   markdown: string;
   /** 構造化失敗の診断ツールチップ（title 属性として表示） */
   reason?: string;
+  /**
+   * 装飾の意味と適用条件を一致させる区別（postmortem #0004）。
+   * `"failure"` のときのみ警告装飾（点線ボーダー）を付ける。`"gap"`/省略は
+   * `coverGaps` が回収した正常な非構造化コンテンツ（見出し・前文等）として通常描画する。
+   */
+  severity?: "gap" | "failure";
 }
 
 /**
@@ -103,13 +109,25 @@ export const safeMarkdownOptions = {
 } satisfies Options;
 
 /**
- * 生 markdown フォールバックの表示。「生表示」であることを示す控えめなボーダーを常に付け、
- * `reason` があれば title ツールチップで診断理由を示す。
+ * 生 markdown フォールバックの表示。真の構造化失敗（`severity: "failure"`）のときのみ
+ * 「生表示」であることを示す控えめな点線ボーダーを付け、`coverGaps` が回収した正常な
+ * 非構造化コンテンツ（`severity: "gap"`/省略）は通常描画する（postmortem #0004:
+ * 装飾の意味＝構造化失敗 と 適用条件＝正常な文書チャンク のズレを解消）。
+ * `reason` があれば title ツールチップで診断理由を示す（gap でも保持して可視化）。
  */
-export const RawBlockView = memo(function RawBlockView({ markdown, reason }: RawBlockViewProps) {
+export const RawBlockView = memo(function RawBlockView({
+  markdown,
+  reason,
+  severity,
+}: RawBlockViewProps) {
+  const isFailure = severity === "failure";
   return (
     <div
-      className="rounded border border-dashed border-amber-400/70 bg-amber-50/40 px-3 py-2"
+      data-testid="raw-block"
+      data-severity={severity ?? "gap"}
+      className={
+        isFailure ? "rounded border border-dashed border-amber-400/70 bg-amber-50/40 px-3 py-2" : undefined
+      }
       title={reason}
     >
       <Markdown {...safeMarkdownOptions}>{markdown}</Markdown>

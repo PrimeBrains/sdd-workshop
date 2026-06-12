@@ -51,7 +51,7 @@ const mixedDetail: SpecDetail = {
   summary: mixedSummary,
   brief: null,
   requirements: { requirements: [], otherBlocks: [] },
-  design: { sections: [], traceability: [], componentRequirements: [] },
+  design: { sections: [], traceability: [], componentRequirements: [], content: "" },
   tasks: { tasks: [], otherBlocks: [] },
   research: null,
   validations: [

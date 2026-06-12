@@ -91,6 +91,7 @@ const detail: SpecDetail = {
     sections: [{ title: "設計セクション固有", depth: 2, position: pos(1, 10, 0, 200), children: [] }],
     traceability: [],
     componentRequirements: [],
+    content: "",
   },
   tasks: {
     tasks: [

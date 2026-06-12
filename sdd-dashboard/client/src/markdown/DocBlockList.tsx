@@ -42,6 +42,7 @@ export function DocBlockList<T>({ blocks, renderStructured }: DocBlockListProps<
             key={block.position.startOffset}
             markdown={block.markdown}
             reason={block.reason}
+            severity={block.severity}
           />
         ) : (
           <StructuredItem

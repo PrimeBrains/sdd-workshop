@@ -12,12 +12,21 @@ export interface Position {
   endOffset: number;
 }
 
-/** 構造化に失敗した範囲の生 markdown フォールバック（理由付き） */
+/**
+ * 構造化に失敗した範囲の生 markdown フォールバック（理由付き）。
+ *
+ * `severity` は「装飾の意味と適用条件を一致させる」ための区別（postmortem #0004）:
+ * - `"failure"`: 真の構造化失敗（例: Traceability 行のセル数不一致、受入基準として
+ *   解釈できない番号付きリスト項目）。表示側は警告装飾（点線ボーダー等）を付ける。
+ * - `"gap"` / 省略: `coverGaps` が回収した正常な非構造化コンテンツ（見出し・前文等）。
+ *   情報無欠落のために raw として運ぶだけで失敗ではないため、表示側は通常描画する。
+ */
 export interface RawBlock {
   kind: "raw";
   position: Position;
   markdown: string;
   reason: string;
+  severity?: "gap" | "failure";
 }
 
 /**

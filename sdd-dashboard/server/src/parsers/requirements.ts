@@ -174,6 +174,7 @@ function buildCriterion(
       position,
       markdown: source.slice(position.startOffset, position.endOffset),
       reason: "受入基準として解釈できない番号付きリスト項目",
+      severity: "failure", // 真の構造化失敗 → 表示側で警告装飾を付ける（postmortem #0004）
     };
   }
   return {

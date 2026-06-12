@@ -92,13 +92,13 @@ The following changes require revalidation of this spec.
 flowchart TB
   subgraph Trigger [Trigger Sources]
     Defect[不具合発覚]
-    SpecDone[/kiro-impl 完了]
-    NewSpec[/kiro-spec-init 直前]
+    SpecDone["/kiro-impl 完了"]
+    NewSpec["/kiro-spec-init 直前"]
     UserReq[ユーザー明示要求]
   end
 
   subgraph Plan_Do [Plan-Do]
-    AddSkill[/kiro-postmortem-add SKILL]
+    AddSkill["/kiro-postmortem-add SKILL"]
     Templates1[templates/<br/>ledger-header.md<br/>entry-template.md]
     Rules1[rules/<br/>taxonomy-reference.md<br/>trigger-detection.md]
     AddSkill --> Templates1
@@ -108,13 +108,13 @@ flowchart TB
   Ledger[.kiro/postmortem/defects.md<br/>追記型 Markdown ledger]
 
   subgraph Check_Act [Check-Act]
-    ReviewSkill[/kiro-postmortem-review SKILL]
+    ReviewSkill["/kiro-postmortem-review SKILL"]
     Templates2[templates/<br/>review-report.md<br/>steering-handoff.md]
     ReviewSkill --> Templates2
     ReviewSkill -. references .-> Rules1
   end
 
-  SteeringCustom[/kiro-steering-custom SKILL<br/>既存・修正対象外]
+  SteeringCustom["/kiro-steering-custom SKILL<br/>既存・修正対象外"]
   SteeringFiles[.kiro/steering/*.md<br/>project memory]
 
   Defect --> AddSkill

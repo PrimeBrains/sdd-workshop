@@ -79,11 +79,17 @@ export interface ComponentRequirements {
 /**
  * design.md の構造化（DesignParser、4.1-4.4）。
  * パースできない Traceability 行は RawBlock として残し、残りの行の抽出を継続する（4.4）。
+ *
+ * `content` は design.md の全文（情報無欠落）。design.md は大半がプローズ・図表で、
+ * `sections`（見出し階層）/ `traceability` / `componentRequirements` は構造化抽出のみを
+ * 運ぶため、本文を欠落させないよう全文を保持し、ビューアが構造化ビュー（ナビ + 表）と
+ * 並べて本文を全文描画する（postmortem #0004。正典スケルトン SpecViewer の DesignTab と一致）。
  */
 export interface DesignDoc {
   sections: SectionNode[];
   traceability: Array<DocBlock<TraceabilityRow>>;
   componentRequirements: ComponentRequirements[];
+  content: string;
 }
 
 /** tasks.md のタスクエントリ（TasksParser、5.1-5.4） */

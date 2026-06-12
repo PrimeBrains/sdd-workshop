@@ -82,7 +82,7 @@ EVM Studio は次の構造を持つ既存実装が稼働している。
 
 ```mermaid
 flowchart LR
-  subgraph Client [client (dashboard)]
+  subgraph Client ["client (dashboard)"]
     Workbench[WorkbenchPage / useEvm]
   end
 

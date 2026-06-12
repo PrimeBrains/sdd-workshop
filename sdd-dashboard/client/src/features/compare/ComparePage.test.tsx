@@ -105,6 +105,7 @@ const fullDetail: SpecDetail = {
       },
     ],
     componentRequirements: [],
+    content: "",
   },
   tasks: {
     tasks: [

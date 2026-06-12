@@ -69,9 +69,13 @@ describe("RawBlockView", () => {
     expect(screen.getByText("値2").tagName).toBe("TD");
   });
 
-  it("生表示ボーダーを常に表示し、reason があれば title ツールチップを付ける（Requirement 2.5, 2.6）", () => {
+  it("severity=failure のとき警告ボーダーを表示し、reason を title ツールチップに付ける（postmortem #0004）", () => {
     render(
-      <RawBlockView markdown="生表示の本文です。" reason="パース失敗: 不明なセクション" />,
+      <RawBlockView
+        markdown="生表示の本文です。"
+        reason="パース失敗: 不明なセクション"
+        severity="failure"
+      />,
     );
 
     const wrapper = screen.getByTitle("パース失敗: 不明なセクション");
@@ -79,12 +83,21 @@ describe("RawBlockView", () => {
     expect(wrapper.textContent).toContain("生表示の本文です。");
   });
 
-  it("reason がなくても生表示ボーダーは表示する", () => {
+  it("severity 省略（正常な非構造化コンテンツ）は警告ボーダーを付けず通常描画する（postmortem #0004）", () => {
     const { container } = render(<RawBlockView markdown="本文" />);
 
     const wrapper = container.firstElementChild;
     expect(wrapper).not.toBeNull();
-    expect(wrapper?.className).toContain("border");
+    expect(wrapper?.className ?? "").not.toContain("border");
     expect(wrapper?.getAttribute("title")).toBeNull();
+    expect(wrapper?.textContent).toContain("本文");
+  });
+
+  it("severity=gap も警告ボーダーを付けない（coverGaps の正常コンテンツ）", () => {
+    const { container } = render(<RawBlockView markdown="見出し本文" severity="gap" />);
+
+    const wrapper = container.firstElementChild;
+    expect(wrapper?.className ?? "").not.toContain("border");
+    expect(wrapper?.textContent).toContain("見出し本文");
   });
 });

@@ -105,6 +105,25 @@ const fixtureDoc: DesignDoc = {
   componentRequirements: [
     { component: "SpecListPage", refs: [{ kind: "id", id: "1.1", raw: "1.1" }], position: pos(40, 40, 800, 830) },
   ],
+  // 本文全文（情報無欠落）。見出しは sections と同じタイトルで、本文に design アンカーが払い出される
+  content: [
+    "## Overview",
+    "",
+    "概要本文。",
+    "",
+    "### Goals",
+    "",
+    "目標本文。",
+    "",
+    "### Architecture Pattern & Boundary Map",
+    "",
+    "アーキテクチャ本文。",
+    "",
+    "## Requirements Traceability",
+    "",
+    "（構造化ビューを参照）",
+    "",
+  ].join("\n"),
 };
 
 /** elements が DOM 上でこの順に並んでいることを検証する */
@@ -209,18 +228,33 @@ describe("RefToken kind の RefChip 描画（5.3）", () => {
   });
 });
 
-describe("本文 DocBlockList（情報無欠落、Requirement 2.5 経路）", () => {
+describe("本文全文描画（情報無欠落、postmortem #0004）", () => {
   it("raw トレーサビリティ行も欠落させず全文描画する", () => {
     renderInRouter(<DesignView doc={fixtureDoc} />);
     expect(screen.getByText("壊れたトレーサビリティ行（セル数不一致）")).toBeTruthy();
   });
 
-  it("セクション見出し → Traceability テーブルが文書順で描画される", () => {
+  it("design.md 本文（プローズ）を全文描画する（見出しだけにならない）", () => {
+    renderInRouter(<DesignView doc={fixtureDoc} />);
+    expect(screen.getByTestId("design-body")).toBeTruthy();
+    expect(screen.getByText("概要本文。")).toBeTruthy();
+    expect(screen.getByText("アーキテクチャ本文。")).toBeTruthy();
+  });
+
+  it("本文見出しに design-<slug> アンカーと data-node-* を払い出す（compare/jump 互換）", () => {
+    const { container } = renderInRouter(<DesignView doc={fixtureDoc} />);
+    const overview = container.querySelector('[id="design-overview"]');
+    expect(overview).not.toBeNull();
+    expect(overview?.getAttribute("data-node-type")).toBe("design");
+    expect(overview?.getAttribute("data-node-name")).toBe("Overview");
+  });
+
+  it("Traceability テーブル → 本文見出しが文書順で描画される", () => {
     renderInRouter(<DesignView doc={fixtureDoc} />);
     expectDocumentOrder([
+      screen.getByRole("table"),
       screen.getByRole("heading", { name: "Overview" }),
       screen.getByRole("heading", { name: "Goals" }),
-      screen.getByRole("table"),
     ]);
   });
 });

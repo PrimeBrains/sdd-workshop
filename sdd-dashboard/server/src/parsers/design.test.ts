@@ -71,6 +71,10 @@ describe("parseDesign（fixture: dashboard design.md）", () => {
     expect(taskTree!.position.startLine).toBe(828);
   });
 
+  it("content に design.md 全文を保持する（情報無欠落、postmortem #0004）", () => {
+    expect(doc.content).toBe(fixture);
+  });
+
   it("Traceability 表の 20 行をすべて構造化エントリとして抽出する（4.2）", () => {
     expect(doc.traceability.length).toBe(20);
     expect(structuredRows(doc).length).toBe(20);
@@ -227,6 +231,7 @@ describe("parseDesign（合成入力）", () => {
     const rawRow = second as Extract<TraceabilityBlock, { kind: "raw" }>;
     expect(rawRow.markdown).toBe("| broken row without enough cells |");
     expect(rawRow.reason).toContain("5");
+    expect(rawRow.severity).toBe("failure"); // 真の構造化失敗（postmortem #0004）
     expect(rawRow.position.startLine).toBe(6);
 
     // 4.4: 失敗行の後続行も抽出を継続する
@@ -249,7 +254,7 @@ describe("parseDesign（合成入力）", () => {
 
   it("空文書は空の DesignDoc を返す（例外を投げない）", () => {
     const doc = parseDesign("");
-    expect(doc).toEqual({ sections: [], traceability: [], componentRequirements: [] });
+    expect(doc).toEqual({ sections: [], traceability: [], componentRequirements: [], content: "" });
   });
 
   it("traceability 行の構造化結果に TraceabilityRow の全フィールドが揃う（型整合）", () => {

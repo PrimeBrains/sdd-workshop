@@ -41,6 +41,7 @@ const blocks: ReadonlyArray<DocBlock<TextPayload>> = [
     position: positionOf(rawMarkdown),
     markdown: rawMarkdown,
     reason: "構造化に失敗したためフォールバック",
+    severity: "failure", // 真の構造化失敗 → 警告ボーダー（severity が RawBlockView へ伝播することも検証）
   },
   { kind: "structured", position: positionOf(structuredText2), text: structuredText2 },
 ];

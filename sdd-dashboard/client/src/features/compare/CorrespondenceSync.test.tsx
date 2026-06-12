@@ -111,6 +111,7 @@ const detail: SpecDetail = {
       },
     ],
     componentRequirements: [],
+    content: "## ComponentAlpha\n\n本文A。\n\n## ComponentBeta\n\n本文B。\n",
   },
   tasks: { tasks: [], otherBlocks: [] },
   validations: [],
