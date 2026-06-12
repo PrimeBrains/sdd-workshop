@@ -74,7 +74,7 @@
   - _Requirements: 4.2, 8.2, 8.3, 8.4_
 
 - [ ] 5. 機能ビューの再スキン（意味マッピング表 + レシピの一括適用）
-- [ ] 5.1 (P) specs 一覧・概要を再スキンする
+- [x] 5.1 (P) specs 一覧・概要を再スキンする
   - SpecListPage / SpecOverviewPage / SpecMetaBadges / DocumentTabs の色クラスを意味マッピング表で置換し、バッジ・タブはレシピを適用する
   - ページ見出しを skeleton .page-title / .page-sub のタイポグラフィ階層へ揃える
   - 完了条件: `specs/` 配下の既存テストが無変更で green、一覧と概要がブランドパレットで表示される
@@ -154,3 +154,4 @@
 - 1.3: `.md` ベース font-size 13.5px（skeleton 122 行）は設計の対象セレクタ外として未移植。3.1 で `md` クラス付与時に utility（text-[13.5px] 等）での補完要否を判断すること
 - 3.1: `md` クラス付与時は `text-[13.5px]` を併記する規約（RawBlockView / MarkdownDoc で採用済み）。今後 `md` を付与するコンポーネントも同様にすること
 - 4.2: 8.3 の横スクロール原因は min-w-0 欠落ではなく design-body の `.md` スコープ未適用だった（封じ込め契約は `.md pre`/`.md table` に在る）。react-markdown 直描画セクションには `md` を付与すること。実測検証は Playwright ad-hoc スクリプト（vite dev + sdd-core server）で可能
+- 5.1: brand 系バッジ（phase 表示）は BADGE_BASE 相当をローカル複製した。brand バッジが計 3 箇所以上に再出現したらレシピへ昇格すること（design.md の昇格ルール）

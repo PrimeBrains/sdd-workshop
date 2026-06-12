@@ -47,7 +47,7 @@ function DiagnosticsNote({ diagnostics }: { diagnostics: SpecSummary["diagnostic
     <div
       data-testid="spec-diagnostics"
       role="note"
-      className="mt-3 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900"
+      className="mt-3 rounded-md border border-warn-line bg-warn-soft p-3 text-sm text-warn-ink"
     >
       <p className="font-medium">診断 {diagnostics.length} 件</p>
       <ul className="mt-1 list-disc pl-5">
@@ -66,7 +66,7 @@ export function SpecOverviewPage(): JSX.Element {
 
   return (
     <section data-testid="spec-overview-page">
-      <h1 data-testid="spec-overview-heading" className="text-lg font-semibold">
+      <h1 data-testid="spec-overview-heading" className="mb-1 text-[19px] font-bold">
         {feature}
       </h1>
       {detail.isPending && <LoadingSkeleton label="スペック概要を読み込み中…" />}
@@ -82,7 +82,7 @@ export function SpecOverviewPage(): JSX.Element {
             <Link
               data-testid="back-to-list"
               to="/specs"
-              className="m-4 inline-block text-sm font-medium text-sky-700 underline hover:text-sky-900"
+              className="m-4 inline-block text-sm font-medium text-brand underline hover:text-chip-ink"
             >
               一覧へ戻る
             </Link>
@@ -97,14 +97,14 @@ export function SpecOverviewPage(): JSX.Element {
           {detail.data.summary.diagnostics.length > 0 && (
             <DiagnosticsNote diagnostics={detail.data.summary.diagnostics} />
           )}
-          <h2 className="mt-5 text-sm font-semibold text-slate-700">成果物</h2>
+          <h2 className="mt-5 text-sm font-semibold text-ink">成果物</h2>
           <div className="mt-2">
             <DocumentTabs
               label="成果物"
               items={documentItems(detail.data.summary.feature, detail.data.summary.artifacts)}
             />
           </div>
-          <h2 className="mt-5 text-sm font-semibold text-slate-700">validation レポート</h2>
+          <h2 className="mt-5 text-sm font-semibold text-ink">validation レポート</h2>
           <div className="mt-2">
             <ValidationList
               feature={detail.data.summary.feature}

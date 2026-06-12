@@ -14,6 +14,7 @@ import { useSpecs } from "@/api/useSpecs";
 import { SpecMetaBadges } from "@/features/specs/SpecMetaBadges";
 import { ErrorPanel } from "@/shared/ErrorPanel";
 import { LoadingSkeleton } from "@/shared/LoadingSkeleton";
+import { badgeClass, cardClass } from "@/shared/ui";
 
 /** 成果物バッジの表示順（@contracts/spec ArtifactName の全種別） */
 const ARTIFACT_ORDER: readonly ArtifactName[] = [
@@ -40,8 +41,8 @@ function ArtifactBadges({ artifacts }: { artifacts: SpecSummary["artifacts"] }):
             data-state={available ? "available" : "missing"}
             className={`inline-flex items-center rounded border px-1.5 py-0.5 text-xs ${
               available
-                ? "border-slate-300 bg-white text-slate-700"
-                : "border-slate-200 bg-slate-50 text-slate-300 line-through"
+                ? "border-line bg-white text-ink"
+                : "border-line bg-paper-warm text-ink-soft line-through"
             }`}
           >
             {name}
@@ -55,20 +56,14 @@ function ArtifactBadges({ artifacts }: { artifacts: SpecSummary["artifacts"] }):
 function SpecRow({ spec }: { spec: SpecSummary }): JSX.Element {
   return (
     <li data-testid={`spec-row-${spec.feature}`}>
-      <Link
-        to={`/specs/${spec.feature}`}
-        className="block rounded-md border border-slate-200 bg-white p-3 hover:border-slate-300 hover:bg-slate-50"
-      >
+      <Link to={`/specs/${spec.feature}`} className={`${cardClass()} block hover:border-brand`}>
         <span className="flex flex-wrap items-center gap-2">
-          <span data-testid="spec-feature" className="font-medium text-slate-900">
+          <span data-testid="spec-feature" className="font-semibold text-ink">
             {spec.feature}
           </span>
           <SpecMetaBadges summary={spec} />
           {spec.diagnostics.length > 0 && (
-            <span
-              data-testid="diagnostics-badge"
-              className="inline-flex items-center rounded border border-red-300 bg-red-50 px-1.5 py-0.5 text-xs font-medium text-red-800"
-            >
+            <span data-testid="diagnostics-badge" className={badgeClass("bad")}>
               診断 {spec.diagnostics.length} 件
             </span>
           )}
@@ -85,7 +80,7 @@ export function SpecListPage(): JSX.Element {
   const specs = useSpecs();
   return (
     <section data-testid="spec-list-page">
-      <h1 className="text-lg font-semibold">スペック一覧</h1>
+      <h1 className="mb-1 text-[19px] font-bold">スペック一覧</h1>
       {specs.isPending && <LoadingSkeleton label="スペック一覧を読み込み中…" />}
       {specs.isError && (
         <ErrorPanel

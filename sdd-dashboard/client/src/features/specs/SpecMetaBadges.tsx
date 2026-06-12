@@ -8,6 +8,7 @@
  */
 import type { JSX } from "react";
 import type { PhaseName, SpecSummary } from "@contracts/spec";
+import { badgeClass } from "@/shared/ui";
 
 /** 承認バッジの表示順（spec.json approvals の語彙順） */
 const APPROVAL_PHASES: readonly PhaseName[] = ["requirements", "design", "tasks"];
@@ -22,10 +23,10 @@ const APPROVAL_STATE_LABEL: Record<ApprovalState, string> = {
 };
 
 const APPROVAL_STATE_CLASS: Record<ApprovalState, string> = {
-  approved: "border-emerald-300 bg-emerald-50 text-emerald-800",
-  generated: "border-amber-300 bg-amber-50 text-amber-800",
-  pending: "border-slate-300 bg-slate-50 text-slate-500",
-  unknown: "border-slate-300 bg-slate-100 text-slate-400",
+  approved: badgeClass("ok"),
+  generated: badgeClass("warn"),
+  pending: badgeClass("gray"),
+  unknown: badgeClass("gray"),
 };
 
 function approvalState(summary: SpecSummary, phase: PhaseName): ApprovalState {
@@ -50,12 +51,14 @@ const READY_LABEL: Record<ReadyState, string> = {
 };
 
 const READY_CLASS: Record<ReadyState, string> = {
-  ready: "border-emerald-300 bg-emerald-50 text-emerald-800",
-  "not-ready": "border-slate-300 bg-slate-50 text-slate-600",
-  unknown: "border-slate-300 bg-slate-100 text-slate-400",
+  ready: badgeClass("ok"),
+  "not-ready": badgeClass("gray"),
+  unknown: badgeClass("gray"),
 };
 
-const BADGE_BASE = "inline-flex items-center rounded border px-1.5 py-0.5 text-xs";
+/** phase はブランド系バッジ（意味マッピング表: sky → brand。スケルトン .badge の pill 形状 + brand 3 点セット） */
+const PHASE_BADGE_CLASS =
+  "inline-block px-[9px] py-px rounded-full text-[11px] font-semibold border align-middle bg-brand-soft text-chip-ink border-chip-line";
 
 interface SpecMetaBadgesProps {
   summary: SpecSummary;
@@ -65,10 +68,7 @@ export function SpecMetaBadges({ summary }: SpecMetaBadgesProps): JSX.Element {
   const ready = readyState(summary);
   return (
     <span className="inline-flex flex-wrap items-center gap-1">
-      <span
-        data-testid="phase-badge"
-        className={`${BADGE_BASE} border-sky-300 bg-sky-50 font-medium text-sky-800`}
-      >
+      <span data-testid="phase-badge" className={PHASE_BADGE_CLASS}>
         {summary.phase ?? "不明"}
       </span>
       {APPROVAL_PHASES.map((phase) => {
@@ -78,7 +78,7 @@ export function SpecMetaBadges({ summary }: SpecMetaBadgesProps): JSX.Element {
             key={phase}
             data-testid={`approval-${phase}`}
             data-state={state}
-            className={`${BADGE_BASE} ${APPROVAL_STATE_CLASS[state]}`}
+            className={APPROVAL_STATE_CLASS[state]}
           >
             {phase}: {APPROVAL_STATE_LABEL[state]}
           </span>
@@ -87,7 +87,7 @@ export function SpecMetaBadges({ summary }: SpecMetaBadgesProps): JSX.Element {
       <span
         data-testid="ready-badge"
         data-state={ready}
-        className={`${BADGE_BASE} ${READY_CLASS[ready]}`}
+        className={READY_CLASS[ready]}
       >
         {READY_LABEL[ready]}
       </span>

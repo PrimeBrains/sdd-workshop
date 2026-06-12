@@ -28,11 +28,12 @@ interface DocumentTabsProps {
   items: readonly DocumentTabItem[];
 }
 
-const TAB_BASE = "inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm";
+/** スケルトン .tabs button 準拠: 13px / padding 8px 16px / 下罫線 2px（タブ列の罫線へ -2px で重ねる） */
+const TAB_BASE = "-mb-0.5 inline-flex items-center gap-1.5 border-b-2 px-4 py-2 text-[13px]";
 
 export function DocumentTabs({ label, items }: DocumentTabsProps): JSX.Element {
   return (
-    <nav aria-label={label} className="flex flex-wrap gap-2">
+    <nav aria-label={label} className="flex flex-wrap gap-0.5 border-b-2 border-line">
       {items.map((item) =>
         item.available ? (
           <Link
@@ -40,7 +41,7 @@ export function DocumentTabs({ label, items }: DocumentTabsProps): JSX.Element {
             data-testid={`doc-tab-${item.key}`}
             data-state="available"
             to={item.to}
-            className={`${TAB_BASE} border-slate-300 bg-white font-medium text-slate-800 hover:border-slate-400 hover:bg-slate-50`}
+            className={`${TAB_BASE} border-transparent text-ink-soft hover:border-brand hover:text-ink`}
           >
             {item.label}
           </Link>
@@ -50,7 +51,7 @@ export function DocumentTabs({ label, items }: DocumentTabsProps): JSX.Element {
             data-testid={`doc-tab-${item.key}`}
             data-state="missing"
             aria-disabled="true"
-            className={`${TAB_BASE} cursor-default border-slate-200 bg-slate-50 text-slate-300`}
+            className={`${TAB_BASE} cursor-default border-transparent text-gray-mid`}
           >
             {item.label}
             <span className="text-xs">未作成</span>
