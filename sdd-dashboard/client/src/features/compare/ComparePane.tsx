@@ -128,16 +128,16 @@ export function ComparePane({
   return (
     <section
       data-testid={`compare-pane-${side}`}
-      className="flex min-w-0 flex-1 flex-col rounded-md border border-slate-200"
+      className="flex min-w-0 flex-1 flex-col rounded-md border border-line"
     >
-      <header className="flex items-center gap-2 border-b border-slate-200 bg-slate-50 px-3 py-2">
-        <label htmlFor={selectId} className="text-xs font-medium text-slate-500">
+      <header className="flex items-center gap-2 border-b border-line bg-paper-warm px-3 py-2">
+        <label htmlFor={selectId} className="text-xs font-medium text-ink-soft">
           {side === "left" ? "左" : "右"}
         </label>
         <select
           id={selectId}
           data-testid="compare-pane-select"
-          className="rounded border border-slate-300 bg-white px-2 py-1 text-sm"
+          className="rounded border border-line bg-white px-2 py-1 text-sm"
           value={kind}
           onChange={(event) => {
             // option 値は DOCUMENT_KINDS から払い出すため DocumentKind であることが保証される

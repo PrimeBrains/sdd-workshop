@@ -12,13 +12,27 @@
 import type { JSX } from "react";
 import { Link } from "react-router";
 import type { ValidationReport, ValidationType } from "@contracts/resources";
+import { badgeClass, type BadgeVariant } from "@/shared/ui";
 
 /** 一覧の表示順（`/specs/:feature/validation/:type` の type 語彙と同一） */
 const VALIDATION_TYPES = ["gap", "design", "impl"] as const satisfies readonly ValidationType[];
 
 const ROW_BASE =
   "flex flex-wrap items-center gap-2 rounded-md border px-3 py-2 text-sm";
-const BADGE_BASE = "inline-flex items-center rounded border px-1.5 py-0.5 text-xs";
+/** スケルトン .badge と同形状（UiRecipes の BADGE_BASE 同値。brand 系など追加配色用） */
+const BADGE_BASE =
+  "inline-block px-[9px] py-px rounded-full text-[11px] font-semibold border align-middle";
+
+/**
+ * decision 文字列 → 状態色バッジ variant（スケルトン .badge / 意味マッピング表準拠）。
+ * GO → ok / NO-GO → bad / 不明値 → warn / 未判定（null）→ gray。表示テキストは解釈しない（5.1）
+ */
+function decisionBadgeVariant(decision: string | null): BadgeVariant {
+  if (decision === null) return "gray";
+  if (decision === "GO") return "ok";
+  if (decision === "NO-GO") return "bad";
+  return "warn";
+}
 
 interface ValidationListProps {
   feature: string;
@@ -38,23 +52,20 @@ function ExistingItem({
       data-testid={`validation-item-${report.type}`}
       data-state="available"
       to={`/specs/${feature}/validation/${report.type}`}
-      className={`${ROW_BASE} border-slate-300 bg-white hover:border-slate-400 hover:bg-slate-50`}
+      className={`${ROW_BASE} border-line bg-white hover:border-brand hover:bg-paper-warm`}
     >
       <span
         data-testid={`validation-type-${report.type}`}
-        className={`${BADGE_BASE} border-sky-300 bg-sky-50 font-medium text-sky-800`}
+        className={`${BADGE_BASE} border-chip-line bg-brand-soft text-chip-ink`}
       >
         {report.type}
       </span>
-      <span
-        data-testid={`validation-date-${report.type}`}
-        className={`${BADGE_BASE} border-slate-300 bg-slate-50 text-slate-600`}
-      >
+      <span data-testid={`validation-date-${report.type}`} className={badgeClass("gray")}>
         {report.date ?? "日付なし"}
       </span>
       <span
         data-testid={`validation-decision-${report.type}`}
-        className={`${BADGE_BASE} border-emerald-300 bg-emerald-50 text-emerald-800`}
+        className={badgeClass(decisionBadgeVariant(report.decision))}
       >
         {report.decision ?? "判定なし"}
       </span>
@@ -69,9 +80,9 @@ function MissingItem({ type }: { type: ValidationType }): JSX.Element {
       data-testid={`validation-item-${type}`}
       data-state="missing"
       aria-disabled="true"
-      className={`${ROW_BASE} cursor-default border-slate-200 bg-slate-50 text-slate-300`}
+      className={`${ROW_BASE} cursor-default border-line bg-paper-warm text-gray-mid`}
     >
-      <span className={`${BADGE_BASE} border-slate-200 bg-white text-slate-400`}>{type}</span>
+      <span className={`${BADGE_BASE} border-line bg-white text-gray-mid`}>{type}</span>
       <span className="text-xs">未生成</span>
     </span>
   );

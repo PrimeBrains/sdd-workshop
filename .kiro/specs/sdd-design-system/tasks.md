@@ -96,7 +96,7 @@
   - _Requirements: 4.3, 5.2, 2.4_
   - _Boundary: FeatureReskin matrix_
 
-- [ ] 5.4 (P) compare / validation を再スキンする
+- [x] 5.4 (P) compare / validation を再スキンする
   - ComparePage / ComparePane / ValidationList / ValidationReportPage の色クラスを置換し、ページ見出しを .page-title / .page-sub 階層へ揃える
   - `.correspondence-highlight` の付与ロジック・クラス名は不変
   - 完了条件: `compare/` `validation/` 配下の既存テストが無変更で green
@@ -155,3 +155,4 @@
 - 3.1: `md` クラス付与時は `text-[13.5px]` を併記する規約（RawBlockView / MarkdownDoc で採用済み）。今後 `md` を付与するコンポーネントも同様にすること
 - 4.2: 8.3 の横スクロール原因は min-w-0 欠落ではなく design-body の `.md` スコープ未適用だった（封じ込め契約は `.md pre`/`.md table` に在る）。react-markdown 直描画セクションには `md` を付与すること。実測検証は Playwright ad-hoc スクリプト（vite dev + sdd-core server）で可能
 - 5.1: brand 系バッジ（phase 表示）は BADGE_BASE 相当をローカル複製した。brand バッジが計 3 箇所以上に再出現したらレシピへ昇格すること（design.md の昇格ルール）
+- 5.4: `decisionBadgeVariant`（GO→ok / NO-GO→bad / 不明→warn / null→gray）が ValidationList / ValidationReportPage に重複定義。3 箇所目が出たら shared/ui.ts へ昇格すること

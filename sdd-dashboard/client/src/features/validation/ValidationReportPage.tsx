@@ -29,8 +29,22 @@ import { DiagnosticBadge } from "@/features/viewer/DiagnosticBadge";
 import { safeMarkdownOptions } from "@/markdown/RawBlockView";
 import { ErrorPanel } from "@/shared/ErrorPanel";
 import { LoadingSkeleton } from "@/shared/LoadingSkeleton";
+import { badgeClass, type BadgeVariant } from "@/shared/ui";
 
-const BADGE_BASE = "inline-flex items-center rounded border px-1.5 py-0.5 text-xs";
+/** スケルトン .badge と同形状（UiRecipes の BADGE_BASE 同値。brand 系など追加配色用） */
+const BADGE_BASE =
+  "inline-block px-[9px] py-px rounded-full text-[11px] font-semibold border align-middle";
+
+/**
+ * decision 文字列 → 状態色バッジ variant（スケルトン .badge / 意味マッピング表準拠。
+ * ValidationList と同一規則）。GO → ok / NO-GO → bad / 不明値 → warn / 未判定（null）→ gray
+ */
+function decisionBadgeVariant(decision: string | null): BadgeVariant {
+  if (decision === null) return "gray";
+  if (decision === "GO") return "ok";
+  if (decision === "NO-GO") return "bad";
+  return "warn";
+}
 
 /** frontmatter メタのバッジ列（type / date / decision。値は解釈せずそのまま、欠落は注記） */
 function ReportMeta({ report }: { report: ValidationReport }): JSX.Element {
@@ -38,19 +52,16 @@ function ReportMeta({ report }: { report: ValidationReport }): JSX.Element {
     <div className="mt-2 flex flex-wrap items-center gap-2">
       <span
         data-testid="validation-meta-type"
-        className={`${BADGE_BASE} border-sky-300 bg-sky-50 font-medium text-sky-800`}
+        className={`${BADGE_BASE} border-chip-line bg-brand-soft text-chip-ink`}
       >
         {report.type}
       </span>
-      <span
-        data-testid="validation-meta-date"
-        className={`${BADGE_BASE} border-slate-300 bg-slate-50 text-slate-600`}
-      >
+      <span data-testid="validation-meta-date" className={badgeClass("gray")}>
         {report.date ?? "日付なし"}
       </span>
       <span
         data-testid="validation-meta-decision"
-        className={`${BADGE_BASE} border-emerald-300 bg-emerald-50 text-emerald-800`}
+        className={badgeClass(decisionBadgeVariant(report.decision))}
       >
         {report.decision ?? "判定なし"}
       </span>
@@ -77,9 +88,11 @@ function ReportBody({ report }: { report: ValidationReport }): JSX.Element {
         data-testid="validation-report-body"
         data-mode={malformed ? "raw" : "structured"}
         className={
+          // markdown 層（RawBlockView / MarkdownDoc）と同じ `md` スコープ + 13.5px。
+          // 生表示（構造化失敗）は warn 系点線枠（RawBlockView の failure 装飾と同値）
           malformed
-            ? "mt-4 rounded border border-dashed border-amber-400/70 bg-amber-50/40 px-3 py-2"
-            : "mt-4 space-y-3 leading-relaxed"
+            ? "md text-[13.5px] mt-4 rounded border border-dashed border-warn-line bg-warn-soft px-3 py-2"
+            : "md text-[13.5px] mt-4 space-y-3 leading-relaxed"
         }
       >
         <Markdown {...safeMarkdownOptions}>{report.content}</Markdown>
@@ -93,7 +106,7 @@ function NotGenerated({ type }: { type: string }): JSX.Element {
   return (
     <p
       data-testid="validation-report-not-generated"
-      className="mt-4 rounded-md border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500"
+      className="mt-4 rounded-md border border-line bg-paper-warm p-4 text-sm text-ink-soft"
     >
       validation レポート（{type}）はまだ生成されていません
     </p>
@@ -118,7 +131,8 @@ export function ValidationReportPage(): JSX.Element {
 
   return (
     <section data-testid="validation-report-page">
-      <h1 data-testid="validation-report-heading" className="text-lg font-semibold">
+      {/* スケルトン .page-title 準拠の見出し階層（design.md ページ見出し規約 / 2.4） */}
+      <h1 data-testid="validation-report-heading" className="mb-1 text-[19px] font-bold">
         {feature}/validation/{type}
       </h1>
       {detail.isPending && <LoadingSkeleton label="validation レポートを読み込み中…" />}

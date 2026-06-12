@@ -95,7 +95,8 @@ export function ComparePage(): JSX.Element {
       <CrosslinkJumpProvider>
         <TraceIndexProvider index={traceIndex}>
           <section data-testid="compare-page" className="flex h-full flex-col">
-            <h1 data-testid="compare-page-heading" className="text-lg font-semibold">
+            {/* スケルトン .page-title 準拠の見出し階層（design.md ページ見出し規約 / 2.4） */}
+            <h1 data-testid="compare-page-heading" className="mb-1 text-[19px] font-bold">
               {feature}/compare
             </h1>
             {detail.isPending && <LoadingSkeleton label="比較ドキュメントを読み込み中…" />}
