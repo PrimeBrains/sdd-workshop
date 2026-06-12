@@ -126,7 +126,14 @@ export const RawBlockView = memo(function RawBlockView({
       data-testid="raw-block"
       data-severity={severity ?? "gap"}
       className={
-        isFailure ? "rounded border border-dashed border-amber-400/70 bg-amber-50/40 px-3 py-2" : undefined
+        // `md` は MarkdownTheme（index.css @layer components）の装飾スコープ。
+        // skeleton `.md { font-size: 13.5px }` は CSS 側へ移植していないため
+        // utility `text-[13.5px]` で同値を付与する（design.md MarkdownTheme / 3.4）。
+        // gap 側 className は "border" を部分文字列に含まない契約
+        // （RawBlockView.test.tsx:91,100 / DocBlockList.test.tsx:81）。
+        isFailure
+          ? "md text-[13.5px] rounded border border-dashed border-warn-line bg-warn-soft px-3 py-2"
+          : "md text-[13.5px]"
       }
       title={reason}
     >

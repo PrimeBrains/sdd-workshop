@@ -19,7 +19,9 @@ export interface MarkdownDocProps {
 
 export const MarkdownDoc = memo(function MarkdownDoc({ doc }: MarkdownDocProps) {
   return (
-    <article className="space-y-3 leading-relaxed">
+    // `md` = MarkdownTheme 装飾スコープ（index.css @layer components）。skeleton の
+    // `.md { font-size: 13.5px }` は CSS 側へ移植していないため utility text-[13.5px] で付与（3.4）
+    <article className="md text-[13.5px] space-y-3 leading-relaxed">
       <Markdown {...safeMarkdownOptions}>{doc.content}</Markdown>
     </article>
   );

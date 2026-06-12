@@ -44,7 +44,7 @@
   - _Boundary: SharedPrimitivesReskin_
 
 - [ ] 3. markdown 表示の再スキン
-- [ ] 3.1 RawBlockView / MarkdownDoc へ `md` クラスを適用し failure 装飾をトークン化する
+- [x] 3.1 RawBlockView / MarkdownDoc へ `md` クラスを適用し failure 装飾をトークン化する
   - RawBlockView ルート div に `md` を付与する（gap ラッパーの className に部分文字列 "border" を含めない契約を維持）
   - failure 装飾を `border border-dashed` + warn 系トークンへ置換（className に "border" を含む契約を維持）し、MarkdownDoc ルートにも `md` を付与する
   - 完了条件: RawBlockView.test / DocBlockList.test が無変更で green、requirements / design 画面で表・引用・コードに `.md` 装飾が当たる
@@ -152,3 +152,4 @@
 ## Implementation Notes
 - 1.2: Vite の既定 assetsInlineLimit(4KB) は小さい woff2 を data: URI 化し check-dist-no-external-urls.ts が fail する。vite.config.ts で .woff2 のみ inline 無効化済み（counterfactual ビルドで必要性実証済み）
 - 1.3: `.md` ベース font-size 13.5px（skeleton 122 行）は設計の対象セレクタ外として未移植。3.1 で `md` クラス付与時に utility（text-[13.5px] 等）での補完要否を判断すること
+- 3.1: `md` クラス付与時は `text-[13.5px]` を併記する規約（RawBlockView / MarkdownDoc で採用済み）。今後 `md` を付与するコンポーネントも同様にすること
