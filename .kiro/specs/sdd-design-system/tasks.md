@@ -19,7 +19,7 @@
   - 完了条件: `.md` クラスを付けた検証要素で、表に罫線・セル余白・ヘッダ背景（fill-soft）、引用に brand 左罫線 + brand-soft 背景、pre に暗背景が付く
   - _Requirements: 3.4, 8.3_
 
-- [ ] 1.4 (P) 装飾レシピ `shared/ui.ts` を実装する
+- [x] 1.4 (P) 装飾レシピ `shared/ui.ts` を実装する
   - `badgeClass(variant)` / `chipClass(variant)` / `btnClass(variant)` / `cardClass()` を discriminated union の variant 型で実装する（純関数、`any` 禁止、返値はトークン utility のみ）
   - `ui.test.ts` で variant→クラス列の対応を固定し、返値に既定パレット名（slate 等）が含まれないことも検証する
   - 完了条件: `npm test` で ui.test.ts が green
