@@ -69,16 +69,16 @@ function scrollToSection(title: string): void {
   target?.scrollIntoView({ block: "center" });
 }
 
-/** 左ナビ: セクションツリーをクリック可能なリストとして描画する */
+/** 左ナビ: セクションツリーをクリック可能なリストとして描画する（skeleton .toc 準拠 12px / ink-soft / hover brand） */
 function SectionNav({ sections }: { sections: readonly SectionNode[] }): JSX.Element {
   return (
-    <ul className="space-y-1 text-sm">
+    <ul className="space-y-1 text-[12px]">
       {sections.map((section) => (
         <li key={section.position.startOffset}>
           <button
             type="button"
             onClick={() => scrollToSection(section.title)}
-            className="text-left text-slate-700 hover:text-slate-900 hover:underline"
+            className="text-left text-ink-soft hover:text-brand"
           >
             {section.title}
           </button>
@@ -115,22 +115,28 @@ function traceRowAnchorIds(refs: readonly RefToken[]): string[] {
   return ids;
 }
 
+/** skeleton table.matrix 準拠のセル装飾（罫線 1px line・padding 5px 9px。8.2） */
+const MATRIX_CELL_CLASS = "border border-line px-[9px] py-[5px]";
+
+/** skeleton table.matrix 準拠のヘッダ装飾（セル装飾 + fill-soft 背景。8.2） */
+const MATRIX_HEADER_CLASS = `${MATRIX_CELL_CLASS} bg-fill-soft`;
+
 /** Traceability テーブルの 1 行（DocBlockList へ渡すため module-level で参照安定にする） */
 function renderTraceabilityRow(block: StructuredBlock<TraceabilityRow>): ReactNode {
   const reqIds = traceRowAnchorIds(block.refs);
   return (
-    <tr data-testid="traceability-row" className="border-t border-slate-200 align-top">
-      <td className="px-2 py-1">
+    <tr data-testid="traceability-row" className="align-top">
+      <td className={MATRIX_CELL_CLASS}>
         {/* 3.10 フォールバック着地点: 行が表す各要件のトレーサビリティ行アンカー */}
         {reqIds.map((id) => (
           <span key={id} id={`trace-row-${id}`} data-testid="trace-row-anchor" />
         ))}
         <RefChipList refs={block.refs} origin={rowDesignOrigin(block)} />
       </td>
-      <td className="px-2 py-1 text-sm">{block.summary}</td>
-      <td className="px-2 py-1 text-sm">{block.components}</td>
-      <td className="px-2 py-1 text-sm">{block.interfaces}</td>
-      <td className="px-2 py-1 text-sm">{block.flows}</td>
+      <td className={MATRIX_CELL_CLASS}>{block.summary}</td>
+      <td className={MATRIX_CELL_CLASS}>{block.components}</td>
+      <td className={MATRIX_CELL_CLASS}>{block.interfaces}</td>
+      <td className={MATRIX_CELL_CLASS}>{block.flows}</td>
     </tr>
   );
 }
@@ -148,20 +154,12 @@ function hastText(node: unknown): string {
   return "";
 }
 
-/** 見出しレベル別の見た目（最小限。詳細な意匠は sdd-design-system の再スキンで扱う） */
-const HEADING_CLASS: Record<string, string> = {
-  h1: "mt-4 text-lg font-bold",
-  h2: "mt-4 text-base font-semibold",
-  h3: "mt-3 text-sm font-semibold",
-  h4: "mt-2 text-sm font-semibold",
-  h5: "mt-2 text-sm font-semibold",
-  h6: "mt-2 text-sm font-semibold",
-};
-
 /**
  * design 本文の見出しコンポーネント工場。見出しに design 要素アンカー（`design-<slug>`）と
  * 比較ビュー（6.2）の選択用 `data-node-type` / `data-node-name` を払い出す。名は hast 由来の
  * 見出しテキスト（SectionNode.title と同じ抽出規則）で、左ナビのスクロール先と一致する。
+ * 見た目は本文ラッパーの `.md` スコープ（MarkdownTheme / index.css）に委ね、ここでは
+ * className を持たない（RawBlockView / MarkdownDoc の描画と同一の skeleton 準拠タイポグラフィ）。
  */
 function makeDesignHeading(Tag: "h1" | "h2" | "h3" | "h4" | "h5" | "h6") {
   return function DesignHeading({
@@ -173,12 +171,7 @@ function makeDesignHeading(Tag: "h1" | "h2" | "h3" | "h4" | "h5" | "h6") {
   }): JSX.Element {
     const title = hastText(node).trim();
     return (
-      <Tag
-        id={designAnchorId(title)}
-        data-node-type="design"
-        data-node-name={title}
-        className={HEADING_CLASS[Tag]}
-      >
+      <Tag id={designAnchorId(title)} data-node-type="design" data-node-name={title}>
         {children}
       </Tag>
     );
@@ -207,32 +200,38 @@ const designMarkdownOptions = {
 export function DesignView({ doc }: DesignViewProps): JSX.Element {
   return (
     <div className="flex gap-6">
-      {/* 左ナビ: セクションツリー（クリックで該当セクションへスクロール） */}
+      {/* 左ナビ: セクションツリー（クリックで該当セクションへスクロール）。
+          skeleton .toc 準拠の sticky（top 20px・max-height 85vh・内部スクロール）。
+          フレックス子で sticky を効かせるため self-start が必須（8.4） */}
       <nav
         data-testid="design-section-nav"
         aria-label="セクション"
-        className="w-56 shrink-0 border-r border-slate-200 pr-4"
+        className="sticky top-5 max-h-[85vh] w-56 shrink-0 self-start overflow-y-auto border-r border-line pr-4"
       >
         <SectionNav sections={doc.sections} />
       </nav>
 
       <article className="min-w-0 flex-1 space-y-6">
-        {/* 本文: design.md 全文（情報無欠落）。見出しに design アンカー・data-node-* を付与する */}
-        <section data-testid="design-body" className="space-y-3 leading-relaxed">
+        {/* 本文: design.md 全文（情報無欠落）。見出しに design アンカー・data-node-* を付与する。
+            `md` は MarkdownTheme（index.css）の装飾スコープで、`.md pre` / `.md table` の
+            overflow-x: auto がページ横スクロールを防ぐ封じ込め契約（8.3）。13.5px は
+            skeleton `.md` の基本サイズ（RawBlockView / MarkdownDoc と同一の付与方法） */}
+        <section data-testid="design-body" className="md space-y-3 text-[13.5px] leading-relaxed">
           <Markdown {...designMarkdownOptions}>{doc.content}</Markdown>
         </section>
 
-        {/* Requirements Traceability: 構造化テーブル（raw 行は DocBlockList で全文描画） */}
+        {/* Requirements Traceability: 構造化テーブル（raw 行は DocBlockList で全文描画）。
+            skeleton table.matrix 準拠の装飾（12.5px・セル罫線 line・ヘッダ fill-soft 11.5px。8.2） */}
         <section>
           <h2 className="text-base font-semibold">Requirements Traceability</h2>
-          <table className="mt-2 w-full border-collapse text-left">
+          <table className="mt-2 w-full border-collapse text-left text-[12.5px]">
             <thead>
-              <tr className="text-xs font-semibold text-slate-500">
-                <th className="px-2 py-1">Requirement</th>
-                <th className="px-2 py-1">Summary</th>
-                <th className="px-2 py-1">Components</th>
-                <th className="px-2 py-1">Interfaces</th>
-                <th className="px-2 py-1">Flows</th>
+              <tr className="text-[11.5px] font-semibold">
+                <th className={MATRIX_HEADER_CLASS}>Requirement</th>
+                <th className={MATRIX_HEADER_CLASS}>Summary</th>
+                <th className={MATRIX_HEADER_CLASS}>Components</th>
+                <th className={MATRIX_HEADER_CLASS}>Interfaces</th>
+                <th className={MATRIX_HEADER_CLASS}>Flows</th>
               </tr>
             </thead>
             <tbody>

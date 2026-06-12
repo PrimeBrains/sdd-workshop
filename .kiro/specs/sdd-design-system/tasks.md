@@ -65,7 +65,7 @@
   - 完了条件: design 画面のファーストビューに本文（Overview）が表示され、DesignView.test 全件 green
   - _Requirements: 8.1, 5.3_
 
-- [ ] 4.2 DesignView の表装飾・ナビ sticky 化・残存色クラス置換とオーバーフロー封じ込め
+- [x] 4.2 DesignView の表装飾・ナビ sticky 化・残存色クラス置換とオーバーフロー封じ込め
   - Traceability 表: `border-line` セル罫線・`fill-soft` ヘッダ背景・コンパクトタイポグラフィ（skeleton table.matrix 準拠）
   - nav: `sticky` + top 20px 相当 + `max-h-[85vh]` + `overflow-y-auto` + `self-start`（幅 `w-56` 維持）
   - DesignView 内の残存色クラス（nav リンクの slate 等）を意味マッピング表で全置換する
@@ -153,3 +153,4 @@
 - 1.2: Vite の既定 assetsInlineLimit(4KB) は小さい woff2 を data: URI 化し check-dist-no-external-urls.ts が fail する。vite.config.ts で .woff2 のみ inline 無効化済み（counterfactual ビルドで必要性実証済み）
 - 1.3: `.md` ベース font-size 13.5px（skeleton 122 行）は設計の対象セレクタ外として未移植。3.1 で `md` クラス付与時に utility（text-[13.5px] 等）での補完要否を判断すること
 - 3.1: `md` クラス付与時は `text-[13.5px]` を併記する規約（RawBlockView / MarkdownDoc で採用済み）。今後 `md` を付与するコンポーネントも同様にすること
+- 4.2: 8.3 の横スクロール原因は min-w-0 欠落ではなく design-body の `.md` スコープ未適用だった（封じ込め契約は `.md pre`/`.md table` に在る）。react-markdown 直描画セクションには `md` を付与すること。実測検証は Playwright ad-hoc スクリプト（vite dev + sdd-core server）で可能
