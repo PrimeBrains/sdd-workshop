@@ -136,7 +136,7 @@
   - 完了条件: チェックスクリプトの合格出力（フォント同梱後も外部 URL ゼロ）
   - _Requirements: 6.2_
 
-- [ ] 6.3 E2E テストの実行
+- [x] 6.3 E2E テストの実行
   - `e2e/readonly-local.spec.ts` / `review.spec.ts` を実行し全件 green
   - 完了条件: Playwright の全件成功レポート
   - _Requirements: 5.3_
@@ -157,3 +157,4 @@
 - 5.1: brand 系バッジ（phase 表示）は BADGE_BASE 相当をローカル複製した。brand バッジが計 3 箇所以上に再出現したらレシピへ昇格すること（design.md の昇格ルール）
 - 5.4: `decisionBadgeVariant`（GO→ok / NO-GO→bad / 不明→warn / null→gray）が ValidationList / ValidationReportPage に重複定義。3 箇所目が出たら shared/ui.ts へ昇格すること
 - 5.7: actions のダイアログ shell は ConfirmDialog/NextActionGuide が所有（ApproveDialog/RollbackDialog は内側コンテンツのみ）。モーダル装飾規約は overlay=`bg-overlay`・dialog=`bg-paper-warm rounded-xl shadow-[0_18px_50px_rgba(0,0,0,0.25)]`。手戻りボタンは btnClass("danger")（承認解除=注意喚起）
+- 6.3: E2E は webServer が core を `reuseExistingServer:false`（temp フィクスチャ複製）で 7411 に自前起動するため、実行前に 7411 を空ける必要がある（開発用 dev サーバーが居る場合は停止）。`cd sdd-dashboard/e2e && npx playwright test readonly-local.spec.ts review.spec.ts` で 3 件 green
