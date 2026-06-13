@@ -131,7 +131,7 @@
   - 完了条件: grep 0 件の出力とテスト・型・lint の全件成功ログ
   - _Requirements: 1.4, 5.1, 5.3_
 
-- [ ] 6.2 ビルドと外部 URL 不在チェック
+- [x] 6.2 ビルドと外部 URL 不在チェック
   - `npm run build` 成功後、`e2e/check-dist-no-external-urls.ts` を実行して合格させる
   - 完了条件: チェックスクリプトの合格出力（フォント同梱後も外部 URL ゼロ）
   - _Requirements: 6.2_
