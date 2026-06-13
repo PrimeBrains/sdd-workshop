@@ -22,11 +22,11 @@ export function DiagnosticBadge({ diagnostic }: DiagnosticBadgeProps): JSX.Eleme
       data-testid="diagnostic-badge"
       data-kind={diagnostic.kind}
       role="note"
-      className="flex flex-wrap items-center gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900"
+      className="flex flex-wrap items-center gap-2 rounded-md border border-warn-line bg-warn-soft px-3 py-2 text-sm text-warn-ink"
     >
       <span
         data-testid="diagnostic-badge-kind"
-        className={`${BADGE_BASE} border-amber-400 bg-amber-100 font-medium text-amber-900`}
+        className={`${BADGE_BASE} border-warn-line bg-warn-soft font-medium text-warn-ink`}
       >
         {diagnostic.kind}
       </span>
@@ -34,7 +34,7 @@ export function DiagnosticBadge({ diagnostic }: DiagnosticBadgeProps): JSX.Eleme
       {diagnostic.position !== null && (
         <span
           data-testid="diagnostic-badge-line"
-          className={`${BADGE_BASE} border-amber-300 bg-white text-amber-700`}
+          className={`${BADGE_BASE} border-warn-line bg-white text-warn-ink`}
         >
           {diagnostic.position.startLine}
         </span>

@@ -125,7 +125,7 @@
   - _Depends: 1.4_
 
 - [ ] 6. 統合検証
-- [ ] 6.1 既定パレットの残存一掃と全単体テスト
+- [x] 6.1 既定パレットの残存一掃と全単体テスト
   - `client/src` の `*.tsx` への grep（slate / gray / sky / emerald / indigo / rose / amber / red / blue の数値スケール）が 0 件であることを確認し、残存があれば置換する
   - `npm test` 全件 green・`tsc --noEmit`・`eslint` 成功
   - 完了条件: grep 0 件の出力とテスト・型・lint の全件成功ログ
