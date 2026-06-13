@@ -14,6 +14,7 @@
  */
 import { useEffect, useRef, type JSX, type ReactNode } from "react";
 import type { NormalizedApiError } from "@/api/client";
+import { btnClass } from "@/shared/ui";
 
 export interface ConfirmDialogProps {
   title: string;
@@ -47,7 +48,7 @@ export function ConfirmDialog({
     // 背景（オーバーレイ）クリックはキャンセル扱い（2.3, 3.3）。
     <div
       data-testid="confirm-dialog-backdrop"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      className="bg-overlay fixed inset-0 z-50 flex items-center justify-center p-4"
       onClick={onCancel}
     >
       <div
@@ -56,21 +57,21 @@ export function ConfirmDialog({
         aria-modal="true"
         aria-label={title}
         tabIndex={-1}
-        className="w-full max-w-md rounded-lg bg-white p-5 shadow-xl outline-none"
+        className="bg-paper-warm w-full max-w-md rounded-xl p-5 shadow-[0_18px_50px_rgba(0,0,0,0.25)] outline-none"
         // パネル内クリックは背景へ伝播させない（誤キャンセル防止）。
         onClick={(event) => event.stopPropagation()}
         onKeyDown={(event) => {
           if (event.key === "Escape") onCancel();
         }}
       >
-        <h2 className="text-base font-semibold text-gray-900">{title}</h2>
+        <h2 className="text-ink text-base font-semibold">{title}</h2>
 
-        <div className="mt-3 text-sm text-gray-700">{children}</div>
+        <div className="text-ink mt-3 text-sm">{children}</div>
 
         {error !== null ? (
           <div
             role="alert"
-            className="mt-4 rounded-md border border-red-300 bg-red-50 p-3 text-sm text-red-900"
+            className="border-bad-line bg-bad-soft text-bad mt-4 rounded-md border p-3 text-sm"
           >
             <p className="font-mono text-xs font-semibold tracking-wide">{error.code}</p>
             <p className="mt-1">{error.message}</p>
@@ -87,18 +88,14 @@ export function ConfirmDialog({
         ) : null}
 
         <div className="mt-5 flex justify-end gap-2">
-          <button
-            type="button"
-            onClick={onCancel}
-            className="rounded border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
-          >
+          <button type="button" onClick={onCancel} className={btnClass("default")}>
             キャンセル
           </button>
           <button
             type="button"
             onClick={onConfirm}
             disabled={pending}
-            className="rounded bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+            className={`${btnClass("primary")} disabled:cursor-not-allowed disabled:opacity-50`}
           >
             {confirmLabel}
           </button>

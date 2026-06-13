@@ -12,6 +12,7 @@
  */
 import type { JSX } from "react";
 
+import { cardClass } from "@/shared/ui";
 import { PHASE_COMMANDS } from "@/workflow/model/nextCommand";
 
 import { FLOW_STEPS, PHASE_APPROVAL_MEANING } from "@/workflow/help/helpContent";
@@ -27,15 +28,15 @@ export function HelpPage(): JSX.Element {
   return (
     <section data-testid="workflow-help-page" className="space-y-8 p-4">
       <header className="space-y-1">
-        <h1 className="text-lg font-semibold text-slate-800">cc-sdd ワークフローガイド</h1>
-        <p className="text-sm text-slate-600">
+        <h1 className="text-[19px] font-bold text-ink">cc-sdd ワークフローガイド</h1>
+        <p className="text-[12.5px] text-ink-soft">
           Spec-Driven Development の開発フローと、各フェーズの成果物・承認の意味・CLI
           コマンドをまとめています。
         </p>
       </header>
 
       <section aria-labelledby="help-flow-heading" className="space-y-3">
-        <h2 id="help-flow-heading" className="text-base font-semibold text-slate-800">
+        <h2 id="help-flow-heading" className="text-base font-semibold text-ink">
           フロー全体の順序
         </h2>
         <ol
@@ -53,14 +54,14 @@ export function HelpPage(): JSX.Element {
                   data-testid="help-flow-step"
                   className={
                     approval
-                      ? "rounded-full border border-amber-300 bg-amber-50 px-3 py-1 text-sm font-medium text-amber-800"
-                      : "rounded-md border border-slate-300 bg-white px-3 py-1 text-sm font-medium text-slate-800"
+                      ? "rounded-full border border-warn-line bg-warn-soft px-3 py-1 text-sm font-medium text-warn-ink"
+                      : "rounded-md border border-line bg-white px-3 py-1 text-sm font-medium text-ink"
                   }
                 >
                   {label}
                 </span>
                 {index < FLOW_STEPS.length - 1 ? (
-                  <span aria-hidden="true" className="text-slate-400">
+                  <span aria-hidden="true" className="text-ink-soft">
                     →
                   </span>
                 ) : null}
@@ -71,7 +72,7 @@ export function HelpPage(): JSX.Element {
       </section>
 
       <section aria-labelledby="help-phases-heading" className="space-y-3">
-        <h2 id="help-phases-heading" className="text-base font-semibold text-slate-800">
+        <h2 id="help-phases-heading" className="text-base font-semibold text-ink">
           フェーズ別ガイド
         </h2>
         <div className="grid gap-3 sm:grid-cols-2">
@@ -79,34 +80,34 @@ export function HelpPage(): JSX.Element {
             <article
               key={entry.phase}
               data-testid={`help-phase-card-${entry.phase}`}
-              className="space-y-2 rounded-lg border border-slate-200 bg-white p-4 shadow-sm"
+              className={`${cardClass()} space-y-2`}
             >
-              <h3 className="text-sm font-semibold text-slate-800">{entry.phase}</h3>
+              <h3 className="text-sm font-semibold text-ink">{entry.phase}</h3>
               <dl className="space-y-2 text-sm">
                 <div>
-                  <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                  <dt className="text-xs font-medium uppercase tracking-wide text-ink-soft">
                     成果物
                   </dt>
-                  <dd data-testid="help-phase-artifact" className="text-slate-800">
+                  <dd data-testid="help-phase-artifact" className="text-ink">
                     {entry.artifact}
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                  <dt className="text-xs font-medium uppercase tracking-wide text-ink-soft">
                     承認の意味
                   </dt>
-                  <dd data-testid="help-phase-approval" className="text-slate-700">
+                  <dd data-testid="help-phase-approval" className="text-ink-soft">
                     {PHASE_APPROVAL_MEANING[entry.phase] ?? ""}
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                  <dt className="text-xs font-medium uppercase tracking-wide text-ink-soft">
                     CLI コマンド
                   </dt>
                   <dd>
                     <code
                       data-testid="help-phase-command"
-                      className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-slate-800"
+                      className="rounded bg-fill-soft px-1.5 py-0.5 font-mono text-ink"
                     >
                       {entry.command}
                     </code>

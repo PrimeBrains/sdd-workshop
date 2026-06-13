@@ -12,6 +12,7 @@
  * ここで `/kiro-spec-*` をハードコードしない。dangerouslySetInnerHTML・外部 URL も用いない。
  */
 import { type JSX, type ReactNode } from "react";
+import { btnClass } from "@/shared/ui";
 
 interface NextActionGuideProps {
   /** 次に実行すべき CLI コマンド（NextCommand 由来の厳密値）。 */
@@ -47,35 +48,27 @@ export function NextActionGuide({
       role="dialog"
       aria-modal="true"
       aria-label={ariaLabel}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      className="bg-overlay fixed inset-0 z-50 flex items-center justify-center p-4"
     >
-      <div className="w-full max-w-md rounded-lg bg-white p-5 shadow-xl">
-        <h2 className="text-base font-semibold text-gray-900">{heading}</h2>
+      <div className="bg-paper-warm w-full max-w-md rounded-xl p-5 shadow-[0_18px_50px_rgba(0,0,0,0.25)]">
+        <h2 className="text-ink text-base font-semibold">{heading}</h2>
         {summary !== undefined ? (
-          <div className="mt-3 text-sm text-gray-700">{summary}</div>
+          <div className="text-ink mt-3 text-sm">{summary}</div>
         ) : null}
-        <p className="mt-4 text-sm font-medium text-gray-900">次に実行するコマンド</p>
+        <p className="text-ink mt-4 text-sm font-medium">次に実行するコマンド</p>
         <div className="mt-1 flex items-center gap-2">
           <code
             data-testid="next-command"
-            className="flex-1 select-all rounded bg-gray-100 px-2 py-1.5 font-mono text-sm text-gray-900"
+            className="bg-fill-soft text-ink flex-1 select-all rounded px-2 py-1.5 font-mono text-sm"
           >
             {command}
           </code>
-          <button
-            type="button"
-            onClick={handleCopy}
-            className="rounded border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
-          >
+          <button type="button" onClick={handleCopy} className={btnClass("default")}>
             コピー
           </button>
         </div>
         <div className="mt-5 flex justify-end">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700"
-          >
+          <button type="button" onClick={onClose} className={btnClass("primary")}>
             閉じる
           </button>
         </div>

@@ -90,7 +90,7 @@ export function RollbackDialog({ feature, spec, onClose }: RollbackDialogProps):
       </p>
 
       <fieldset className="mt-3">
-        <legend className="font-medium text-gray-900">巻き戻し先フェーズ</legend>
+        <legend className="text-ink font-medium">巻き戻し先フェーズ</legend>
         <div className="mt-2 space-y-1">
           {DOC_PHASES.map((phase) => {
             const selectable = isSelectable(spec, phase);
@@ -100,7 +100,7 @@ export function RollbackDialog({ feature, spec, onClose }: RollbackDialogProps):
                 className={
                   selectable
                     ? "flex items-center gap-2"
-                    : "flex items-center gap-2 text-gray-400"
+                    : "text-ink-soft flex items-center gap-2"
                 }
               >
                 <input
@@ -119,21 +119,21 @@ export function RollbackDialog({ feature, spec, onClose }: RollbackDialogProps):
       </fieldset>
 
       {impact !== null ? (
-        <div className="mt-4 rounded-md border border-amber-200 bg-amber-50 p-3">
-          <p className="font-medium text-amber-900">この手戻りの影響</p>
+        <div className="border-warn-line bg-warn-soft mt-4 rounded-md border p-3">
+          <p className="text-warn-ink font-medium">この手戻りの影響</p>
           {impact.revokedApproval.length > 0 ? (
-            <p data-testid="rollback-impact-revoked" className="mt-1 text-amber-900">
+            <p data-testid="rollback-impact-revoked" className="text-warn-ink mt-1">
               承認解除: <span className="font-mono">{impact.revokedApproval.join(", ")}</span>
             </p>
           ) : null}
           {impact.clearedPhases.length > 0 ? (
-            <p data-testid="rollback-impact-cleared" className="mt-1 text-amber-900">
+            <p data-testid="rollback-impact-cleared" className="text-warn-ink mt-1">
               再生成が必要:{" "}
               <span className="font-mono">{impact.clearedPhases.join(", ")}</span>
             </p>
           ) : null}
           {impact.losesReady ? (
-            <p data-testid="rollback-impact-ready" className="mt-1 text-amber-900">
+            <p data-testid="rollback-impact-ready" className="text-warn-ink mt-1">
               実装準備解除
             </p>
           ) : null}

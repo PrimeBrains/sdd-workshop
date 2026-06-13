@@ -13,6 +13,7 @@
 import { useState, type JSX } from "react";
 import type { PhaseName, SpecApprovals, SpecSummary } from "@contracts/spec";
 import { useSpecs } from "@/api/useSpecs";
+import { btnClass } from "@/shared/ui";
 import { approvablePhase } from "@/workflow/model/phaseModel";
 import { ApproveDialog } from "./ApproveDialog";
 import { RollbackDialog } from "./RollbackDialog";
@@ -53,7 +54,7 @@ export function SpecWorkflowActions({ feature }: SpecWorkflowActionsProps): JSX.
         <button
           type="button"
           onClick={() => setDialog("approve")}
-          className="rounded bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700"
+          className={btnClass("primary")}
         >
           承認
         </button>
@@ -62,7 +63,7 @@ export function SpecWorkflowActions({ feature }: SpecWorkflowActionsProps): JSX.
         <button
           type="button"
           onClick={() => setDialog("rollback")}
-          className="rounded border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          className={btnClass("danger")}
         >
           手戻り
         </button>

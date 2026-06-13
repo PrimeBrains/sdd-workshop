@@ -116,7 +116,7 @@
   - _Requirements: 4.5, 2.4_
   - _Boundary: FeatureReskin workflow board, FeatureReskin workflow knowledge_
 
-- [ ] 5.7 (P) workflow の actions / help を再スキンする
+- [x] 5.7 (P) workflow の actions / help を再スキンする
   - actions: 承認・手戻りダイアログをモーダル装飾規約（`bg-overlay` オーバーレイ・paper-warm ダイアログ・影）へ、ボタンはレシピを適用する。help: フロー図・ガイドの色クラス置換
   - ページ見出しを .page-title / .page-sub 階層へ揃える
   - 完了条件: `workflow/actions` `workflow/help` 配下の既存テストが無変更で green
@@ -156,3 +156,4 @@
 - 4.2: 8.3 の横スクロール原因は min-w-0 欠落ではなく design-body の `.md` スコープ未適用だった（封じ込め契約は `.md pre`/`.md table` に在る）。react-markdown 直描画セクションには `md` を付与すること。実測検証は Playwright ad-hoc スクリプト（vite dev + sdd-core server）で可能
 - 5.1: brand 系バッジ（phase 表示）は BADGE_BASE 相当をローカル複製した。brand バッジが計 3 箇所以上に再出現したらレシピへ昇格すること（design.md の昇格ルール）
 - 5.4: `decisionBadgeVariant`（GO→ok / NO-GO→bad / 不明→warn / null→gray）が ValidationList / ValidationReportPage に重複定義。3 箇所目が出たら shared/ui.ts へ昇格すること
+- 5.7: actions のダイアログ shell は ConfirmDialog/NextActionGuide が所有（ApproveDialog/RollbackDialog は内側コンテンツのみ）。モーダル装飾規約は overlay=`bg-overlay`・dialog=`bg-paper-warm rounded-xl shadow-[0_18px_50px_rgba(0,0,0,0.25)]`。手戻りボタンは btnClass("danger")（承認解除=注意喚起）
