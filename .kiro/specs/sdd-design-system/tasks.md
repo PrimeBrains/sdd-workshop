@@ -141,7 +141,7 @@
   - 完了条件: Playwright の全件成功レポート
   - _Requirements: 5.3_
 
-- [ ] 6.4 スケルトン目視比較と読書体験の最終確認
+- [x] 6.4 スケルトン目視比較と読書体験の最終確認
   - skeleton-client と本番を並行起動し、4 画面（spec 一覧 / viewer の requirements・design / matrix / 承認モーダル）を目視比較し、差異はスケルトン側へ寄せる
   - design 読書体験 4 項目を最長文書で確認: ファーストビューに本文 / ページ横スクロールなし / ナビ追従 / 行長制御
   - `git status` で skeleton-client 配下が無変更であることを確認する
@@ -158,3 +158,4 @@
 - 5.4: `decisionBadgeVariant`（GO→ok / NO-GO→bad / 不明→warn / null→gray）が ValidationList / ValidationReportPage に重複定義。3 箇所目が出たら shared/ui.ts へ昇格すること
 - 5.7: actions のダイアログ shell は ConfirmDialog/NextActionGuide が所有（ApproveDialog/RollbackDialog は内側コンテンツのみ）。モーダル装飾規約は overlay=`bg-overlay`・dialog=`bg-paper-warm rounded-xl shadow-[0_18px_50px_rgba(0,0,0,0.25)]`。手戻りボタンは btnClass("danger")（承認解除=注意喚起）
 - 6.3: E2E は webServer が core を `reuseExistingServer:false`（temp フィクスチャ複製）で 7411 に自前起動するため、実行前に 7411 を空ける必要がある（開発用 dev サーバーが居る場合は停止）。`cd sdd-dashboard/e2e && npx playwright test readonly-local.spec.ts review.spec.ts` で 3 件 green
+- 6.4: 目視比較は production 実描画スクショ（spec一覧/requirements/design/matrix/承認モーダル）を skeleton 正典 styles.css と突合する方式で実施。読書体験の実測は vite dev(5180)+core(7411) に ad-hoc Playwright で取得（body 横幅==client 幅で横スクロールなし・nav y=20 で sticky 追従）。要修正差異なし
