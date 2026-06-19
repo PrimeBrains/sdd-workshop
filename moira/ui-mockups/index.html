@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Moira UI モックアップ（中フィデリティ）— 5サーフェス</title>
+<style>
+  :root{
+    --bg:#0f1115; --panel:#171a21; --panel2:#1d212b; --line:#2a2f3a;
+    --ink:#e6e9ef; --muted:#9aa3b2; --dim:#6b7280;
+    --accent:#5b9bd5; --good:#4caf83; --warn:#e0a23c; --bad:#d9656a; --derate:#7a8190;
+    --badge:#222838; --badgeink:#aab6d8;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,"Segoe UI",Roboto,"Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif;
+    font-size:13px;line-height:1.5}
+  code,.mono{font-family:"SFMono-Regular",Consolas,"Liberation Mono",monospace}
+  header.top{display:flex;align-items:center;gap:16px;padding:10px 18px;background:#11141b;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
+  .brand{font-weight:700;letter-spacing:.5px}
+  .brand small{color:var(--muted);font-weight:400;margin-left:8px}
+  .preset{margin-left:auto;display:flex;align-items:center;gap:8px;color:var(--muted)}
+  .preset .seg{display:flex;border:1px solid var(--line);border-radius:999px;overflow:hidden}
+  .preset button{background:transparent;color:var(--muted);border:0;padding:5px 12px;cursor:pointer;font-size:12px}
+  .preset button.on{background:var(--accent);color:#08111c;font-weight:600}
+  .note{color:var(--dim);font-size:11px}
+
+  .wrap{padding:16px;display:grid;gap:14px;
+    grid-template-columns: 1.15fr 1.15fr 320px;
+    grid-template-areas:
+      "spec sched inbox"
+      "health health inbox"
+      "config config inbox";}
+  @media(max-width:1100px){.wrap{grid-template-columns:1fr;grid-template-areas:"spec" "sched" "health" "inbox" "config"}}
+
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;display:flex;flex-direction:column;min-height:0}
+  .panel > h2{margin:0;padding:9px 12px;font-size:13px;border-bottom:1px solid var(--line);
+    display:flex;align-items:center;gap:8px;background:var(--panel2);border-radius:10px 10px 0 0}
+  .panel > h2 .axis{color:var(--dim);font-weight:400;font-size:11px}
+  .panel .body{padding:11px 12px;display:flex;flex-direction:column;gap:10px}
+  .area-spec{grid-area:spec} .area-sched{grid-area:sched} .area-health{grid-area:health}
+  .area-inbox{grid-area:inbox} .area-config{grid-area:config}
+
+  .badge{display:inline-block;background:var(--badge);color:var(--badgeink);border:1px solid var(--line);
+    border-radius:5px;padding:1px 6px;font-size:10.5px;line-height:1.6}
+  .badge.warn{color:#f2c98a;border-color:#4a3a1f}
+  .badge.gap{color:#cdd6ea;border-style:dashed}
+  .zone{border:1px solid var(--line);border-radius:8px;padding:9px 10px;background:#141821}
+  .zone h3{margin:0 0 6px;font-size:11.5px;color:var(--muted);font-weight:600;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+  .row{display:flex;align-items:center;gap:8px}
+  .spread{justify-content:space-between}
+  .muted{color:var(--muted)} .dim{color:var(--dim)} .small{font-size:11px}
+
+  /* coverage / progress bars */
+  .bar{height:10px;border-radius:6px;background:#222838;overflow:hidden;position:relative;flex:1}
+  .bar > i{display:block;height:100%;background:var(--accent)}
+  .bar.derate > i{background:var(--derate);background-image:repeating-linear-gradient(45deg,transparent,transparent 4px,rgba(255,255,255,.06) 4px,rgba(255,255,255,.06) 8px)}
+
+  /* node tree */
+  .tree{font-size:12px}
+  .tree .n{display:flex;align-items:center;gap:8px;padding:3px 0}
+  .tree .ind{color:var(--dim)}
+  .state{font-size:10px;padding:1px 6px;border-radius:4px;border:1px solid var(--line);color:var(--muted)}
+  .state.accepted{color:#bfe9d4;border-color:#264a3b}
+  .state.implemented{color:#bcd6f2;border-color:#27405e}
+  .state.implementing{color:#e9d6a6;border-color:#4a3f22}
+  .state.proposed{color:#d7c2e6;border-color:#3d2f4a}
+  .ev{margin-left:auto;color:var(--muted);font-variant-numeric:tabular-nums}
+
+  /* gantt */
+  .gantt{display:flex;flex-direction:column;gap:5px}
+  .gantt .g{display:grid;grid-template-columns:120px 1fr;align-items:center;gap:8px}
+  .gantt .track{position:relative;height:14px;background:#1b202a;border-radius:4px}
+  .gantt .b{position:absolute;height:14px;border-radius:4px;background:var(--accent);opacity:.85}
+  .gantt .b.agent{background:#6c7a59}
+  .gantt .b.fore{background:transparent;border:1px dashed var(--warn)}
+  .gantt .lbl{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+  /* metrics */
+  .kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .kpi{background:#141821;border:1px solid var(--line);border-radius:8px;padding:8px}
+  .kpi .v{font-size:18px;font-weight:700;font-variant-numeric:tabular-nums}
+  .kpi .k{font-size:10.5px;color:var(--dim)}
+  .kpi .v.derate{color:var(--derate)}
+  .split{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .spark{height:26px;display:flex;align-items:flex-end;gap:2px}
+  .spark i{flex:1;background:#33405a;border-radius:2px 2px 0 0}
+
+  /* warnings -> inbox link chips */
+  .warns{display:flex;flex-wrap:wrap;gap:5px}
+  .wchip{font-size:11px;border:1px solid #4a3a1f;background:#241d12;color:#f0cf9b;border-radius:6px;padding:2px 7px}
+  .wchip .arw{color:var(--dim)}
+
+  /* inbox */
+  .inbox .seccap{font-size:11px;color:var(--muted);margin:2px 0;display:flex;justify-content:space-between}
+  .item{border:1px solid var(--line);border-radius:8px;padding:8px;background:#141821;margin-bottom:7px}
+  .item .t{display:flex;gap:6px;align-items:center;font-size:12px}
+  .item .acts{display:flex;gap:5px;margin-top:6px;flex-wrap:wrap}
+  .act{font-size:10.5px;border:1px solid var(--line);background:#1b2230;color:#c7d2e8;border-radius:5px;padding:2px 7px}
+  .standing{opacity:.55}
+  .dl{color:var(--dim);font-size:10px;margin-top:5px}
+
+  /* capacity grid */
+  table.cap{border-collapse:collapse;font-size:11px;width:100%}
+  table.cap th,table.cap td{border:1px solid var(--line);padding:3px 6px;text-align:center}
+  table.cap th{color:var(--muted);font-weight:600;background:#141821}
+  table.cap td.name{text-align:left;color:var(--ink)}
+  .c1{background:#16261e}.c05{background:#2a2a17}.c0{background:#2a1b1d;color:#d9a0a3}
+  .rsn{font-size:10px;color:var(--dim)}
+  footer{padding:10px 18px;color:var(--dim);font-size:11px;border-top:1px solid var(--line)}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;padding:8px 18px;color:var(--dim);font-size:11px;border-bottom:1px solid var(--line);background:#0d1016}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="brand">Moira <small>UI モックアップ（中フィデリティ・配置合意用）</small></div>
+  <div class="preset">
+    <span class="note">役割=同一導出へのフィルタ（P4）</span>
+    <div class="seg" id="seg">
+      <button data-p="mgr" class="on">管理者プリセット</button>
+      <button data-p="dev">開発者プリセット</button>
+    </div>
+  </div>
+</header>
+
+<div class="legend">
+  <span><b>層A（read 3ダッシュボード）</b>: spec-value / schedule-time / health</span>
+  <span><b>層B（非ダッシュボード）</b>: decision インボックス（行為への導線） / capacity·calendar（config）</span>
+  <span><span class="badge">R-S2:…</span> = MODEL 要件 ID 注記（被覆表と1:1）</span>
+</div>
+
+<div class="wrap">
+
+  <!-- ============ spec-value ============ -->
+  <section class="panel area-spec">
+    <h2>spec-value <span class="axis">— 仕様・価値 / read</span></h2>
+    <div class="body">
+      <div class="zone">
+        <h3>見積カバレッジ <span class="badge">P2</span> <span class="badge gap">R-U9/P0 可視ギャップ</span></h3>
+        <div class="row"><div class="bar"><i style="width:72%"></i></div><span class="small muted">72%</span></div>
+        <div class="row small dim" style="margin-top:5px">低カバレッジ時は EV% を de-rate <span class="badge">R-S4</span></div>
+      </div>
+
+      <div class="zone">
+        <h3>ノード木（feature ─ req/design/tasks/impl）状態＋EV% <span class="badge">R-S2:node states</span> <span class="badge">R-S2:EV%</span></h3>
+        <div class="tree">
+          <div class="n"><span class="ind">▸</span> feature: 認証基盤 <span class="ev">EV% 61</span></div>
+          <div class="n"><span class="ind">&nbsp;&nbsp;└</span> req <span class="state accepted">accepted</span><span class="ev">100</span></div>
+          <div class="n"><span class="ind">&nbsp;&nbsp;└</span> design <span class="state accepted">accepted</span><span class="ev">100</span></div>
+          <div class="n"><span class="ind">&nbsp;&nbsp;└</span> tasks <span class="state implemented">implemented</span><span class="ev">100</span></div>
+          <div class="n"><span class="ind">&nbsp;&nbsp;└</span> impl: ログイン <span class="state implementing">implementing</span><span class="ev">40</span></div>
+          <div class="n"><span class="ind">&nbsp;&nbsp;└</span> impl: トークン更新 <span class="state proposed">proposed*</span><span class="ev">—</span></div>
+        </div>
+        <div class="row small dim" style="margin-top:6px">トレーサビリティ（木+relate）／現行有効集合 <span class="badge">R-S5</span>　*未合意</div>
+      </div>
+
+      <div class="zone">
+        <h3>行為（write・単一定義）</h3>
+        <div class="acts">
+          <span class="act">proposed→agreed 合意 <span class="badge">R-U4</span></span>
+          <span class="act">再見積 <span class="badge">R-E3</span></span>
+          <span class="act">見積の深さ <span class="badge">R-E2b</span></span>
+        </div>
+      </div>
+
+      <div class="warns">
+        <span class="wchip">⚠ R-U12 矛盾合意 <span class="arw">→ inbox</span></span>
+        <span class="wchip">⚠ R-U13 未合意完了 <span class="arw">→ inbox</span></span>
+        <span class="wchip">⚠ R-C3 起点 <span class="arw">→ inbox</span></span>
+        <span class="wchip">⚠ P5 起点 <span class="arw">→ inbox</span></span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ schedule-time ============ -->
+  <section class="panel area-sched">
+    <h2>schedule-time <span class="axis">— スケジュール・時間 / read（母 view・全 actor）</span></h2>
+    <div class="body">
+      <div class="zone">
+        <h3>actor フィルタ <span class="badge">P4 同一クエリ</span> <span class="badge">R-S2:queues</span></h3>
+        <div class="acts">
+          <span class="act">人間</span><span class="act">エージェント</span><span class="act">自分</span>
+        </div>
+        <div class="dl">三キュー（作業/レビュー/エージェント）＝このフィルタ＋下の Gantt＋未割当バックログの射影（P4 同一クエリゆえ被覆上1導出）</div>
+      </div>
+
+      <div class="zone">
+        <h3>Gantt: 木×DAG 射影 ＋ 生きた予測 <span class="badge">P7</span>／凍結 PV <span class="badge">R-S2:PV</span> <span class="badge">R-S2:live forecast</span></h3>
+        <div class="gantt">
+          <div class="g"><span class="lbl">design(agent)</span><div class="track"><div class="b agent" style="left:2%;width:16%"></div></div></div>
+          <div class="g"><span class="lbl">impl: ログイン</span><div class="track"><div class="b" style="left:18%;width:30%"></div></div></div>
+          <div class="g"><span class="lbl">impl: トークン更新</span><div class="track"><div class="b" style="left:46%;width:22%"></div><div class="b fore" style="left:54%;width:22%"></div></div></div>
+          <div class="g"><span class="lbl">impl: 監査ログ</span><div class="track"><div class="b" style="left:66%;width:26%"></div></div></div>
+        </div>
+        <div class="row small dim" style="margin-top:6px">実線=凍結 PV スロット／破線=生きた予測（乖離=R-S7）。PV は health と同一ベースラインを参照（再計算しない）</div>
+      </div>
+
+      <div class="zone">
+        <h3>未割当バックログ <span class="badge gap">P0 可視ギャップ</span> <span class="badge">R-U9</span></h3>
+        <div class="small muted">• impl: パスワードリセット（未割当）<br>• impl: レート制限（未割当）</div>
+        <div class="acts" style="margin-top:6px"><span class="act">割当 transition <span class="badge">R-T5</span></span><span class="act">着手</span></div>
+      </div>
+
+      <div class="warns">
+        <span class="wchip">⚠ R-T3 過負荷 <span class="arw">→ inbox</span></span>
+        <span class="wchip">⚠ R-S7 陳腐化(原因別) <span class="arw">→ inbox</span></span>
+        <span class="wchip">⚠ P5 解放済み後続 <span class="arw">→ inbox</span></span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ health ============ -->
+  <section class="panel area-health">
+    <h2>health <span class="axis">— 健全性・EVM / read</span></h2>
+    <div class="body">
+      <div class="kpis">
+        <div class="kpi"><div class="v derate">0.86*</div><div class="k">SPI <span class="badge warn">R-S6 de-rate</span></div></div>
+        <div class="kpi"><div class="v">0.94</div><div class="k">CPI</div></div>
+        <div class="kpi"><div class="v">12.0</div><div class="k">PV (MD) <span class="badge">R-S2:PV</span></div></div>
+        <div class="kpi"><div class="v">10.3</div><div class="k">EV_abs 現行基底 (MD)</div></div>
+        <div class="kpi"><div class="v">11.0</div><div class="k">AC (MD) <span class="badge">R-S2:AC</span></div></div>
+      </div>
+      <div class="row small dim">*スケジュールカバレッジ 0.65 → SPI を de-rate 表示（全体進捗として読まない） <span class="badge">R-S6</span>　SPI=EV_abs/PV、CPI=EV_abs/AC（予算次元 MD）</div>
+
+      <div class="zone">
+        <h3>区別表示 <span class="badge">R-S5</span>（基底が異なる二読みを混在させない）</h3>
+        <div class="split">
+          <div class="kpi"><div class="v">58%</div><div class="k">現行進捗 EV%（現行有効集合）</div></div>
+          <div class="kpi"><div class="v">19.5</div><div class="k">累積稼得 EV_abs（supersede/サンク込）</div></div>
+        </div>
+        <div class="dim small" style="margin-top:5px">supersede 履歴・サンク EV_abs（R-C2）はこのゾーンに分離</div>
+      </div>
+
+      <div class="zone">
+        <h3>トレンド（SPI/CPI）・CCPM fever</h3>
+        <div class="spark"><i style="height:50%"></i><i style="height:62%"></i><i style="height:48%"></i><i style="height:70%"></i><i style="height:60%"></i><i style="height:80%"></i><i style="height:66%"></i></div>
+      </div>
+
+      <div class="zone">
+        <h3>行為（write）</h3>
+        <div class="acts"><span class="act">スコープ/期日判断 <span class="badge">R-T4</span></span><span class="act">再ベースライン</span></div>
+      </div>
+
+      <div class="warns">
+        <span class="wchip">⚠ R-T4 期日超過（+3d）<span class="arw">→ inbox</span></span>
+        <span class="wchip">⚠ R-S3 thrashing <span class="arw">→ inbox</span></span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ decision inbox ============ -->
+  <aside class="panel area-inbox inbox">
+    <h2>decision インボックス <span class="axis">— 横断・行為 / 層B</span></h2>
+    <div class="body">
+      <div class="dim small">5コミット判断のうち4つ＋<b>判断を要する警告</b>を集約し、文脈ビューの write へ deep-link。<b>自前状態なし</b>（行為追記→導出再評価で条件が偽化した項目は自動消滅）。de-rate 型(R-S6/R-S4)は該当ダッシュボードの常時修飾ゆえ非集約。<span class="badge">P4</span> <span class="badge">§2.1</span></div>
+
+      <div class="seccap"><span><b>判断要 8 件</b>（新規 6 / 据え置き 2）</span><span class="dim">据え置きも<b>会計に算入</b>（P0）</span></div>
+
+      <div class="seccap"><span>▼ 新規（未確認）</span><span class="dim">actor: 管理者</span></div>
+
+      <div class="item">
+        <div class="t"><span class="wchip">R-T4</span> 期日超過 <b>+3d</b>（超過量つき）</div>
+        <div class="acts"><span class="act">スコープ削減</span><span class="act">要員追加</span><span class="act">期日変更</span></div>
+        <div class="dl">→ health で判断 / 消滅: 導出スケジュールが期日内（イベント）</div>
+      </div>
+
+      <div class="item">
+        <div class="t"><span class="wchip">R-U13</span> 未合意完了: impl トークン更新</div>
+        <div class="acts"><span class="act">事後合意</span><span class="act">再見積→合意</span><span class="act">cancel</span></div>
+        <div class="dl">→ spec-value / 消滅: 合意 or cancel（イベント）</div>
+      </div>
+
+      <div class="item">
+        <div class="t"><span class="wchip">R-C3</span> キャンセル孤児: impl 監査ログ</div>
+        <div class="acts"><span class="act">辺除去</span><span class="act">代替へ付替</span><span class="act">後続 cancel</span></div>
+        <div class="dl">→ schedule-time / 消滅: relate or transition</div>
+      </div>
+
+      <div class="item">
+        <div class="t"><span class="wchip">R-T3</span> 過負荷: 田中 / 6月3週</div>
+        <div class="acts"><span class="act">再割当</span><span class="act">c 改定（config）</span></div>
+        <div class="dl">→ schedule-time＋config / 点事象は窓で aging out</div>
+      </div>
+
+      <div class="item">
+        <div class="t"><span class="wchip">R-U12</span> 矛盾合意: impl ログイン（田中=3 / 佐藤=5）</div>
+        <div class="acts"><span class="act">現行値を揃える agreed 再発行</span></div>
+        <div class="dl">→ spec-value / 消滅: 一致する凍結値で agreed 再発行（現行 latest-wins で判定）</div>
+      </div>
+
+      <div class="item">
+        <div class="t"><span class="wchip">P5</span> at-risk: impl ログイン（implemented 後に後退→後続が at-risk）</div>
+        <div class="acts"><span class="act">後退 transition</span><span class="act">再見積</span><span class="act">依存付替</span></div>
+        <div class="dl">→ spec-value(起点)＋schedule-time(解放済み後続) / 消滅: implemented 再到達（後続完了では消えない）</div>
+      </div>
+
+      <div class="seccap" style="margin-top:8px"><span>▼ 据え置き・既知（畳むが<b>会計に残す</b> <span class="badge gap">P0</span>）</span><span class="dim">標準</span></div>
+
+      <div class="item standing">
+        <div class="t"><span class="wchip">R-S7</span> スロット陳腐化 <b>×100</b>（原因: 夏季休暇）</div>
+        <div class="acts"><span class="act">一括 確認（提示 salience）</span><span class="act">一括 再ベースライン（イベント群）</span></div>
+        <div class="dl">据え置き受容は標識を消さない（乖離=variance を保つ）。会計カウントには残る</div>
+      </div>
+
+      <div class="item standing">
+        <div class="t"><span class="wchip">R-S3</span> thrashing: 研究タスクX（受容済・正当）</div>
+        <div class="dl">条件（EV_abs 非増 ∧ AC が継続期間にわたり増）が真の間は持続。EV_abs↑/AC が窓内で非増に転じると消滅（窓は実装定義）</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ============ capacity / calendar config ============ -->
+  <section class="panel area-config">
+    <h2>capacity · calendar <span class="axis">— config・二層目データ c / 層B</span></h2>
+    <div class="body">
+      <div class="dim small">c(i,d) ∈ [0,1.0] の per-date 入力・理由付き改定。c 宣言の write はここ。<span class="badge">A4</span> <span class="badge">§2.1#5</span> <span class="badge">R-U14</span></div>
+      <table class="cap">
+        <thead><tr><th>人 \ 日</th><th>6/16(月)</th><th>6/17(火)</th><th>6/18(水)</th><th>6/19(木)</th><th>6/20(金)</th><th>α_i view</th></tr></thead>
+        <tbody>
+          <tr><td class="name">田中</td><td class="c1">1.0</td><td class="c1">1.0</td><td class="c0">0</td><td class="c1">1.0</td><td class="c1">1.0</td><td>1.0(契約)</td></tr>
+          <tr><td class="name">佐藤</td><td class="c05">0.5</td><td class="c05">0.5</td><td class="c05">0.5</td><td class="c05">0.5</td><td class="c05">0.5</td><td>0.5(契約)</td></tr>
+          <tr><td class="name">鈴木</td><td class="c1">1.0</td><td class="c1">1.0</td><td class="c1">1.0</td><td class="c0">0</td><td class="c0">0</td><td>1.0(契約)</td></tr>
+        </tbody>
+      </table>
+      <div class="row small" style="margin-top:8px;gap:6px;flex-wrap:wrap">
+        <span class="rsn">改定理由:</span>
+        <span class="badge">契約</span><span class="badge">祝日</span><span class="badge">休暇</span><span class="badge">一時減</span>
+      </div>
+      <div class="zone">
+        <h3>R-U14 変更履歴（追記専用・理由付き・ts）</h3>
+        <div class="small muted mono">2026-06-10 田中 6/18 c:1.0→0 理由=休暇<br>2026-06-12 鈴木 6/19–20 c:1.0→0 理由=休暇</div>
+        <div class="dl">c 変更は P7 再導出をトリガー（R-S2）／陳腐化スロット R-S7（c 起因）へ相互リンク</div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<footer>
+  Moira 中フィデリティ・モックアップ — 配置合意用（視覚識別・高フィデリティのデザインはスコープ外）。
+  各ゾーンの <span class="badge">R-…</span> 注記は <code>moira/UI-ARCHITECTURE.md</code> の被覆表の要件IDと対応（本モックは代表例。キュー/PV 等は注記で host を示す）。
+  役割（管理者/開発者）は別アプリでなく同一導出へのフィルタ/初期プリセット（P4・§2.1）。上部の管理者/開発者トグルは初期プリセットの<b>例示</b>であり、導出は変えない（本モックでは inbox の actor ラベルのみ反映）。
+</footer>
+
+<script>
+  // 装飾: actor プリセットのトグル（同一導出への初期フィルタを視覚化するだけ。導出は変えない）
+  var seg = document.getElementById('seg');
+  seg.addEventListener('click', function(e){
+    var b = e.target.closest('button'); if(!b) return;
+    [].forEach.call(seg.children, function(x){ x.classList.remove('on'); });
+    b.classList.add('on');
+    var cap = document.querySelector('.inbox .seccap .dim');
+    if(cap) cap.textContent = 'actor: ' + (b.dataset.p === 'dev' ? '開発者' : '管理者');
+  });
+</script>
+</body>
+</html>

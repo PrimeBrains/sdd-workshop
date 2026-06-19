@@ -26,6 +26,9 @@
 | [`validation-scenarios.md`](./validation-scenarios.md) | 検証シナリオ S1–S13(4群)。MODEL が「実際に使えるか」を機能面/判断面で検分。**次の一手=S4** |
 | [`thought-experiments/`](./thought-experiments/) | 思想を鍛えた思考実験。01=フェーズ=ノードの発見、02=supersede の発見 |
 | [`DECISIONS.md`](./DECISIONS.md) | 意思決定ジャーナル。確定済み分岐・未解決論点・次の一手 |
+| [`PROTOTYPE-EVALUATION.md`](./PROTOTYPE-EVALUATION.md) | 5プロトタイプを正典に照らした評価(背骨の有無・救出資産・毒) |
+| [`UI-ARCHITECTURE.md`](./UI-ARCHITECTURE.md) | 画面アーキの橋渡し設計。被覆表(R-S2 導出×警告×区別表示→5サーフェス)とラフ画面構成。MODEL と `.kiro/` の中間成果物 |
+| [`ui-mockups/`](./ui-mockups/) | UI-ARCHITECTURE の視覚化。自己完結 HTML モックアップ(ブラウザで開ける・要件ID注記) |
 
 ## このワークスペースの磨き方(方法論)
 
