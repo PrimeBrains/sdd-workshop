@@ -1,0 +1,59 @@
+:root {
+  --ink: #1c1a16;
+  --ink2: #4a463d;
+  --ink3: #827d70;
+  --ink4: #b1ab9d;
+  --rule: #e4dfd2;
+  --rule-soft: #efebde;
+  --paper: #f7f4ec;
+  --paper-warm: #fbf9f2;
+  --card: #ffffff;
+  --brand: #9bc132;
+  --brand-deep: #7ea61f;
+  --brand-soft: #e8f1cd;
+  --ok: #5d8a3a;
+  --warn: #c89a2d;
+  --crit: #b8482e;
+  --na: #9a958a;
+  --font: 'Inter', 'Helvetica Neue', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-serif: 'Source Serif 4', 'Source Serif Pro', 'Hiragino Mincho ProN', serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: 13px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+.mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums slashed-zero;
+}
+
+.serif {
+  font-family: var(--font-serif);
+}
+
+/* shared hover affordances (ported intent from shared.jsx) */
+.evm-row:hover {
+  background: #f3f1e8;
+}
+
+button {
+  font-family: inherit;
+}
