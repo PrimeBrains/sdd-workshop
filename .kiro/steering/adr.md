@@ -6,7 +6,7 @@ spec 内の決定は design.md（Boundary Commitments 等）に書き、**複数
 ## 置き場と命名
 
 - ディレクトリ: `.kiro/adr/`
-- ファイル名: `NNNN-<kebab-slug>.md`（例 `0001-sdd-dashboard-local-web-app.md`）。NNNN は 4 桁連番で欠番を作らない
+- ファイル名: `NNNN-<kebab-slug>.md`（例 `0001-event-log-persistence.md`）。NNNN は 4 桁連番で欠番を作らない
 - テンプレート: `.kiro/adr/template.md`
 
 ## フォーマット
@@ -19,9 +19,9 @@ id: 1
 title: 決定の短い表題
 status: accepted        # proposed | accepted | deprecated | superseded
 date: 2026-06-10
-app: sdd-dashboard      # 所属アプリ（spec.json の app と同じ語彙）。リポジトリ横断の決定は null
-specs: [sdd-core]       # 関連 spec（なければ []）
-requirements: []        # 関連要件。trace-notation.md のクロス spec 形式（例 sdd-core/1.2）
+app: moira              # 所属アプリ（spec.json の app と同じ語彙）。リポジトリ横断の決定は null
+specs: [moira-core]     # 関連 spec（なければ []）
+requirements: []        # 関連要件。trace-notation.md のクロス spec 形式（例 moira-core/1.2）
 supersedes: null        # 置き換える ADR の id
 superseded_by: null     # 置き換えられた場合の ADR の id
 ---
@@ -33,4 +33,4 @@ superseded_by: null     # 置き換えられた場合の ADR の id
 
 - `proposed` で起票 → 合意で `accepted`
 - 決定を覆すときは**既存 ADR を編集せず**新しい ADR を起こし、旧 ADR の `status: superseded` と `superseded_by` を更新する（履歴を消さない）
-- frontmatter の `status` / `date` / 相互参照は GUI（SDD Dashboard）がパースするため、キー名と値の語彙を変えない
+- frontmatter の `status` / `date` / 相互参照はツール／エージェントがパースするため、キー名と値の語彙を変えない

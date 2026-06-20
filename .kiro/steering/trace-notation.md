@@ -1,7 +1,7 @@
 # トレーサビリティ表記法
 
 `.kiro/specs/*/{requirements,design,tasks}.md` 間の参照を機械可読にするための表記規約。
-GUI（SDD Dashboard）と検証ツールはこの文法を正典としてパースする。
+AI エージェントと検証ツールがこの文法を正典としてパースする。
 
 ## ID 体系
 
@@ -20,7 +20,7 @@ ref-list = ID ("," SP ID)*
 - ✅ `1.1, 1.3, 1.4, 1.5, 12.2`
 - ❌ `1.3-1.5`（範囲表記禁止 — 生テキストの grep で中間 ID `1.4` がヒットしなくなる。人間も AI エージェントも grep で参照箇所を探すため、ツールを介さない可読性を優先する）
 - ❌ `15.*`（ワイルドカード禁止 — 全 AC を個別に列挙する）
-- ❌ `8.2（ProgressInputTask.ancestors の生成元）`（注記・括弧・自由記述の混入禁止 — 説明は Summary 列や本文へ書く）
+- ❌ `8.2（フォールバック処理の生成元）`（注記・括弧・自由記述の混入禁止 — 説明は Summary 列や本文へ書く）
 - 列挙された各 ID は requirements.md に実在しなければならない
 
 ## 各ドキュメントの宣言箇所
@@ -33,7 +33,7 @@ ref-list = ID ("," SP ID)*
 | tasks.md | `_Depends: <タスクID列挙>_` / `_Boundary: <コンポーネント/パス>_` | タスク間依存 / 担当境界 |
 | ADR | frontmatter `specs:` / `requirements:` | 関連 spec・要件（詳細は [adr.md](adr.md)） |
 
-クロス spec 参照が必要な場合のみ `<feature-name>/<ID>`（例 `sdd-core/1.2`）を使う。
+クロス spec 参照が必要な場合のみ `<feature-name>/<ID>`（例 `moira-core/1.2`）を使う。
 
 ## 検証ルール（リンク切れの定義）
 
@@ -43,5 +43,4 @@ ref-list = ID ("," SP ID)*
 
 ## 適用範囲
 
-新規生成・次回更新分から適用。approved 済みの既存 spec は遡及修正しない（requirements-style.md と同方針）。
-旧 spec に残る範囲表記（`1.1-1.6`）は、パーサーが後方互換として連番展開してよい（minor を整数として両端間を列挙し、requirements.md との実在照合を行う）。新規記述での使用は禁止。
+Moira の新規 spec（`.kiro/specs/moira-*`）の生成・更新時に適用する。範囲表記（`1.1-1.6`）・ワイルドカードは新規記述で使用禁止（上記理由）。

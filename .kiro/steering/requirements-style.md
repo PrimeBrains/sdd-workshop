@@ -32,10 +32,10 @@
 ````markdown
 #### Acceptance Criteria
 
-1. The defect-pdca system shall persist all defect entries to a single Markdown file at `.kiro/postmortem/defects.md`.
-   - 和訳: defect-pdca システムは、すべての不具合エントリを `.kiro/postmortem/defects.md` の単一 Markdown ファイルに永続化する。
-2. When `.kiro/postmortem/defects.md` does not exist at the first entry creation, the `/kiro-postmortem-add` skill shall create it with a documented header.
-   - 和訳: `.kiro/postmortem/defects.md` が最初のエントリ作成時点で存在しない場合、`/kiro-postmortem-add` skill は文書化されたヘッダ付きでこのファイルを作成する。
+1. The system shall persist all state changes solely as append-only events of the four kinds.
+   - 和訳: システムは、全状態変化を 4 種の追記専用イベントとしてのみ永続化する。
+2. When an estimate is agreed, the system shall record it via a transition emitted by a human actor.
+   - 和訳: 見積が合意されたとき、システムは人間が発行する transition でそれを記録する。
 ````
 
 - インデント付き `- 和訳:` を **1 つ下のレベル** に付ける。
@@ -45,10 +45,10 @@
 ### 散文セクション（日本語のみ）
 
 ````markdown
-**Objective**: 開発者として、不具合事例の保管場所を一意に定めたい。
+**Objective**: 開発者として、進捗を追記専用ログから正直に導出したい。
 
 #### Acceptance Criteria
-1. The defect-pdca system shall ...
+1. The system shall ...
    - 和訳: ...
 ````
 
@@ -84,9 +84,9 @@ EARS のトリガー語が消え、要件パターン (Ubiquitous / Event-driven
 
 ---
 
-## 既存 spec への適用
+## 適用開始
 
-新規に書き起こす requirements / design は本ルールに従う。既に approved 済みの spec (`core-data-model` / `evm-engine` / `progress-tracking` / `dashboard` の Phase 9 までで approved されたもの) は **遡及修正しない**。次回の要件更新 (`/kiro-spec-requirements`) 起動時から本ルールを適用する。
+Moira の新規 spec（`.kiro/specs/moira-*`）の requirements / design は最初から本ルールに従う。
 
 ---
 
