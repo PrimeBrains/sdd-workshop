@@ -11,9 +11,9 @@
 
 ## 0. 一文の定義 / One-Sentence Definition
 
-**プロジェクトとは、見積を持つノードの木とポリシー付きの辺で結ばれた DAG の上を流れる4種の追記専用イベント列であり、進捗・スケジュール・健全性はすべてその導出である。システムは観測・導出・警告に徹し、コミットメントを伴う判断(見積の合意・割当・スコープ/期日・目標日の決定)は人間に残す。**
+**プロジェクトとは、見積を持つノードの木とポリシー付きの辺で結ばれた DAG の上を流れる4種の追記専用イベント列であり、進捗・スケジュール・健全性はすべてその導出である。システムは観測・導出・警告に徹し、コミットメントを伴う判断(見積の合意・割当・スコープ/期日・目標日の決定・見積の深さ・容量 c の宣言——§2.1 の五判断)は人間に残す。**
 
-*A project is an append-only stream of four event kinds over a tree of estimated nodes and a policy-bearing DAG; progress, schedule, and health are all derivations. The system observes, derives, and warns; commitment-bearing decisions — estimate agreement, assignment, and scope/deadline/target-date calls — remain with humans.*
+*A project is an append-only stream of four event kinds over a tree of estimated nodes and a policy-bearing DAG; progress, schedule, and health are all derivations. The system observes, derives, and warns; commitment-bearing decisions — estimate agreement, assignment, scope/deadline/target-date calls, estimation depth, and capacity-c declaration (the five of §2.1) — remain with humans.*
 
 ---
 
@@ -75,7 +75,7 @@
 
 **構造とコミットの境界:** モデルは「**何を表現できるか**(ノード・辺・イベント・導出)」という**構造**を確定する。一方「**どこまで踏み込むか**(分解の粒度・割当・スコープ・見積の深さ)」という**コミット判断**は人間に委ねる。これは曖昧さではなく役割分担であり、構造は厳密に固定され、コミットは P0 に従って人間が担う。
 *The model fixes STRUCTURE (what can be represented); COMMITMENT decisions (granularity, assignment, scope, estimation depth) are delegated to humans under P0. This is division of labor, not vagueness.*
-*Four commitment-bearing decisions are never automated: estimate agreement, assignment, scope/deadline calls, and planning precision (estimation depth). These are the deliberate loci where scarce human judgment is spent.*
+*Five commitment-bearing decisions are never automated: estimate agreement, assignment, scope/deadline/target-date calls, planning precision (estimation depth), and capacity-c declaration. These are the deliberate loci where scarce human judgment is spent.*
 
 **人間内部の権威はスコープ外.** 本モデルは合意の権威境界を「人間かエージェントか」(I6/R-U4)で引く。人間集合**内部**の権威・オーナーシップ(誰がリードか、誰が最終決定者か)は A4 の延長としてモデル化せず、運用(P0)に委ねる。同一ノードに複数の人間が矛盾する `agreed` を並行発行した場合、I3 `(ts,id)` latest-wins が現行値を機械的に決定するが、**システムは矛盾合意を異常として検知し警告する**(§0「観測・導出・警告に徹する」と一貫;R-U12)。解決は人間が行う。
 *Human-internal authority is out of scope. The model draws the authority boundary at "human vs agent" (I6/R-U4). Authority WITHIN the human set (who leads, who is the final decision-maker) is not modeled, as an extension of A4, and is delegated to operations (P0). If multiple humans issue conflicting `agreed` on the same node, I3 `(ts,id)` latest-wins mechanically determines the current value, but the system detects and warns of the contradiction (consistent with §0 "observe, derive, warn"; R-U12). Resolution is by humans.*
