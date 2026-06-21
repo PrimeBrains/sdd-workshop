@@ -86,6 +86,25 @@
 
 ---
 
-## 7. 出典についての注記 / Note on Sources
+## 7. 正式用語 / Canonical Terminology
+
+MODEL が定義する概念のうち、UI ラベル・議論・ドキュメントで揺れうるものの正式な日本語表記を確定する。
+
+| 正式語 | 英字 / MODEL 記号 | 定義（MODEL 準拠） | 備考 |
+|---|---|---|---|
+| **コミット判断**（UI: コミット行為） | commitment decision / action | §2.1 の 5 つの人間判断（見積合意・割当・スコープ/期日/目標日・見積の深さ・c 宣言）の総称。システムは観測・導出・警告に徹し、これらの判断は人間に残る | 正典 MODEL の語は「コミット判断／コミットメントを伴う判断」（§0・§2.1）。UI 表示ではユーザー裁定により能動的な「コミット行為」を用いる（両者同義）。遷移(transition)・手戻り(backward transition)は**イベントの種類**であり、コミット判断はそれを発する人間の判断 |
+| **実行カバレッジ** | executionCoverage (R-S8) | 現行有効・合意済み葉のうち `implementing` にあるもののノード数比率。「いま着手中の量」を集約レベルで可視化する count-based coverage（scheduleCoverage R-S6 と構造同型）。EV% と**算術和しない**（仕掛中の量≠出来高） | 完了主義の EV% が落とす「執行中」領域の補完読み。estimateCoverage(P2)・scheduleCoverage(R-S6) と並ぶ第三の coverage |
+| **累積EV** | EV_abs (cumulative earned value) | supersede 済み・サンク(R-C2)を含む過去の総出来高。R-S5 が「現行進捗 EV%」と区別して表示を要求する | 旧候補「累積稼得」は同義だがユーザー裁定で「累積EV」を採用 |
+| **現行進捗** | EV% (current progress) | 現行有効集合（supersede されていない葉）のみで測る達成率。カバレッジ(P2)と対で読む | EV_abs と基底が異なるため独立に読む |
+| **見積カバレッジ** | estimateCoverage (P2) | 合意済み見積 ÷ 全ノード。未発見は測れない(P2) | — |
+| **スケジュール・カバレッジ** | scheduleCoverage (R-S6) | 合意済み作業のうちスケジュール済みの割合。低い間 SPI を de-rate | — |
+
+> **命名原則:** MODEL の英字識別子（camelCase）は MODEL・設計上の概念識別子、日本語は UI ラベル・文書での正式語。MODEL は「アーキテクチャ以前の思想の確定であり実装技術には立ち入らない」（MODEL §0）ため、**コード上の命名規約は各 spec/実装が定める**（本表はそれを強制しない）。非公式の別名・略語は都度コンテキストで補足してよいが、正式語を上書きしない。
+
+> **MODEL 連動:** 本表は MODEL の用語に従属する派生記録である。MODEL が `moira-model-update` で改版され用語が追加/変更された場合、本表を再点検し同期する（`moira/UI-ARCHITECTURE.md` 確定来歴と同方針）。本セクションは 2026-06-21 の Phase 0（MODEL v16 正典分解の前提整備）で moira-model-update 独立敵対ゲートを通過して確定（残存 Critical/Important = 0）。
+
+---
+
+## 8. 出典についての注記 / Note on Sources
 
 本書のギリシア語・神話に関する記述は、ヘシオドス『神統記』(三女神の命名と二重の系譜)、ホメロス(単数の Moira)、および標準的参照(Theoi Project、Mythopedia、Wikipedia の Moirai/Clotho/Lachesis/Atropos 項)に照らして確認した。伝承の異同(数・名・役割・系譜の変動)は事実として明記し、断定を避けた。
