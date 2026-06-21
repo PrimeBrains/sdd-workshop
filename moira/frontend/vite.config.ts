@@ -10,40 +10,44 @@ import { dirname, resolve } from 'node:path';
 const BACKEND_SRC = fileURLToPath(new URL('../backend/src', import.meta.url));
 const FS_SHIM = fileURLToPath(new URL('./src/shims/node-fs.ts', import.meta.url));
 
+const toId = (p: string) => p.replace(/\\/g, '/');
+// Vite dev decorates importers with a `/@fs/` prefix and a `?v=hash` query and
+// uses posix slashes; strip those so dirname() works on both dev and build.
+const cleanImporter = (imp: string) => imp.replace(/\?.*$/, '').replace(/^\/?@fs\//, '');
+
+function firstExisting(...candidates: string[]): string | null {
+  for (const c of candidates) if (existsSync(c)) return toId(c);
+  return null;
+}
+
 /**
  * Resolves the backend's NodeNext-style source for the browser:
- *  - `@backend/x.js`  →  ../backend/src/x.ts
- *  - relative `./x.js` imports *inside the backend* → ./x.ts
- *  - `node:fs` imported *inside the backend* → a browser shim (only loadJson/
- *    saveJson use it and those are never called in the app).
- * Nothing else is touched, so React/etc. resolve normally.
+ *  - `@backend/x.js` (or extensionless)  →  ../backend/src/x.ts
+ *  - any relative `./x.js` import whose sibling `.ts` exists → `.ts`
+ *    (only the backend uses `.js`-extension relative imports, so this is scoped
+ *    in practice — and it does NOT depend on matching the importer path, which
+ *    Vite normalizes differently in dev vs build).
+ * `node:fs` is shimmed via resolve.alias (the app never calls fs).
  */
 function moiraBackendResolver(): Plugin {
   return {
     name: 'moira-backend-resolver',
     enforce: 'pre',
     resolveId(source, importer) {
-      const fromBackend = !!importer && importer.startsWith(BACKEND_SRC);
-
-      if (source === 'node:fs' || source === 'fs') {
-        return fromBackend ? FS_SHIM : null;
-      }
-
-      let target: string | null = null;
       if (source.startsWith('@backend/')) {
-        target = resolve(BACKEND_SRC, source.slice('@backend/'.length));
-      } else if ((source.startsWith('./') || source.startsWith('../')) && fromBackend) {
-        target = resolve(dirname(importer as string), source);
+        const base = resolve(BACKEND_SRC, source.slice('@backend/'.length));
+        const noExt = base.endsWith('.js') ? base.slice(0, -3) : base;
+        return firstExisting(`${noExt}.ts`, base, `${base}.ts`, resolve(base, 'index.ts'));
       }
-      if (target === null) return null;
-
-      const candidates: string[] = [];
-      if (target.endsWith('.js')) candidates.push(`${target.slice(0, -3)}.ts`);
-      candidates.push(target, `${target}.ts`, resolve(target, 'index.ts'));
-      for (const c of candidates) {
-        if (existsSync(c)) return c;
+      if (
+        importer !== undefined &&
+        source.endsWith('.js') &&
+        (source.startsWith('./') || source.startsWith('../'))
+      ) {
+        const base = resolve(dirname(cleanImporter(importer)), source);
+        return firstExisting(`${base.slice(0, -3)}.ts`);
       }
-      return null;
+      return undefined;
     },
   };
 }
@@ -51,7 +55,18 @@ function moiraBackendResolver(): Plugin {
 export default defineConfig({
   plugins: [moiraBackendResolver(), react()],
   resolve: {
-    alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
+    alias: {
+      '@': fileURLToPath(new URL('./src', import.meta.url)),
+      // The app never calls fs; this satisfies the backend's capacity-store /
+      // event-store top-level `node:fs` import in the browser.
+      'node:fs': FS_SHIM,
+    },
   },
-  server: { port: 5180 },
+  server: {
+    port: 5180,
+    // The backend source lives OUTSIDE this project root (../backend). Allow the
+    // parent `moira/` dir so Vite serves backend modules via /@fs/ in dev instead
+    // of 403 (don't rely on git-root auto-detection).
+    fs: { allow: [fileURLToPath(new URL('..', import.meta.url))] },
+  },
 });
