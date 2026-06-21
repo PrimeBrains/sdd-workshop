@@ -9,6 +9,9 @@ import { useDerived } from '../../moira/hooks';
 
 const pct = (v: number, d = 0) => `${(v * 100).toFixed(d)}%`;
 const idx = (v: number | null) => (v === null ? '算出不能' : v.toFixed(2));
+const signed = (v: number) => (v > 0 ? `+${v.toFixed(0)}` : v.toFixed(0));
+const varTone = (v: number): 'crit' | 'ok' | 'neutral' =>
+  v < 0 ? 'crit' : v > 0 ? 'ok' : 'neutral';
 
 export function HealthSurface() {
   const d = useDerived();
@@ -37,10 +40,14 @@ export function HealthSurface() {
           <SummaryStat label="EV_abs (MD)" value={d.evAbs.toFixed(0)} />
           <SummaryStat label="PV (MD)" value={d.pv.toFixed(0)} />
           <SummaryStat label="AC (MD)" value={d.ac.toFixed(0)} />
+          <SummaryStat label="SV (MD)" value={signed(d.evAbs - d.pv)} tone={varTone(d.evAbs - d.pv)} />
+          <SummaryStat label="CV (MD)" value={signed(d.evAbs - d.ac)} tone={varTone(d.evAbs - d.ac)} />
         </div>
         <div style={{ fontSize: 10.5, color: EVM.ink3, marginTop: 8 }}>
           EV%↔見積カバレッジ／SPI↔スケジュールカバレッジを常に対表示。低カバレッジは斜線ハッチで de-rate（R-S4/R-S6）。
           SPI＝スケジュール済み領域内の進捗率（全体進捗ではない）。SPI/CPI は PV/AC=0 のとき「算出不能」（潰さない）。
+          SV＝EV−PV／CV＝EV−AC は提示恒等式（正典指標ではない）。SV はスケジュール済み領域のみを覆うため
+          スケジュールカバレッジと対で読む（SPI と同規律）。CV は仕掛コストで悲観側に振れる（CPI と同性質）。
         </div>
       </Card>
 

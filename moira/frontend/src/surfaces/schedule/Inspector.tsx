@@ -24,7 +24,7 @@ function Field({ k, v, tone }: { k: string; v: React.ReactNode; tone?: string })
 }
 
 export function Inspector({ node }: { node: NodeId | null }) {
-  const { projected, derived, appendEvent, nextStamp } = useMoira();
+  const { projected, derived, appendEvent, nextStamp, asOf } = useMoira();
   const [pending, setPending] = useState<{ ev: Event; desc: string } | null>(null);
 
   if (node === null) {
@@ -40,7 +40,29 @@ export function Inspector({ node }: { node: NodeId | null }) {
   const ac = derived.acByNode.find((a) => a.node === node)?.ac ?? 0;
   const completed = n.lifecycle === 'implemented' || n.lifecycle === 'accepted';
   const agreed = n.estimateState === 'agreed';
-  const evContribution = completed && agreed ? n.frozenBudget ?? 0 : 0;
+
+  // Per-task standard EVM — PROJECTED from per-node attributes, NOT a second
+  // derive() (R-S2): the same blessed flavor as the engine-bridge attribute
+  // projection and the prior evContribution. taskPv mirrors pv.ts's single-leaf
+  // inclusion rule (agreed ∧ scheduled ∧ frozenSlot ≤ asOf); taskEv is the
+  // agreed-completed frozen budget (ev.ts). SV/CV are presentation identities
+  // (differences of the above), not canon indices.
+  const frozenSlot = fc?.frozenSlot ?? null;
+  const predicted = fc?.predictedCompletion ?? null;
+  const scheduledByNow = frozenSlot !== null && frozenSlot <= asOf;
+  const taskEv = completed && agreed ? n.frozenBudget ?? 0 : 0;
+  const taskPv = agreed && scheduledByNow && n.frozenBudget !== null ? n.frozenBudget : 0;
+  const sv = taskEv - taskPv; // schedule variance (EV − PV)
+  const cv = taskEv - ac; // cost variance (EV − AC)
+
+  // Objective in-flight signals (date/cost only; no subjective % — P1/A2): a
+  // coarse leaf reveals slip BEFORE completion while EV is still 0.
+  const overdue = !completed && predicted !== null && predicted < asOf;
+  const forecastBehind =
+    !completed && predicted !== null && frozenSlot !== null && predicted > frozenSlot;
+  const costAhead = !completed && ac > 0 && taskEv === 0;
+  const fmtSigned = (v: number) => (v > 0 ? `+${v}` : String(v));
+  const varianceTone = (v: number) => (v < 0 ? EVM.crit : v > 0 ? EVM.ok : EVM.ink3);
 
   const stage = (ev: Event, desc: string) => setPending({ ev, desc });
   const commit = () => {
@@ -119,22 +141,39 @@ export function Inspector({ node }: { node: NodeId | null }) {
         </div>
       </div>
 
-      {/* read zone */}
+      {/* read zone — standard EVM: PV / EV / AC, then variances, then context */}
       <div style={{ borderTop: `1px solid ${EVM.ruleSoft}`, paddingTop: 6 }}>
-        <Field k="latest 見積 (MD)" v={n.latestEstimate ?? '—'} />
-        <Field k="frozenBudget (MD)" v={n.frozenBudget ?? '—'} />
-        <Field k="frozenSlot (凍結PV)" v={fc?.frozenSlot ?? '—'} tone={fc?.frozenSlot ? EVM.ink : EVM.crit} />
-        <Field k="predicted (生きた予測)" v={fc?.predictedCompletion ?? '—'} />
-        <Field k="ownCost / AC (MD)" v={`${n.ownCost} / ${ac}`} />
-        <Field k="EV_abs 寄与 (MD)" v={evContribution} tone={evContribution > 0 ? EVM.ok : EVM.ink3} />
+        <Field k="PV 計画価値 (MD)" v={taskPv} tone={taskPv > 0 ? EVM.ink : EVM.ink3} />
+        <Field k="EV 出来高 (MD)" v={taskEv} tone={taskEv > 0 ? EVM.ok : EVM.ink3} />
+        <Field k="AC 実コスト (MD)" v={ac} />
+        <div style={{ borderTop: `1px solid ${EVM.ruleSoft}`, margin: '5px 0' }} />
+        <Field k="SV 差異 (= EV − PV)" v={fmtSigned(sv)} tone={varianceTone(sv)} />
+        <Field k="CV 差異 (= EV − AC)" v={fmtSigned(cv)} tone={varianceTone(cv)} />
+        <div style={{ borderTop: `1px solid ${EVM.ruleSoft}`, margin: '5px 0' }} />
+        <Field k="BAC 予算・確定 (MD)" v={n.frozenBudget ?? '—'} />
+        <Field k="最新見積 (MD)" v={n.latestEstimate ?? '—'} />
+        <Field k="基準完了日（ベースライン）" v={frozenSlot ?? '—'} tone={frozenSlot ? EVM.ink : EVM.crit} />
+        <Field
+          k="予測完了日（生きた予測）"
+          v={predicted ?? '—'}
+          tone={overdue || forecastBehind ? EVM.crit : EVM.ink}
+        />
       </div>
 
-      {(!agreed || fc?.frozenSlot == null) && (
+      {/* objective in-flight signals (date/cost only) + mandated visible gaps */}
+      {(overdue || forecastBehind || costAhead || !agreed || frozenSlot === null) && (
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-          {!agreed && <Pill tone="na">未合意 → EV_abs 寄与 0</Pill>}
-          {fc?.frozenSlot == null && <Pill tone="crit">未スケジュール → PV 不算入</Pill>}
+          {overdue && <Pill tone="crit">遅延中 — 予測 {predicted} を過ぎて未完了</Pill>}
+          {forecastBehind && <Pill tone="warn">予測 {predicted} が基準 {frozenSlot} に遅延（R-S7）</Pill>}
+          {costAhead && <Pill tone="warn">仕掛中 — AC {ac}MD 計上・EV 未計上</Pill>}
+          {!agreed && <Pill tone="na">未合意 → EV 0</Pill>}
+          {frozenSlot === null && <Pill tone="crit">未スケジュール → PV 不算入</Pill>}
         </div>
       )}
+
+      <div style={{ fontSize: 10.5, color: EVM.ink3 }}>
+        SPI / CPI（指標）はタスク単位では二値化するため、プロジェクト全体は health で確認。
+      </div>
 
       {/* action zone — drafts only, confirmed before append */}
       <div style={{ borderTop: `1px solid ${EVM.ruleSoft}`, paddingTop: 8 }}>
