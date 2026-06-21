@@ -8,7 +8,7 @@
 import { useMemo } from 'react';
 import { EVM } from '../../theme/tokens';
 import { Bar, Card, EstimatePill, LifecyclePill, Pill, SectionTitle } from '../../theme/atoms';
-import { useMoira } from '../../moira/store';
+import { useMoira } from '../../moira/hooks';
 import { labelOf } from '../../moira/labels';
 import { buildGanttModel } from '../schedule/gantt-geometry';
 

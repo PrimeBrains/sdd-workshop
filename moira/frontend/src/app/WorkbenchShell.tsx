@@ -4,7 +4,7 @@
 
 import { useState, type ReactNode } from 'react';
 import { EVM } from '../theme/tokens';
-import { useMoira } from '../moira/store';
+import { useMoira } from '../moira/hooks';
 import { ScheduleTimeSurface } from '../surfaces/schedule/ScheduleTimeSurface';
 import { HealthSurface } from '../surfaces/health/HealthSurface';
 import { CapacitySurface } from '../surfaces/capacity/CapacitySurface';

@@ -5,7 +5,7 @@
 
 import { EVM } from '../../theme/tokens';
 import { Bar, Card, Pill, SectionTitle, SummaryStat } from '../../theme/atoms';
-import { useDerived } from '../../moira/store';
+import { useDerived } from '../../moira/hooks';
 
 const pct = (v: number, d = 0) => `${(v * 100).toFixed(d)}%`;
 const idx = (v: number | null) => (v === null ? '算出不能' : v.toFixed(2));

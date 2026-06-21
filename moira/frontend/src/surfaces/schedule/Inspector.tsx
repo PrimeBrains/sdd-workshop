@@ -7,7 +7,7 @@
 import { useState } from 'react';
 import { EVM } from '../../theme/tokens';
 import { Card, EstimatePill, LifecyclePill, Pill, Avatar } from '../../theme/atoms';
-import { useMoira } from '../../moira/store';
+import { useMoira } from '../../moira/hooks';
 import { actorLabel, labelOf } from '../../moira/labels';
 import { DEMO_ACTORS } from '../../moira/demo-data';
 import type { Actor, Event, LifecycleState, NodeId } from '../../moira/engine';

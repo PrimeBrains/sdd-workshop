@@ -6,7 +6,7 @@
 import { useMemo, useState } from 'react';
 import { EVM } from '../../theme/tokens';
 import { Bar, Card, Pill, SectionTitle } from '../../theme/atoms';
-import { useMoira } from '../../moira/store';
+import { useMoira } from '../../moira/hooks';
 import { labelOf } from '../../moira/labels';
 import { buildGanttModel } from './gantt-geometry';
 import { ScheduleGantt } from './ScheduleGantt';

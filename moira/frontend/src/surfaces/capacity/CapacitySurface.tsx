@@ -8,7 +8,7 @@
 import { useMemo, useState } from 'react';
 import { EVM } from '../../theme/tokens';
 import { Card, Pill, SectionTitle } from '../../theme/atoms';
-import { useMoira } from '../../moira/store';
+import { useMoira } from '../../moira/hooks';
 import { actorLabel } from '../../moira/labels';
 import { DEMO_ACTORS } from '../../moira/demo-data';
 import {

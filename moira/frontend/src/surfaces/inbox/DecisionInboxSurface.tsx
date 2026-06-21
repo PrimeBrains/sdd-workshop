@@ -8,7 +8,7 @@
 import { useMemo } from 'react';
 import { EVM } from '../../theme/tokens';
 import { Card, Pill, SectionTitle } from '../../theme/atoms';
-import { useMoira } from '../../moira/store';
+import { useMoira } from '../../moira/hooks';
 import { computeInbox } from '../../moira/warnings';
 import type { SurfaceId } from '../../app/types';
 
