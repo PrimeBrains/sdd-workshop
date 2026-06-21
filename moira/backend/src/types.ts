@@ -166,6 +166,9 @@ export interface DerivedState {
   // (4) estimate coverage, (5) schedule coverage
   estimateCoverage: number; // P2 MODEL:169
   scheduleCoverage: number; // R-S6 MODEL:295
+  // execution coverage — in-progress share (R-S8); count ratio over a state
+  // predicate, isomorphic to scheduleCoverage; does NOT touch EV_abs/EV%/SPI/CPI/PV
+  executionCoverage: number; // R-S8: |agreed leaves in `implementing`| / |agreed leaves|
   // (6) PV, (7) AC
   pv: number; // §3 MODEL:197
   ac: number; // P3 MODEL:172

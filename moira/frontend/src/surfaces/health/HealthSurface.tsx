@@ -36,6 +36,12 @@ export function HealthSurface() {
               <Bar value={d.scheduleCoverage} tone="ok" derate={schedLow} />
             </div>
           </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <SummaryStat label="実行中 (仕掛)" value={pct(d.executionCoverage, 0)} tone="warn" sub="EV%が落とす執行中領域 (R-S8)" />
+            <div style={{ width: 150 }}>
+              <Bar value={d.executionCoverage} tone="warn" />
+            </div>
+          </div>
           <SummaryStat label="CPI" value={idx(d.cpi)} />
           <SummaryStat label="EV_abs (MD)" value={d.evAbs.toFixed(0)} />
           <SummaryStat label="PV (MD)" value={d.pv.toFixed(0)} />
@@ -48,6 +54,9 @@ export function HealthSurface() {
           SPI＝スケジュール済み領域内の進捗率（全体進捗ではない）。SPI/CPI は PV/AC=0 のとき「算出不能」（潰さない）。
           SV＝EV−PV／CV＝EV−AC は提示恒等式（正典指標ではない）。SV はスケジュール済み領域のみを覆うため
           スケジュールカバレッジと対で読む（SPI と同規律）。CV は仕掛コストで悲観側に振れる（CPI と同性質）。
+          実行中（仕掛）＝合意済みのうち implementing のノード割合（R-S8）。完了主義の EV% が落とす執行中領域を示す
+          <b>仕掛中の量であって出来高ではない</b>——EV% と足して全体進捗にはしない（次元が異なる）。実際の前進は
+          Gantt の予測完了乖離（R-S7）・タスクの経過で読む。
         </div>
       </Card>
 

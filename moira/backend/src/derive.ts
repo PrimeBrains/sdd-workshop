@@ -8,6 +8,7 @@ import { defaultCapacityLookup } from './capacity-store.js';
 import { computeAc } from './derivations/ac.js';
 import {
   computeEstimateCoverage,
+  computeExecutionCoverage,
   computeScheduleCoverage,
 } from './derivations/coverage.js';
 import { computeEffectiveSet } from './derivations/effective-set.js';
@@ -53,6 +54,7 @@ export function derive(events: readonly Event[], options: DeriveOptions): Derive
 
   const estimateCoverage = computeEstimateCoverage(state, eff);
   const scheduleCoverage = computeScheduleCoverage(state, eff);
+  const executionCoverage = computeExecutionCoverage(state, eff);
 
   const pv = computePv(state, eff, asOf);
   const { total: ac, byNode: acByNode } = computeAc(state);
@@ -86,6 +88,7 @@ export function derive(events: readonly Event[], options: DeriveOptions): Derive
     cumulativeEvAbs,
     estimateCoverage,
     scheduleCoverage,
+    executionCoverage,
     pv,
     ac,
     acByNode,

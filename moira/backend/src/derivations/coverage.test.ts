@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { fold } from '../fold.js';
 import { human, Log } from '../test-utils.js';
-import { computeEstimateCoverage, computeScheduleCoverage } from './coverage.js';
+import {
+  computeEstimateCoverage,
+  computeExecutionCoverage,
+  computeScheduleCoverage,
+} from './coverage.js';
 import { computeEffectiveSet } from './effective-set.js';
 
 function cov(log: Log) {
@@ -10,12 +14,13 @@ function cov(log: Log) {
   return {
     estimate: computeEstimateCoverage(state, eff),
     schedule: computeScheduleCoverage(state, eff),
+    execution: computeExecutionCoverage(state, eff),
   };
 }
 
 describe('coverage (P2 MODEL:169 / R-S6 MODEL:295)', () => {
   it('returns 0 for an empty/unknown tree (honest gap, P0)', () => {
-    expect(cov(new Log())).toEqual({ estimate: 0, schedule: 0 });
+    expect(cov(new Log())).toEqual({ estimate: 0, schedule: 0, execution: 0 });
   });
 
   it('drops when an unestimated child is discovered (§2.3 MODEL:96)', () => {
@@ -66,5 +71,40 @@ describe('coverage (P2 MODEL:169 / R-S6 MODEL:295)', () => {
       // 'g' agreed but unscheduled
     );
     expect(c.schedule).toBeCloseTo(4 / 5, 10);
+  });
+
+  it('measures execution coverage as implementing / agreed leaves (R-S8)', () => {
+    const c = cov(
+      new Log()
+        .decompose('F', [
+          { node: 'a', estimate: 1 },
+          { node: 'b', estimate: 1 },
+          { node: 'd', estimate: 1 },
+        ])
+        .agree('a', 1)
+        .agree('b', 1)
+        .agree('d', 1)
+        .life('a', 'implementing')
+        .life('b', 'implementing'),
+      // 'd' agreed but still pending → not in execution numerator
+    );
+    expect(c.execution).toBeCloseTo(2 / 3, 10);
+  });
+
+  it('excludes unagreed implementing leaves (agreed-only, R-S8)', () => {
+    const c = cov(
+      new Log()
+        .decompose('F', [
+          { node: 'a', estimate: 1 },
+          { node: 'b', estimate: 1 },
+        ])
+        .agree('a', 1)
+        .life('a', 'implementing')
+        .life('b', 'implementing'), // 'b' never agreed
+    );
+    // denominator = agreed leaves {a}; implementing-agreed {a} → 1.0
+    // 'b' (unagreed implementing) is a visible gap in estimateCoverage, not here
+    expect(c.execution).toBeCloseTo(1, 10);
+    expect(c.estimate).toBeCloseTo(1 / 3, 10); // a agreed of {F, a, b}
   });
 });

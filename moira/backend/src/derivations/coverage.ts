@@ -53,3 +53,32 @@ export function computeScheduleCoverage(
   }
   return agreed > 0 ? scheduled / agreed : 0;
 }
+
+/**
+ * executionCoverage = |agreed effective leaves in `implementing`| /
+ *                     |agreed effective leaves|
+ *                     (R-S8 MODEL:R-S8 — share of agreed work currently in
+ *                     execution). Structurally isomorphic to scheduleCoverage,
+ *                     with the predicate swapped (scheduled → implementing).
+ *
+ * It is a COUNT ratio over a state predicate — NOT a state-weight table folded
+ * into EV (R-U8 governs the EV% derivation, not this read), and it touches none
+ * of the EV_abs/EV%/PV/SPI/CPI formulas. It surfaces the in-execution region
+ * that completion-based EV% omits; the presenter reads it paired with EV% and
+ * estimateCoverage and NEVER sums it with EV% as overall progress (it is
+ * in-progress volume, not earned value — R-S4/R-S6-isomorphic de-rate).
+ */
+export function computeExecutionCoverage(
+  state: ProjectedState,
+  eff: EffectiveSet,
+): number {
+  let agreed = 0;
+  let implementing = 0;
+  for (const id of eff.effectiveLeaves) {
+    const n = state.nodes.get(id);
+    if (n === undefined || n.estimateState !== 'agreed') continue;
+    agreed += 1;
+    if (n.lifecycle === 'implementing') implementing += 1;
+  }
+  return agreed > 0 ? implementing / agreed : 0;
+}

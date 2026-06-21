@@ -91,6 +91,38 @@
 
 独立採点者(moira-gate-judge)の残存 Critical/Important = 0(PASS)。新公理・新イベント・新状態・新原理番号なし。新要件は **R-T6 一件**(既存の P7 導出完了＋二参照日付の上のバッファ監視)。fact-checker は EAC=BAC/CPI の標準性・management reserve の PMB 外性・留保率と MR の区別・CPI 序盤不安定(Christensen&Heise)を裏取りし、「BAC×想定生産性=工数バッファ」が COCOMO でないこと・MM が Brooks 神話単位であることを CORRECTED。
 
+## 確定済みの分岐(v15 → v16: 実行カバレッジの正典化・獲得ルールの却下)
+
+> ユーザー指摘「二値 EV(完了まで0→満額)だと執行中の進捗把握が遅れる」を起点。
+> moira-model-update の敵対ループ(round1 P-EARN 却下 → ユーザー裁定 FORK → round2 P-EXECCOV → R-U8 反証の
+> 再反論 → gate-judge PASS)を経て v16 に確定。思考実験 = `moira/thought-experiments/11-progress-granularity-earning-rule.md`。
+
+- **当初案 P-EARN(`implementing` で固定割合 F の partial EV を稼ぐ獲得ルール)を却下。** Round1 で3敵対者が独立に
+  「F は状態→重み写像で R-U8『no state-weight table』/P1『重みテーブルなし』該当」「EV に折り込む乗率で L47/§7#11
+  (留保率と算術同型)抵触」「分解(P1)で除去可能」「PV 非対称・下方再見積で EV%>1 等の未処理多数」を指摘。
+  fact-checker は 0/100・50/50・20/80 が標準 EVM の客観手法と NO_OBJECTION で裏取りしたが、Moira の L47/R-U8 は
+  標準が保持する重み表を意図的に溶かした分**より厳格**ゆえ支えにならないと確認。著者は強行せず却下(accuracy-first)。
+- **【ユーザー裁定 FORK (canon-home)】「執行中の集約可視化」の実現 → 正典 R-S 要件を選択**(他候補:実装/UI のみ・
+  §7 開示)。partial EV を使わず核心会計を読み変えない別建てオーバーレイ **実行カバレッジ executionCoverage** を
+  新要件 **R-S8** として追加。
+- **executionCoverage = count-based coverage(scheduleCoverage 同型)。** = |合意済み有効葉のうち implementing| /
+  |合意済み有効葉|(ノード数比率・分母0→0)。述語が「scheduled?」→「implementing?」に変わっただけで scheduleCoverage
+  (R-S6)と構造同型。**予算に状態別乗率を掛けず状態述語でノードを数える**ゆえ R-U8 の射程外(R-U8 は EV% 稼得の
+  state-weight を禁ずる)、**EV_abs/EV%/PV/SPI/CPI の式に一切触れない**。
+- **R-U8 該当(FORK1)を scheduleCoverage 構造同型で反証 → 別 adversary の再反論で健全と確認(round3)。** でなければ
+  R-S6/P2 自体が R-U8 違反になり正典が自己矛盾、という対称性が決め手。
+- **de-rate 規律(必須)。** execCov は仕掛中の*量*であって出来高ではない(implementing に居座るだけのタスクも算入)。
+  **EV% との算術和=全体進捗としての提示は禁止**(次元が異なる;R-S4/R-S6 同型)。実際の前進は R-S7 乖離・P6 リード
+  タイムと対読み。EV%・estimateCoverage と三者併置。
+- **合意済みのみ(execCov 独自条文)。** 未合意の implementing 葉は分子・分母外で estimateCoverage の可視ギャップ
+  (P0)に現れる(EV% の R-U8 と思想同型だが条文は別)。
+- **残余開示(§7#13)**: count-based ゆえ effort 非加重(粗さは scheduleCoverage と同性質・予算加重は R-U8/L47 抵触
+  ゆえ意図的に不採用)/ 忠実度は implementing 記録に依存(ready→implemented スキップは直接 done)/ 生きた状態ゆえ
+  変動的(凍結の scheduleCoverage より)・値は平準化非依存だが implementing 遷移のタイミングは運用依存。
+
+独立採点者(moira-gate-judge)の残存 Critical/Important = 0(PASS)。新公理・新イベント・新状態・新原理番号なし。
+新要件は **R-S8 一件**。R-U8/L47/P1/EV_abs/SPI/CPI/PV は不変。
+
 ## 未解決の論点 / 次の一手
 
 - **次の一手**:検証シナリオ **S4(健全性のリアルタイム把握)を一本貫き**、4イベントを fold して EV%+カバレッジ+SPI/CPI を導出する最小バックエンドで「イベント→導出→表示」の型を作る。
