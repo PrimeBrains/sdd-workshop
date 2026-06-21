@@ -13,7 +13,7 @@
 1. **`ForecastRow.frozenSlot` は完了葉でも `null` になりうる**（`types.ts:152-156`, `pv.ts`, MODEL:197）。c=0 の日だけ働いて完了した葉＝「完了・未スケジュール」。稲妻線の完了葉Xを一律 `frozenSlot` に置く設計は禁止（null を 0/asOf に代入した瞬間 P0・R-S6 違反）。→ **第三状態「完了・未スケジュール（PV不算入の可視ギャップ）」を明示描画**。
 2. **視点 actor は backend に無い**。三キュー＝`kind`（作業/レビュー/エージェント, `queues.ts`）であって「自分/他者」ではない。**actorフィルタは「全員/人間/エージェント」に確定**、「自分」キューは backend 拡張までグレーアウト予約。
 3. **trend 系列・valid-time c が無い**（`http.ts` は `/derived?asOf=` 単発、`capacityOf` に as-of 引き無し、MODEL:479 が valid-time 未担保と明言）。**trend/前日比は valid-time c lookup 新設までブロッカー**、それまで「単一 asOf のみ正・過去点は描かない」に縮退。
-4. **CCPM/buffer/fever/isBuffer は backend にも MODEL にも無い**。「isBufferノード由来」表現を全廃。**Fever は確定 `DerivedState` とは別型の provisional 専用ソースのみ**から供給し、未供給時は空状態を正直表示。
+4. **スケジュール・バッファは MODEL v15（R-T6）で正典化されたが backend には未実装**。期日・目標日を構成入力とし、**バッファ残量 = max(0, 期日 − 導出完了)**・消費率を**スケジュール・カバレッジ対読みで de-rate**して導出する（R-T6/§3）。**ただし `isBuffer` ノードは A1 違反ゆえ不採用**（「isBufferノード由来」表現は全廃のまま）、**CCPM のバッファ生成・工数軸（BAC×想定生産性）・ゾーン閾値は不採用**（§5・§7#11）。backend に確定導出ができるまでは **Fever/buffer は別型の provisional 専用ソースのみ**から供給し、未供給時は空状態を正直表示（fever 風の消費%×進捗% 可視化は提示の自由 P0、ただし正典のバッファ定義は二参照日付＋導出完了であって安全余裕集約ではない）。
 5. **`cumulativeEvAbs` は supersede 込・cancelled（サンク）除外**（`ev.ts:39`）。「サンク込」表記は誤り。サンク EV_abs を出すなら別系列（backend 拡張依存）。
 6. **`level`（木の深さ）フィールド無し**（`parent`/`childrenOf` のみ）。インデントは **`effectiveLeaves`/有効木に限定した深さ**を UI が `childrenOf` から算出（supersede/cancelled で抜けた子を飛ばす）。
 7. **`staleCause`・`commit-decision` 無し**。R-S7「原因別」Pill と contract改定→inbox 第5判断連動は backend 追加までブロッカー（未実装の間は「stale（原因未分類）」に縮退・contract 再分類を UI で生成しない）。
@@ -171,7 +171,7 @@ evm-app のジグザグ SVG path・clipPath 左右色分け・基準日縦線・
 | R-S7 原因別 stale | `ForecastRow.staleCause` | なし | 「stale（原因未分類）」 |
 | 「自分」キュー | derive の視点 actor パラメータ化 | なし | グレーアウト予約 |
 | contract改定→inbox 第5判断 | `commit-decision` 導出 | なし | 連動保留（履歴のみ） |
-| CCPM Fever/buffer | isBuffer/buffer/fever の正典化＋導出 | **MODEL 変更要（moira-model-update）** | provisional 空状態 |
+| スケジュール・バッファ残量/消費率 | 期日・目標日の構成入力＋ D_pred からの導出（R-T6） | **MODEL v15/R-T6 で正典化済**（isBuffer/CCPM生成/工数軸は不採用） | provisional 空状態（backend 導出までは別型ソースのみ） |
 
 ---
 
