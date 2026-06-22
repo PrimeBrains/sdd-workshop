@@ -21,6 +21,9 @@ Moira の正典モデル `moira/MODEL.md`(v16) は「スケジュール・割当
 6. **未割当フィルタ** — 未割当ノードの絞り込み。
 7. **人別日次充当健全性** — 人ごとの c(i,d) 充当（過負荷 R-T3 の可視化は read）。
 8. **actor フィルタ（母 view）** — 三キュー（作業/レビュー/エージェント）= P4 の同一クエリ actor フィルタ違い。
+9. **期日超過アラート（R-T4）** — 導出スケジュールが外部期日を超えたことを read で表示し、判断（health）・実行への deep-link を提供する。
+10. **P5 at-risk（解放済み後続）** — 起点ノードの後退で危うくなった解放済み後続を Gantt の副 host として read 表示し、起点ノードの再到達 write へ deep-link する。
+11. **R-C3 キャンセル孤児** — cancel で永久充足不能となった依存（孤児）を文脈ビューとして read 表示し、辺除去/付替/後続 cancel の write へ deep-link する。
 
 ## Approach
 - MODEL を SSOT、UI-ARCHITECTURE を派生設計の接地点として、参照実装 `surfaces/schedule/*` の seam に design を整合させる。

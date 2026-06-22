@@ -65,7 +65,7 @@ Moira の正典モデル `moira/MODEL.md`(v16) は「見積はボトムアップ
 ## Existing Spec Touchpoints
 - 上流: `moira-core`（生成済 requirements.md）。本 spec は core の契約概念を消費（再定義しない）。
 - 参照実装（`moira/backend`・`moira/frontend`）に ingestion 実装は無し（read-only producer を新設）。design はこの producer パターンに整合させ、出力スキーマは MODEL（§2.2/§2.3/§2.6・R-E1/E1b/E2）準拠とする。
-- roadmap 注: 本 spec は「0c が単一ソース確定なら spec-ingest skill へ吸収（条件付き存続）」。本 requirements は read-only 正規化の責務を独立に定義し、吸収可否は後段の判断に委ねる。
+- roadmap 注: 本 spec は「0c が単一ソース確定なら spec-ingest skill へ吸収（条件付き存続）」と記されていたが、requirements は 0c の方法論非依存化が多ソースを許す（単一ソース確定でない）ため吸収条件は不成立と判断し、spec-ingest skill とは別の read-only 正規化責務として独立 read spec に凍結する。
 
 ## Constraints
 - `moira/MODEL.md` v16 を **SSOT として凍結遵守**。MODEL の文言を勝手に変えない・新概念を足さない（spec は MODEL の実装落とし込み）。モデル変更は `moira-model-update` ゲート経由のみ。

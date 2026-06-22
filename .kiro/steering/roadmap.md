@@ -103,10 +103,10 @@ health後 `reschedule` → 全導出後 `evm-digest,ticket-project[0b]`。
 - [ ] moira-evm -- EV_abs/EV%/cumulative/見積被覆/exec被覆(R-S8)/PV/AC/SPI/CPI/sunk(R-C2)/R-U9 可視ギャップ会計。P0–P2,R-U8/U9/U10,R-S1/S3(検出)/S4/S8。Dependencies: moira-core
 - [ ] moira-schedule -- leveler(P7/P8)/予測/baseline slot/未割当backlog/schedule被覆/D_pred/buffer(R-T6)/queues(P4)/R-S6/S7/R-T1–T4(検出)。R-U11。Dependencies: moira-core [0a 軽]
 - [ ] moira-scope-deps -- tree+DAG/依存・supersede辺読み/effective-set 消費(core 所有)/ready-eligible 導出(R-D1/D2/D4 述語評価; ready 状態自体は progress が emit)/辺述語の母集合=全葉(cancelled 含む→永久充足不能は R-C3 へ)/orphan(R-C3読)/restoration(R-S5読)。R-D7(辺の読み),R-C1(読),§2.7。Dependencies: moira-core [0a]
-- [ ] moira-ingestion-adapter -- spec-unit→ノード候補+見積提案の read-only 正規化。0c が単一ソース確定なら spec-ingest skill へ吸収（条件付き存続）。Dependencies: moira-core [0a,0c]
+- [ ] moira-ingestion-adapter -- spec-unit→ノード候補+見積提案の read-only 正規化。独立 read-only producer として凍結（0c は多ソース対応の方法論非依存化ゆえ単一ソース確定でなく、spec-ingest 吸収条件は不成立）。Dependencies: moira-core [0a,0c]
 - [ ] moira-health -- 9 warning(R-U12/U13/T3/T4/S3/S6/S7/C3 + P5 at-risk)検出+行為列挙の単一定義(導出層)+clearance(§2.1)。R-S6 は de-rate 型＝inbox 非集約(8集約+R-S6 常駐=9)。Dependencies: moira-evm, moira-schedule, moira-scope-deps
 - [ ] moira-surface-spec-value -- ノード木(アコーディオン+進行中上位)/トレーサビリティ+DAGビューア(再利用部品)/見積被覆/EV%(R-S5)/被覆=行クリック明細/proposed停滞フィルタ/深リンク。Dependencies: moira-evm, moira-scope-deps [0d]
-- [ ] moira-surface-schedule -- Gantt+DAGビューア/担当常時表示/未割当=Gantt内赤/付替プルダウン/R-S7陳腐(原因別)/未割当フィルタ/人別日次充当健全性。Dependencies: moira-schedule [0d]
+- [ ] moira-surface-schedule -- read-only 母 view(R-S2)/Gantt+DAGビューア(予測+凍結slot両表示)/ノード状態副host/担当常時表示/未割当=Gantt内赤(+フィルタ)/付替プルダウン/R-S7陳腐(原因別)/人別日次充当健全性(R-T3)/actor種別フィルタ(P4)/SPI+scheduleCoverage de-rate strip(R-S6 副host;主host=health)/R-T4期日超過read/P5解放済み後続 副host/R-C3キャンセル孤児 文脈view。Dependencies: moira-schedule [0d]
 - [ ] moira-surface-health -- EV_abs/EV%区別/PV/AC/SPI(R-S6 de-rate; 副host=schedule-time)/CPI/人別CPI時系列(人別SPIは MODEL §2.4 単一assignee・PV非actor帰属で非対象)/CCPMフィーバー/buffer/明快メトリクス(見積被覆+PV/EV/BAC)。Dependencies: moira-evm, moira-schedule, moira-health [0d]
 - [ ] moira-surface-decision -- 薄: warning読+深リンク+詳細/次action/判断基準(導出層=health の行為列挙を読む)+新規vs常設(P0)+capacity heatmap は deep-link で capacity config 面へ(decision 面は host しない)。Dependencies: moira-health [0d]
 

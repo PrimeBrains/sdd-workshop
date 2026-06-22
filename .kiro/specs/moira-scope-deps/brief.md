@@ -15,7 +15,7 @@ Moira の正典モデル `moira/MODEL.md`(v16) は、プロジェクトを「見
 `moira-scope-deps` は、`moira-core` の契約を消費しつつ次の **構造・依存の読み出し導出**を所有する:
 1. **tree+DAG の二重グラフ読み出し** — 木（所属 §2.6）と DAG（論理依存 §2.6）を混同せず区別して読み出す（A3）。
 2. **依存/置換（supersede）辺の種別分離** — 依存辺は ready 判定に使い、置換辺は ready 判定に使わない（§2.7・R-D7 辺）。
-3. **ready 導出（R-D1/R-D2）** — 先行群が辺の閾値ポリシーを満たしたとき ready をマーク、未指定時は辺種別別既定（仕様フェーズ辺 `accepted` / 実装タスク辺 `implemented`）を適用。
+3. **ready-eligible 導出（R-D1/R-D2）** — 先行群が辺の閾値ポリシーを満たすという適格性述語（ready-eligible）を導出し、未指定時は辺種別別既定（仕様フェーズ辺 `accepted` / 実装タスク辺 `implemented`）を適用。`ready` 状態そのものは `moira-progress` が emit する lifecycle 状態であり、本 spec は適格性データを導出するのみ（ready 二語分離: 状態=lifecycle / 適格性=本 spec 導出）。
 4. **述語評価（R-D4）** — 流入辺を「源配下の全葉がポリシー充足」という論理述語として評価し、辺を物理増殖させない。
 5. **cancel 孤児の検出（読み・R-C3, R-C1 読）** — 先行が cancelled へ遷移し閾値が永久充足不能になったとき、被ブロック後続・未充足辺・取りうる行動を **特定（警告データの生成）**。**自動キャンセルせず**（解消＝書きは cancel-scope skill）。
 6. **restoration の読み出し（R-S5）** — supersede 元（新ノード）が cancelled のとき旧ノードが現行有効集合へ復帰することを、`moira-core` の effective-set 導出規則に接地して読み出す。

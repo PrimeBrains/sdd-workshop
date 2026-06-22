@@ -4,7 +4,7 @@
 
 `moira-health` は Moira 正典モデル `moira/MODEL.md`(v16, 凍結) を本番アーキテクチャへ落とす **CQRS 分解の Wave2** であり、MODEL の中核思想「システムは観測・導出・警告に徹し、コミットメントを伴う判断は人間に残す」(§0/§2.1) のうち **警告(warning)の確定・集約・clearance(消滅)** を単一の責務として所有する read=導出 spec である。具体的には次を所有する:
 
-1. **9 警告の確定・集約** — R-U12/R-U13/R-T3/R-T4/R-S3/R-S6/R-S7/R-C3 および P5 at-risk を、下流 derivation(`moira-evm`/`moira-schedule`/`moira-scope-deps`)が出す検出データを受けて**現在の導出状態に対する述語**として確定し集約する(判断型 8 件を decision インボックスへ集約、de-rate 型 R-S6 は inbox 非集約＝常駐メトリクス修飾という集約形に分類する; R-S6 の SPI de-rate 消費は `moira-evm`、提示は `moira-surface-health` が所有し health は分類のみ; UI-ARCHITECTURE §4.2/§3)。
+1. **9 警告の確定・集約** — R-U12/R-U13/R-T3/R-T4/R-S3/R-S6/R-S7/R-C3 および P5 at-risk を、上流 derivation(`moira-evm`/`moira-schedule`/`moira-scope-deps`)が出す検出データを受けて**現在の導出状態に対する述語**として確定し集約する(判断型 8 件を decision インボックスへ集約、de-rate 型 R-S6 は inbox 非集約＝常駐メトリクス修飾という集約形に分類する; R-S6 の SPI de-rate 消費は `moira-evm`、提示は `moira-surface-health` が所有し health は分類のみ; UI-ARCHITECTURE §4.2/§3)。
 2. **clearance(消滅トリガー)の単一定義** — 各警告が「条件を偽化する入力(4 イベント追記 または 構成入力 c/期日/目標日 変更)」でのみ消え、acknowledge(イベント無し)では消えないこと(§2.1 警告持続)。
 3. **行為列挙(取りうる行為)の単一定義** — 各警告が提示する行為候補を**導出層に一度だけ**定義し、下流(`moira-surface-decision`/`moira-evm-digest`)は読むだけにする(UI-ARCHITECTURE §6)。
 4. **可視ギャップ会計の保証** — 警告を可視ギャップの会計から除いてはならない(P0 falsifiable な線)。acknowledge/dismiss/seen の可変状態を持たない(最小性; §5)。
