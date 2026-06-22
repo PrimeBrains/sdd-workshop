@@ -18,7 +18,7 @@ Moira の正典モデル `moira/MODEL.md`(v16) は「追記専用 4 イベント
 3. **config-write API** — 第二層 期日/目標日（プロジェクト構成入力）の追記。
 4. **derive API** — 同一ログから R-S2 の導出群を読み出す単一オーケストレータ（読み出し専用・可変状態なし）。
 5. **データモデル** — イベント型、ノード ライフサイクル状態機械（pending→ready→implementing→implemented→accepted(+cancelled)）、見積合意機械（proposed→agreed、人間のみ）、effective-set（supersede×cancel 復帰規則）、latest-wins `(ts,id)`、二層データの境界。
-6. **不変条件 I1–I6 と R-D7 不変条件**（旧ノード不変・後退遷移禁止）を fold が機械的に担保（循環 relate 拒否・非人間 agreed 拒否）。
+6. **不変条件 I1–I6 と R-D7 の構造面**（旧ノード append-only 不変・supersede 非循環 I2）を fold が機械的に担保（循環 relate 拒否・非人間 agreed 拒否）。後退遷移は合法性では拒否せず記録し、その意味的異常の警告は下流（P5/`moira-health`）が担う。
 7. **永続化方式の決定**（roadmap: TBD の所在＝本 spec 設計。S4 縦スライスを基盤に永続層の境界を確定）。
 
 ## Approach
@@ -35,7 +35,7 @@ Moira の正典モデル `moira/MODEL.md`(v16) は「追記専用 4 イベント
 - `(ts,id)` 決定的マージ（I3/R-D5）、循環 relate 拒否（I2/R-D3）、非人間 agreed 拒否（I6/R-U4）。
 - effective-set 導出と supersede×cancel 復帰規則（R-S5）、累積 EV_abs basis と現行有効集合の区別（読み出し基盤）。
 - ベースライン二次元の凍結機構（予算=合意時 R-U7、スロット=初回スケジュール時、I4 完了施錠）の **記録機構**（属性として既存イベントに載せる）。
-- R-D7 不変条件（旧ノード不変・後退遷移で再オープン禁止・supersede 辺 新→旧・I2 で非循環担保）。
+- R-D7 の構造面（旧ノード append-only 不変・supersede 辺 新→旧・I2 で非循環担保）。旧ノードを後退遷移で再オープンしない表現規律は write skill 側（`relate-edit`/`decompose-author`）が担い、core は後退遷移を拒否しない（記録のみ）。
 - 永続化方式の決定（永続層の境界と再導出再現性の担保）。
 - 二層データ再導出契機（イベント追記 AND 構成入力 c/期日/目標日 変更）。
 
