@@ -50,9 +50,9 @@
     [store.tsx](../../moira/frontend/src/moira/store.tsx)(appendEvent/appendCapacity/derive)・[types.ts](../../moira/backend/src/types.ts)・[derive.ts](../../moira/backend/src/derive.ts)。
   - **行為列挙の単一定義**: `moira-health`（導出層）に一度だけ定義し、`surface-decision`・`evm-digest` が読む（UI-ARCH §6）。
   - **schedule coverage**: 導出は `moira-schedule`、SPI の de-rate 消費は `moira-evm`(R-S6)。
-  - **sunk EV**: cancel 意味論は `moira-scope-deps`(R-C2)、金額導出は `moira-evm`。
+  - **sunk EV / cancel**: cancelled の active basis 除外は `moira-core` の effective-set 機構が担い（**構造境界 core**）、sunk 金額導出は `moira-evm`、R-C3 孤児検出は `moira-scope-deps`(読)、cancel emit は `moira-cancel-scope`。
   - **warning 述語**: 検出データは各 derivation（schedule の overload/deadline、scope-deps の orphan）、警告確定/集約は `moira-health`。
-  - **effective-set**: 定義は `moira-core`、分母消費は `moira-evm`/`moira-schedule`/`moira-health`。
+  - **effective-set**: 機構（supersede/cancelled 除外を含む現行有効集合の導出）は `moira-core` が所有、`moira-scope-deps`/`moira-evm`/`moira-schedule`/`moira-health` は消費（**構造境界 core**）。
   - **検出=読 / 解消=書 の分離**: R-S3/R-S6 等 de-rate・検出系は読 spec のみ（書 skill で解消しない）。
 
 ## Phase 0（前提・`moira-model-update` ゲート。分解より先に決着）
@@ -99,16 +99,16 @@ health後 `reschedule` → 全導出後 `evm-digest,ticket-project[0b]`。
 > 読/導出側のみ（`/kiro-spec-batch` がパース）。Wave=依存順。Phase 0 ブロック印 [0x] 付き spec は Phase 0 決着後に着手。
 > **brief.md は Phase 0 後に just-in-time で作成**（core/scope-deps=0a, surface=0d, ingestion-adapter=0c, derivation 系=Wave1 API 依存ゆえ前倒しは陳腐化）。
 
-- [ ] moira-core -- event store+fold+derive+ノード/合意 状態機械+effective-set+latest-wins(I3)+emit/derive API+二層データ。A1–A3,I1–I6,4イベント,R-U1/U2/U3/U6/U7,R-S5,R-D3/D4/D5/D6,R-D7不変条件(旧不変・後退禁止),P0。Dependencies: none [0a]
+- [ ] moira-core -- event store+fold+derive+ノード/合意 状態機械(ready 含む lifecycle)+effective-set 機構(supersede/cancelled 除外)+latest-wins(I3)+辺の型/policy 構造保持(R-D2 既定値の記録)+循環拒否(I2/R-D3)+cancelled 受理/fold(R-C1 構造面)+R-S2 オーケストレータ・シーム契約(値は下流供給)+emit/derive API+二層データ。**構造境界 core（構造/不変条件/機構のみ所有・評価/値/式は下流）**。A1–A3,I1–I6,4イベント,R-U1/U2/U3/U6/U7,R-S5(累積/現行 basis 機構),R-D3/D5/D6,R-D7(旧ノード append-only 不変・I2; 一般の後退遷移は記録し P5/health が警告),P0。R-D1/D2/D4 の述語評価・閾値適用は scope-deps。Dependencies: none [0a]
 - [ ] moira-evm -- EV_abs/EV%/cumulative/見積被覆/exec被覆(R-S8)/PV/AC/SPI/CPI/sunk(R-C2)/R-U9 可視ギャップ会計。P0–P2,R-U8/U9/U10,R-S1/S3(検出)/S4/S8。Dependencies: moira-core
 - [ ] moira-schedule -- leveler(P7/P8)/予測/baseline slot/未割当backlog/schedule被覆/D_pred/buffer(R-T6)/queues(P4)/R-S6/S7/R-T1–T4(検出)。R-U11。Dependencies: moira-core [0a 軽]
-- [ ] moira-scope-deps -- tree+DAG/依存・supersede辺/effective-set/ready(R-D1/D2)/orphan(R-C3読)/restoration(R-S5)。R-D7(辺),R-C1,§2.7。Dependencies: moira-core [0a]
+- [ ] moira-scope-deps -- tree+DAG/依存・supersede辺読み/effective-set 消費(core 所有)/ready-eligible 導出(R-D1/D2/D4 述語評価; ready 状態自体は progress が emit)/辺述語の母集合=全葉(cancelled 含む→永久充足不能は R-C3 へ)/orphan(R-C3読)/restoration(R-S5読)。R-D7(辺の読み),R-C1(読),§2.7。Dependencies: moira-core [0a]
 - [ ] moira-ingestion-adapter -- spec-unit→ノード候補+見積提案の read-only 正規化。0c が単一ソース確定なら spec-ingest skill へ吸収（条件付き存続）。Dependencies: moira-core [0a,0c]
 - [ ] moira-health -- 9 warning(R-U12/U13/T3/T4/S3/S6/S7/C3 + P5 at-risk)検出+行為列挙の単一定義(導出層)+clearance(§2.1)。R-S6 は de-rate 型＝inbox 非集約(8集約+R-S6 常駐=9)。Dependencies: moira-evm, moira-schedule, moira-scope-deps
 - [ ] moira-surface-spec-value -- ノード木(アコーディオン+進行中上位)/トレーサビリティ+DAGビューア(再利用部品)/見積被覆/EV%(R-S5)/被覆=行クリック明細/proposed停滞フィルタ/深リンク。Dependencies: moira-evm, moira-scope-deps [0d]
 - [ ] moira-surface-schedule -- Gantt+DAGビューア/担当常時表示/未割当=Gantt内赤/付替プルダウン/R-S7陳腐(原因別)/未割当フィルタ/人別日次充当健全性。Dependencies: moira-schedule [0d]
-- [ ] moira-surface-health -- EV_abs/EV%区別/PV/AC/SPI(R-S6 de-rate)/CPI/人別SPI・CPI時系列/CCPMフィーバー/buffer/明快メトリクス(見積被覆+PV/EV/BAC)。Dependencies: moira-evm, moira-schedule, moira-health [0d]
-- [ ] moira-surface-decision -- 薄: warning読+深リンク+詳細/次action/判断基準(導出層の行為列挙を読む)+新規vs常設(P0)+capacity heatmap=READ。Dependencies: moira-health [0d]
+- [ ] moira-surface-health -- EV_abs/EV%区別/PV/AC/SPI(R-S6 de-rate; 副host=schedule-time)/CPI/人別CPI時系列(人別SPIは MODEL §2.4 単一assignee・PV非actor帰属で非対象)/CCPMフィーバー/buffer/明快メトリクス(見積被覆+PV/EV/BAC)。Dependencies: moira-evm, moira-schedule, moira-health [0d]
+- [ ] moira-surface-decision -- 薄: warning読+深リンク+詳細/次action/判断基準(導出層=health の行為列挙を読む)+新規vs常設(P0)+capacity heatmap は deep-link で capacity config 面へ(decision 面は host しない)。Dependencies: moira-health [0d]
 
 ## 要件カバレッジ（是正後・全 R-* が landing）
 - 検出=読 / 解消=書 の分離。R-S3/R-S6 等 de-rate・検出系は読 spec のみ（書 skill で解消しない）。
@@ -119,7 +119,8 @@ health後 `reschedule` → 全導出後 `evm-digest,ticket-project[0b]`。
 - R-E1/E1b/E2→ingestion-adapter+spec-ingest／R-E2b→evm+decompose-author(§2.1#4 深さ判断は人間承認)/cost-log／R-E3/E4→evm+estimate-agree。
 - R-S1/S3/S4/S8→evm(+cost-log は S3 の AC 入力)／R-S2→core(append/構成入力変更で再導出)／R-S5→scope-deps+supersede(relate-edit+decompose-author)／R-S6→schedule(導出)+evm(de-rate)／R-S7→schedule+rebaseline/reschedule。
 - R-T1/T2/T5→schedule+assign-schedule／R-T3/T4→schedule 検出+reschedule／R-T6→schedule(buffer)+project-config(設定)。
-- R-C1/C3→scope-deps+cancel-scope／R-C2→evm(sunk)+cancel-scope／R-D1–D4→scope-deps+relate-edit／R-D5/D6→core+全 transition writer／R-D7→core(不変条件)+scope-deps(辺)+relate-edit/decompose-author。
+- R-C1/C3→scope-deps(検出読)+cancel-scope(emit)／R-C2→**core(effective-set の active basis 除外機構)**+evm(sunk 金額)+cancel-scope(emit)／**R-D 構造(辺型/policy 保持・非増殖・循環拒否 I2)→core、R-D1/D2/D4 述語評価・閾値適用→scope-deps、emit→relate-edit**／R-D5/D6→core+全 transition writer／R-D7→core(旧ノード append-only 不変・I2)+scope-deps(辺の読み)+relate-edit/decompose-author。
+- **doc-refine 確定（要件 doc-refine 敵対ゲート, 2026-06-22）**: 上記 R-D/R-C2/effective-set/ready の境界は「構造境界 core」ユーザー裁定で確定（core=構造/不変条件/機構, 下流=評価/値/式）。ready=lifecycle 状態(progress emit)＋ready-eligible 導出(scope-deps)の二語分離。R-D4 述語の母集合=全葉(cancelled 含む)。ingestion-adapter の est は MODEL §2.3 忠実に candidate ノード化。
 
 ## S1–S13 → 主 skill（0e で validation-scenarios を v16 化する際の指針）
 S1→spec-ingest+estimate-agree+decompose-author+relate-edit(R-D1)／S2→spec-ingest+estimate-agree(R-U9 は evm/surface)／

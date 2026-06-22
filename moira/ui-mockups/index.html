@@ -156,11 +156,11 @@
       </div>
 
       <div class="zone">
-        <h3>行為（write・単一定義）</h3>
+        <h3>行為への deep-link（write skill 起動・surface は read-only）</h3>
         <div class="acts">
-          <span class="act">proposed→agreed 合意 <span class="badge">R-U4</span></span>
-          <span class="act">再見積 <span class="badge">R-E3</span></span>
-          <span class="act">見積の深さ <span class="badge">R-E2b</span></span>
+          <span class="act">→ moira-estimate-agree（proposed→agreed 合意）<span class="badge">R-U4</span></span>
+          <span class="act">→ moira-estimate-agree（再見積）<span class="badge">R-E3</span></span>
+          <span class="act">→ moira-decompose-author（見積の深さ）<span class="badge">R-E2b</span></span>
         </div>
       </div>
 
@@ -199,7 +199,7 @@
       <div class="zone">
         <h3>未割当バックログ <span class="badge gap">P0 可視ギャップ</span> <span class="badge">R-U9</span></h3>
         <div class="small muted">• impl: パスワードリセット（未割当）<br>• impl: レート制限（未割当）</div>
-        <div class="acts" style="margin-top:6px"><span class="act">割当 transition <span class="badge">R-T5</span></span><span class="act">着手</span></div>
+        <div class="acts" style="margin-top:6px"><span class="act">→ moira-assign-schedule（割当 transition）<span class="badge">R-T5</span></span><span class="act">→ moira-progress（着手）</span></div>
       </div>
 
       <div class="warns">
@@ -238,8 +238,8 @@
       </div>
 
       <div class="zone">
-        <h3>行為（write）</h3>
-        <div class="acts"><span class="act">スコープ/期日判断 <span class="badge">R-T4</span></span><span class="act">再ベースライン</span></div>
+        <h3>行為への deep-link（write skill 起動・surface は read-only）</h3>
+        <div class="acts"><span class="act">→ moira-reschedule / moira-project-config（スコープ/期日判断）<span class="badge">R-T4</span></span><span class="act">→ moira-rebaseline（再ベースライン）</span></div>
       </div>
 
       <div class="warns">
@@ -253,7 +253,7 @@
   <aside class="panel area-inbox inbox">
     <h2>decision インボックス <span class="axis">— 横断・行為 / 層B</span></h2>
     <div class="body">
-      <div class="dim small">5コミット判断のうち4つ＋<b>判断を要する警告</b>を集約し、文脈ビューの write へ deep-link。<b>自前状態なし</b>（行為追記→導出再評価で条件が偽化した項目は自動消滅）。de-rate 型(R-S6/R-S4)は該当ダッシュボードの常時修飾ゆえ非集約。<span class="badge">P4</span> <span class="badge">§2.1</span></div>
+      <div class="dim small">5コミット判断のうち4つ＋<b>判断を要する警告</b>を集約し、各行から<b>対応する write skill 起動の deep-link</b>へルーティング（surface 自身は write しない＝CQRS）。<b>自前状態なし</b>（行為追記→導出再評価で条件が偽化した項目は自動消滅）。de-rate 型(R-S6/R-S4)は該当ダッシュボードの常時修飾ゆえ非集約。<span class="badge">P4</span> <span class="badge">§2.1</span></div>
 
       <div class="seccap"><span><b>判断要 8 件</b>（新規 6 / 据え置き 2）</span><span class="dim">据え置きも<b>会計に算入</b>（P0）</span></div>
 
@@ -314,7 +314,7 @@
   <section class="panel area-config">
     <h2>capacity · calendar <span class="axis">— config・二層目データ c / 層B</span></h2>
     <div class="body">
-      <div class="dim small">c(i,d) ∈ [0,1.0] の per-date 入力・理由付き改定。c 宣言の write はここ。<span class="badge">A4</span> <span class="badge">§2.1#5</span> <span class="badge">R-U14</span></div>
+      <div class="dim small">c(i,d) ∈ [0,1.0] の per-date <b>表示（read）</b>。c 宣言・理由付き改定の write は<b>→ moira-capacity 起動の deep-link</b>（surface は c を書かない＝CQRS）。<span class="badge">A4</span> <span class="badge">§2.1#5</span> <span class="badge">R-U14</span></div>
       <table class="cap">
         <thead><tr><th>人 \ 日</th><th>6/16(月)</th><th>6/17(火)</th><th>6/18(水)</th><th>6/19(木)</th><th>6/20(金)</th><th>α_i view</th></tr></thead>
         <tbody>

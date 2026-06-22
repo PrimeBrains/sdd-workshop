@@ -1,0 +1,23 @@
+{
+  "feature_name": "moira-schedule",
+  "created_at": "2026-06-21T16:00:00Z",
+  "updated_at": "2026-06-22T01:00:00Z",
+  "language": "ja",
+  "app": "moira",
+  "phase": "requirements-generated",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true
+    },
+    "design": {
+      "generated": false,
+      "approved": false
+    },
+    "tasks": {
+      "generated": false,
+      "approved": false
+    }
+  },
+  "ready_for_implementation": false
+}
