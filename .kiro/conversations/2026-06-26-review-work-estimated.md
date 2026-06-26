@@ -67,5 +67,19 @@ source: claude-code-session
 - **理由:** review-work-estimated §7 が「requirements-spec-returned の同期は agreed 後に別タスク」と予告した、その実行。計画段階前倒しを正規経路とした以上、レビューノードの誕生は前提に属し、本ユニットは実行のみを描くのが正しい。
 - **覆った判断:** （旧 requirements-spec-returned）Before 30%・「太郎がレビューに入る時点でノードを立てる」→ Before 27%・「ノードは計画段階で既存」へ。
 - **review-work-estimated 側の付随修正:** §7 の「先例＝requirements-spec-returned.md e071」（除去された ID への参照）を是正、「同期済み」へ更新。
-- **検証:** doc-fact-checker＝6/7 CONFIRMED（残 1 は派遣時点の旧版読みで既修正）、doc-adversary＝Critical 2・Important 1 はいずれも派遣時点の旧版（30%/希釈）読みで修正済み、新規 FYI（e071 相互参照）を是正。grep で 27%→27%→9% の一貫と旧記述ゼロを確認。
+- **検証:** doc-fact-checker＝6/7 CONFIRMED（残 1 は派遣時点の旧版読みで既修正）、doc-adversary＝Critical 2・Important 1 はいずれも派遣時点の旧版（30%/希釈）読みで修正済み、新規 FYI（e071 相互参照）を是正。
+
+## 追補2：波及同期（分母12.5・6葉）（2026-06-27）
+
+- **論点:** review-work-estimated は計画段階で**3つ**のレビュー作業ノード（要件定義1・設計1・タスク0.5＝計2.5人日）を一括作成・合意する。ところが追補1の requirements-spec-returned 同期は旧来の「review-req 1つだけ」を引き継ぎ**分母11**にしており、review-work-estimated（全3ノード＝分母12.5）と内部矛盾していた。
+- **決定（ユーザー裁定）:** 「分母12.5で全ユニット整合」を選択。下流の EV%/分母を持つ全ユニットを **6葉・見積総和12.5** に揃える。
+- **波及範囲の確定:**
+  - **requirements-spec-returned**: 分母11→**12.5** に再修正。EV% 27→**24**(Before/During)・9→**8**(After)、実行カバレッジ 25→**17%**(1/6)、P2 4/4→**6/6**。設計/タスクのレビューを結合行で木に追加。
+  - **requirements-spec-drafted**: 6葉・12.5で同期。作成完了時 EV% 30→**24%**、打鍵中ピーク実行 1/3→**1/6**(17%)、P2 3/3→**6/6**。要件定義 implemented で要件定義レビューが ready（policy=implemented）、設計/タスクのレビューは pending。
+  - **assign-spec-provisional**: EV%/分母を持たず（未割当バックログ件数のみ）・位置独立（review-work-estimated より前に置ける）ゆえ**変更不要**。
+  - **cancel-task-midway**: 実装タスク（A/T/B）のキャンセルが主題でフェーズレビューと無関係・別の木ゆえ**対象外**（独自の P2 旧基底 75% 等は別件）。
+  - **review-work-estimated**: §7 の同期記述を「30%→24%」へ更新（追補1で書いた 30%→27% は本カスケードで上書き）。
+- **理由:** review-work-estimated が 3 ノードを計画段階で作る以上、下流の全木は 6 葉・分母 12.5 が唯一整合的。1 葉・分母 11 は不完全だった。
+- **覆った判断:** （追補1）requirements-spec-returned を分母11・4葉 → 分母12.5・6葉へ。EV% 27→24・9→8。
+- **検証:** doc-fact-checker＝**NO_OBJECTION**（見積総和12.5・24/24/8・1/6≈17% を独立再計算で確認、review-work-estimated の見積値1/1/0.5・ノードID・policy=implemented と整合、MODEL R-U8/R-S8/§3 葉基底と整合、陳腐値残存は migration 文脈のみ）。両ファイルを grep で旧値ゼロ確認。grep で 27%→27%→9% の一貫と旧記述ゼロを確認。
 
