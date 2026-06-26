@@ -227,6 +227,20 @@
 
 独立採点者(moira-gate-judge)の残存 Critical/Important = 0(PASS;参照実装 coverage.ts/effective-set.ts/fold.ts/ev.ts と照合)。新公理・新イベント・新状態・新原理番号・新要件番号なし(P2 基底の是正のみ)。
 
+## 確定済みの分岐(v19 editorial: クリティカルパスへのエージェント算入を de-condition)
+
+> PROPERTIES.md の未 bound 穴埋めレビュー中、人間(プロダクトオーナー)が PR-CRITPATH-AGENT の「人間後続を律速する場合(A→H)に限り算入」という留保に疑問を呈し、「クリティカルパス可視化はバッファ管理の前提として実現すべき・エージェント所要時間は実時間ゆえ常に算入されるべき」と判断。moira-model-update の敵対ゲート(R1: moira-adversary×3〔V1–V6 分担:最小性/空虚性・矛盾/完全性・過剰主張/同期網羅〕→ 著者パッチ → moira-gate-judge PASS)を経て確定。
+
+- **【ユーザー裁定 FORK①】版の扱い → 「editorial・v19 据え置き」を選択**(他候補:semantic として v20 へ版上げ)。根拠=P7 第2文が既に「全依存連鎖の最長路」と無条件を明言し、参照実装 `leveler.ts` の `cp=durationDays+max(全後続)`(agent `durationDays=ceil(est)`)も既に無条件——内的矛盾(条件付き例 vs 無条件定義)を定義側へ解消する editorial であり導出・数式・状態機械を変更しない(v16 Phase 0 同型)。
+- **【著者裁定 FORK②】tail エージェント=deliverable か housekeeping か → 区別を持たない**。A1(全ノードは遂行され出来高を生む作業)＋最小性により、全有効・スケジュール済み葉が D_pred に寄与する(新軸を足さない=空虚な P0 溶解でない)。
+- **中核の是正:** P7 本文・R-T2(JP/EN) を「後続の種別を問わず——後続が無くても——パス長へ寄与・A→H は代表的構成であって寄与の条件でない」へ。過剰主張を封じ込め『**置換辺=supersede は含まない**(R-D7/§2.7)』『寄与の対象は**有効・割当済みの葉に限る**(P0;未割当・cancelled は §3/R-C2)』を明記し「無条件」の射程を後続種別のみに限定。P7 タイトルを「人間接点が**主たる**律速」へ、R-T4 括弧注を「末端・中間いずれにあっても」へ同期。実装注意・バグ来歴は P7 定義本文へ混ぜず §6 来歴へ集約(敵対者の形式違反指摘を是正)。
+- **動機(falsifiable):** 条件付き(A→H 限定)の字義実装は末尾エージェント(人間後続なし)を D_pred から漏らし、R-T4 期日超過アラートの偽陰性(v10→v11／思考実験07 が是正したバグ)を再発させる。本 editorial はその予防＝仕様の明確化。
+- **波及同期:** `leveler.ts` の条件付きコメント(2箇所)を是正、`PROPERTIES.md` PR-CRITPATH-AGENT を同一 run で再批准(無条件・supersede 除外・スケジュール領域限定を反映、`proposed` 維持・★impl-pending 解除)。
+- **別タスク(開示):** 下流 spec `moira-schedule/requirements.md`(Req2 AC3・Req8 AC1 の "rate-limiting a human successor" 条件付き文言)の同期と、NAMING §7 への「クリティカルパス／D_pred」語彙追加は kiro 系所管の別タスク。
+- **impl 状態の正直化:** D_pred の集約 read・R-T4 アラートは現状未実装(§7#10・PROPERTIES ★impl-pending)。クリティカルパス自体は leveler が cp／予測完了を算出済み。
+
+独立採点者(moira-gate-judge)の残存 Critical/Important = 0(PASS)。**版番号据え置き(v19)**・新公理・新イベント・新状態・新原理番号・新要件番号なし(P7/R-T2 の意味論明確化のみ)。
+
 ## 未解決の論点 / 次の一手
 
 - **次の一手**:検証シナリオ **S4(健全性のリアルタイム把握)を一本貫き**、4イベントを fold して EV%+カバレッジ+SPI/CPI を導出する最小バックエンドで「イベント→導出→表示」の型を作る。

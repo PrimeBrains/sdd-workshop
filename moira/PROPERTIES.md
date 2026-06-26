@@ -1,6 +1,6 @@
-# Moira プロパティ目録（不変条件カタログ）v0.2
+# Moira プロパティ目録（不変条件カタログ）v0.3
 
-状態: **全23プロパティ agreed（人間批准済み・v0.2）**。方針は [.kiro/steering/moira-verification.md](../.kiro/steering/moira-verification.md)、正典は [MODEL.md](MODEL.md)。
+状態: **既存23プロパティ agreed（人間批准済み・v0.2）＋ 新規29プロパティ proposed（未 bound 穴埋め・批准待ち）**。方針は [.kiro/steering/moira-verification.md](../.kiro/steering/moira-verification.md)、正典は [MODEL.md](MODEL.md)。
 
 本目録は、MODEL の不変条件（オラクル）を**人間がレビューできる平易な一文**に落とし、実行可能なテスト（PBT・境界モデル検査・否定）の**一次仕様**とするもの。実行テストはこの一文の形式化した射影を目指す。
 
@@ -16,6 +16,7 @@
 - 各行は「**固定する量**」と「**意図的に FREE な量**」を必ず持つ（何を縛り何を開けるかを人間が見える化）。
 - **レビュー**列: `proposed`（AI 起案・人間未批准）/ `agreed`（人間批准済み）。
 - 計器: **PBT**=参照実装に対する性質テスト／**MC**=MODEL を仕様とする境界モデル検査／**DENY**=書かない・否定プロパティ。
+- **★impl-pending** 印: 参照実装 `moira/backend` に当該導出がまだ無いため、実行テスト化は実装到達後（仕様＝MODEL に対しては今すぐレビュー可）。
 
 ---
 
@@ -34,6 +35,20 @@
 | PR-COST-NEUTRAL | P6・R-U10 | コストを足しても実コスト(AC)が増えるだけで、達成率(EV%)・出来高(EV_abs)・予定価値(PV)・SPI は**動かない**（CPI は AC が分母なので動く——これは正しい挙動） | cost 追記で EV%/EV_abs/PV/SPI 不変 | AC 増分・CPI の変動 | agreed |
 | PR-COST-DEDUP | §2.8 | 同じコスト記録(同じ id)を二重に入れても**二重計上されない**。一方、本当に二度働いた(別 id)場合はちゃんと加算される | 同 id は no-op／別 id は加算 | 額 | agreed |
 | PR-PV-EXCL | §3 | 予定価値(PV)には、**合意済みかつスケジュール済み**のタスクだけが入る。どちらか片方だけのタスクは入らず、可視ギャップになる | PV は合意済み AND スケジュール済みの 2 条件。キャンセル除外は effective-set 経由（PR-CANCEL-EXCL） | 具体 PV 値 | agreed |
+| **PR-COVERAGE-LEAF** | P2・I1・R-S4 | 見積カバレッジは「**合意済みの有効な葉 ÷ 既知の有効な葉**」で測る。葉がぜんぶ合意済みなら 100% に達し、まとめ役の中間ノードは分母に数えない。supersede／キャンセルされた葉も分母に入らない | カバレッジ=合意済み有効葉/既知有効葉（葉基底）・全葉合意→100%・中間ノード非算入・supersede/cancelled 葉除外 | 木の形・葉の数 | proposed |
+| **PR-COVERAGE-DISCOVERY** | R-E1b・R-E4・P2 | 実装作業が「**未見積の葉**」として現れるとカバレッジは下がり（＝やるべき作業を新たに発見した）、その葉に人が見積を合意するとカバレッジは戻る。この間、確定済みの出来高(EV_abs)は動かない | 未見積葉誕生でカバレッジ低下・合意で回復・EV_abs 不変 | 低下幅・回復タイミング・木の形 | proposed |
+| **PR-EXECCOV** | R-S8 | 「**いま手をつけている作業の割合**」（実行カバレッジ）は、合意済みの有効な葉のうち着手中のものの数の比で測る。これは仕掛かりの“量”であって出来高ではないので、達成率(EV%)と足し算して全体進捗にしてはいけない。見積をやり直しても動かず、状態が変わったときだけ動く（着手中がゼロなら 0） | execCov=着手中の合意済み有効葉/合意済み有効葉（数比）・EV% と非加算・再見積で不動・分母 0→0 | 具体値・どの葉が着手中か | proposed |
+| **PR-CAP-DOMAIN** | A4・R-U11 | 人の一日の容量は **0〜1.0** の範囲で、指定のない日は 1.0 として扱う。休暇（容量 0）の日には計画作業が載らない。容量は「使える時間」であって能力ではない | c∈[0,1.0]・未指定日=1.0・c=0 日は計画作業ゼロ・能力非モデル化 | 具体容量値・暦 | proposed |
+| **PR-CAP-HISTORY** | R-U14・A4 | 各人の容量の変更は**理由付き・追記専用**の履歴として残り、過去のある時点のスケジュールを同じ入力からもう一度導ける | c 履歴=追記専用・理由付き・同入力で再現一致 | 変更回数・理由文言 | proposed |
+| **PR-AGENT-UNLEVELED** | A5・R-U11・P7・R-T1 | 容量の制約（平準化）を受けるのは**人間だけ**で、エージェントは制約を受けず遊休してよい。人を増減させてもエージェントの予定本数は容量で削られない | 平準化対象=人間のみ・エージェント非制約 | 充填順・具体スロット | proposed |
+| **PR-CRITPATH-AGENT** | R-T2・P7・P6 | プロジェクトの着地予想（導出完了日）は、依存関係のうち**最も長い経路＝クリティカルパス**で決まる。エージェント作業は容量平準化の対象外（人を増減しても予定本数は削られない）だが、その所要時間は**実際に経過する時間**なので、人間作業と同じく**無条件にパス長へ算入される**——後続が人間でも、後続が無い末尾のエージェント作業でも、完了日を正しく後ろへ動かす（『人間の後続を待たせている場合』はその代表例にすぎず、算入の条件ではない） | クリティカルパス＝依存辺のみの全依存連鎖の最長路（置換辺=supersede は除く）・エージェントのリードタイムも後続種別を問わず無条件にパス長へ算入（末尾エージェント含む）・対象は有効・割当済みの葉・容量平準化は人間のみ | 具体日数・どの経路が最長か | proposed |
+| **PR-EDGE-POLICY** | R-D2 | 依存のつながりごとに「どこまで進めば次に進めるか」の閾値を持ち、指定がなければ種別ごとの既定（仕様フェーズのつながり＝承認済み、実装のつながり＝実装完了）を使う | 閾値=辺ごと属性・既定（仕様=accepted／実装=implemented） | 具体閾値の明示指定 | proposed |
+| **PR-ASSIGNEE-REVIEWER** | R-T5・§2.4 | 一つの作業の担当者は**常に一人**で、新しく名指すと前の担当を置き換える。レビュー担当(reviewer)は担当者とは**別枠**で、人間に限られ、名指しても容量平準化・出来高・予定価値・各カバレッジは**一切動かない** | 担当単一・latest-wins／reviewer は人間限定・別軸・会計非干渉 | 担当・reviewer の具体人物 | proposed |
+| **PR-FROZEN-REASON** | R-U7 | 見積は「**最新値**」と「**理由付きの凍結値**」を別々に持ち、凍結値を書き換えるときは必ず理由を要する | 最新値と凍結値を別保持・凍結改訂は理由必須 | 具体値・理由文言 | proposed |
+| **PR-SUPERSEDE-SHAPE** | R-D7・§2.7・I2 | 完了済みを作り直すときは、古いノードを巻き戻さず、**新しいノードを立てて「新→旧」の置換辺**を張る。古いノードはそのまま不変で、その出来高は累積に残る。置換辺が循環を作ることはない | 置換=新ノード＋新→旧辺・旧不変・非循環 | ノード数・辺の数 | proposed |
+| **PR-EVENTS-ONLY** | R-U2・A2・R-U1 | 状態の変化は **4 種類の追記イベントだけ**で起こり、保存済みの状態を直接書き換えることはできない（同じイベント列を再生すれば同じ状態になる） | 状態変化=4 イベントのみ・直接変更拒否・再生決定的 | イベント内容 | proposed |
+| **PR-THRASH** | R-S3 | 出来高(EV_abs)が増えないのに実コスト(AC)が**一定期間ずっと増え続ける**ときは空回りとして警告する。一方、畳んだ見積作業のコストが一度だけ載るのは正常で、それ単独では警告しない | 持続的 AC 増＋EV_abs 不増→警告／単発の畳みコストは非警告 | 閾値・期間長 | proposed |
+| **PR-BUFFER-CLAMP ★** | R-T6・§3・R-T4 | バッファ残量は「**期日 − 見通し完了日**」で、マイナスにはせず 0 で止める（超過分は期日超過の警告側が持つ）。期日が無ければバッファは未定義、目標日が無ければ消費率は出さず残量のみ、目標日が期日より後なら構成エラーとして警告する | 残量=max(0,期日−D_pred)・消費率 clamp[0,1]・境界条件（期日/目標日の有無で N/A） | 具体日付・D_pred 絶対値 | proposed |
 
 ### メタモルフィック（PBT）
 
@@ -42,6 +57,8 @@
 | PM-ORDER-INV | I3 | イベントの**記録順を入れ替えても**（同じ時刻・同じ id の並びを保つ限り）、導出結果は完全に同じになる | (ts,id) 保存の並べ替えで導出同一 | 入力配列の物理順 | agreed |
 | PM-SCALE-INV | P1 | 全タスクの**見積と実コストを同じ単位で測り直す**（例: 日→時間、k=8）と、出来高・予定価値・実コストはすべて k 倍になるが、**達成率・SPI・CPI・各カバレッジは変わらない**（誰も余計に働いていない＝物差しを変えただけ）。完了予定日などの**時間軸は k 倍にならない＝対象外** | 見積 AND コストの単位換算スケール則（EV%/SPI/CPI/カバレッジ不変）／時間軸は非対象 | k 値 | agreed |
 | PM-CAP-MONO | §3 | 容量 c を下げると、どのタスクの完了**予測**も早くはならず、**予算総額は変わらない** | c 減で予測非早期化・予算総額不変 | 具体日付 | agreed |
+| **PM-REDERIVE-CONSISTENT** | R-S2・I3 | ログ全体から一気に導出しても、イベントを 1 件ずつ足しながら導出しても、結果は同じになる。容量・期日・目標日の変更も同じく再導出の契機になる | 一括導出=増分導出・構成入力（c・期日・目標日）変更も再導出契機 | 導出の物理手順 | proposed |
+| **PM-BUFFER-DEADLINE-MONO ★** | R-T6 | 期日を**後ろへ動かす**と、バッファ残量は減らない（増えるか同じ）。見通し完了日が変わらない限り、期日を縮めずに残量が増えることはない | 期日↑でバッファ残量非減少 | 残量の具体値 | proposed |
 
 ---
 
@@ -55,12 +72,21 @@
 | MC-CONFLICT | I3・R-U12 | 2人が同じタスクに違う値で合意しても（**時刻が同一でも異なっても**）、現行値は決定的に1つに定まり、**矛盾警告が立つ** | 全順序で現行値決定的＋警告 | ノード1・actor2・イベント2 | agreed |
 | MC-IDUNIQ | I3 | 2つの別々のイベントが**同じ時刻・同じ id** を持つこと（順序が非決定になる）は起きてはならない（拒否されるか決定的に扱われる） | (ts,id) 衝突の排除／決定性 | 小スコープ全順序 | agreed |
 | MC-SUP-CANCEL | §2.7・R-S5・R-C2 | supersede と cancel が**どんな順序で到着しても**、有効集合は正しく、出来高の二重計上も誤った脱落も起きない | 全到着順で有効集合正・EV_abs 整合 | ノード2・イベント≤4 | agreed |
+| **MC-CYCLE-REJECT** | I2・R-D3・A3 | つながり（**依存・置換のどちらでも**）が循環を作る場合、その追加は拒否される | 循環を生む辺は拒否（全辺種別） | ノード≤4・辺≤6 | proposed |
+| **MC-MACHINE-NAMED** | I5・R-D6 | すべての状態遷移は「**どの状態機械の遷移か**」を必ず名指す。名指さない遷移は無効 | 遷移は対象状態機械を明示 | 遷移列≤4・機械2種 | proposed |
+| **MC-AGREE-HUMAN** | I6・R-U4・R-U3 | 見積を「合意済み」にできるのは**人間だけ**で、エージェントが合意しようとしても拒否される（出来高に算入されない） | agreed の行為者=human・エージェント合意拒否 | ノード1・actor2 | proposed |
+| **MC-READY-THRESHOLD** | R-D1・R-D2・R-D4 | あるノードが着手可能(ready)になるのは、その先行群が辺の閾値（**配下の全葉が条件を満たす**という述語）を満たしたときだけ。分解しても辺は増殖させず述語で評価する | ready⇔先行が閾値充足（葉述語）・辺非増殖 | ノード≤4・辺≤4 | proposed |
+| **MC-CANCEL-TERMINAL** | R-C1・§2.5 | キャンセルは**どの非終端状態からも到達できる終端遷移**として記録し、イベントは消さない（取り下げは削除でなく追記） | cancelled=終端・全非終端から到達可・削除なし | ノード1・遷移列≤6 | proposed |
+| **MC-CANCEL-ORPHAN ★** | R-C3・R-D1・I2 | 先行をキャンセルして、その辺の条件が**永久に満たせなくなった**とき、システムは取り残された後続を警告するだけで、勝手にキャンセルはしない（判断は人間）。評価は有限で終わる | 永久充足不能→孤児警告・自動キャンセルなし・有限終了 | ノード≤3・辺≤4 | proposed |
+| **MC-UNAGREED-DONE** | R-U13・R-U8・I4 | 見積が**未合意のまま完了**に達したノードは「未合意完了」として警告され、その出来高(EV_abs)は算入されず、ベースライン予算も未確定のまま | 未合意完了→警告・EV_abs 非算入・予算未確定 | ノード1・遷移列≤4 | proposed |
+| **MC-OVERLOAD ★** | R-T3・A4 | 与えた割当が誰かの容量に収まらない（**容量 0 の日に実コストが付いた場合を含む**）と過負荷を警告する。割当変更や容量変更で条件が消えれば警告も消え、容量 0 日の単発実コストは一定期間で窓から外れて消える | 容量超過→過負荷警告・偽化入力で消滅・点事象は窓外で aging out | 人1・期間小スコープ | proposed |
+| **MC-DEADLINE-ALERT ★** | R-T4・R-T6・§2.1 | 見通しスケジュールが期日を超えると、**超過量を添えて警告するだけ**で、要員追加やスコープ削減を勝手にはしない。受容して何もしないだけでは消えず、コミット（スコープ削減・要員追加・期日変更）で期日内に収まったときだけ消える | 期日超過→警告のみ・超過量付き・コミットで消滅 | ノード≤3・遷移列≤4 | proposed |
 
 ---
 
 ## C. DENY（書かない／否定プロパティ）
 
-「やること」だけでなく「**意図的にやらないこと**」も記録する。これが無いと正しい挙動を誤ってバグ報告してしまう。否定プロパティは**到達 witness 必須**（条件を実際に踏んだ上で『黙る』ことを確認）。
+「やること」だけでなく「**意図的にやらないこと**」も記録する。これが無いと正しい挙動を誤ってバグ報告してしまう。否定プロパティは**到達 witness 必須**（条件を実際に踏んだ上で『黙る／単独で読まない』ことを確認）。
 
 | ID | 根拠 | 人間がレビューする一文 | 種別 | レビュー |
 |---|---|---|---|---|
@@ -69,132 +95,157 @@
 | DN-CAL-SILENT | §7（暦の穴） | 将来の休暇を入れ忘れても、システムは**警告しない**（既定1.0で楽観計算）。意図した穴で暦保守は人間の責任。検知を期待せず『黙る』ことを確認する | 否定（witness 付き） | agreed |
 | DN-DRIFT-SILENT | §7（ドリフト） | 記録上の c と実態のズレ（記録1.0だが実は休んでいた等）は**検知しない**。予測も凍結スロットも記録値から導くため。認識は人間の責任 | 否定（witness 付き） | agreed |
 | DN-MATURITY-BLIND | §7（前倒し） | 前倒し見積を早期合意するとカバレッジは回復するが、それが情報の薄い見積か成熟した見積かを**システムは区別しない**。成熟度の軸は持たない | 否定（witness 付き） | agreed |
+| **DN-EV-ALONE** | R-S4・P2・P0 | カバレッジが低い間は、達成率(EV%)を「プロジェクト全体の完了度」として**単独で読まない・提示しない**（必ずカバレッジと対で読む）。ゆえに『EV 単独＝全体進捗』とは**テストしない**（低カバレッジを実際に踏んだ witness 付き） | 否定（witness 付き） | proposed |
+| **DN-SPI-ALONE** | R-S6・§3 | スケジュール・カバレッジが低い間は、SPI を「全体の対計画進捗」として**単独で読まない**（未スケジュールの合意作業を可視ギャップとして示す）。『SPI 単独＝全体スケジュール進捗』とは**テストしない** | 否定（witness 付き） | proposed |
+| **DN-CPI-MODELING** | R-E2b・§7 | 見積作業を**ノード化するか畳むか**で CPI は変わる（ノード化は完了時に EV_abs へ、畳むと AC のみ）。これは設計どおりで、異なるモデル化選択の間で CPI が一致するとは**期待せずテストしない** | テスト禁止（選択間 CPI 一致） | proposed |
+| **DN-STALE-CONFIRM ★** | R-S7・§2.1 | 「見て確認したが据え置く」（＝非コミット）**だけ**では、ベースライン陳腐化の標識は消えない。乖離が続く限り可視ギャップとして残るのが正直であり、確認操作で標識が消えるとは**テストしない**（乖離を実際に踏んだ witness 付き） | 否定（witness 付き） | proposed |
+
+---
+
+## D. 構造・メタ条項（独立テスト対象でない＝具現で被覆）
+
+「やること／やらないこと」とは別に、**型・イベントモデル・他プロパティに具現されており単独の falsifiable テスト対象にしない**条項を明示する。これが無いと「未 bound（穴）」と「設計上テスト対象にしない」が混ざり、被覆率を誤読する。各行は**どこに具現／どのプロパティが間接被覆するか**を示す。
+
+| clause | 区分 | どこに具現／間接被覆 |
+|---|---|---|
+| A1 | 構造公理 | ノードのみが実体・チケットは読み取り専用射影。型・イベントモデルに具現。直接変更拒否は **PR-EVENTS-ONLY**(R-U2)、価値ロールアップは **PR-I1-ROLLUP**(I1) が間接被覆 |
+| A5（表現の対称） | 公理（表現面） | 人間とエージェントの**表現対称**（同一ログ・同一の提案者役割）は型に具現。資源の非対称は **PR-AGENT-UNLEVELED**、権限の非対称は **MC-AGREE-HUMAN** が bind |
+| P0 / R-U9 | メタ原理 | 「コミット領域のみを語り未コミットは可視ギャップ」は単独テストでなく、可視ギャップ系プロパティ（EV のカバレッジ・PR-PV-EXCL・DN-EV-ALONE・DN-SPI-ALONE 等）の**総体**として現れる |
+| R-U1 | 構造（=A1） | spec/ノードが唯一の真実・チケットは射影。A1 と同一論点 |
+| R-U3 | 構造 | 見積は出所を問わず `proposed`/`agreed` を持つ提案。型に具現。合意権限面は **MC-AGREE-HUMAN** |
+| R-U5 | 設計上の非対称 | 合意はノード単位・チェック項目は一括（粒度の設計上の非対称；MODEL §7#3 で開示済み） |
+| R-U6 | 構造 | スキル・習熟度をモデル化しない・割当は人間入力。型にスキル欄が無い＝具現。「容量は能力でない」は **PR-CAP-DOMAIN** が隣接被覆 |
+| R-E1 | 構造 | 見積の値と `proposed`/`agreed` 状態は被見積ノードに乗る。型に具現（見積作業のノード化有無は R-E2b／**PR-COVERAGE-DISCOVERY**） |
+| R-E2 | 構造（イベント） | 見積値は `decompose` で記録・合意は当該被見積ノード上の `transition`。イベント構造に具現。合意面は **MC-AGREE-HUMAN** |
+| R-S1 | 被覆済み | 完了時に見積寄与を凍結＝I4。**PR-DONE-LOCK**（完了 EV_abs 不変）が bind |
+| R-D5 | 被覆済み | 同一時刻は id で決定的順序＝I3。**PM-ORDER-INV・MC-IDUNIQ** が bind |
+| R-D6 | 被覆済み | すべての遷移は状態機械を名指す＝I5。**MC-MACHINE-NAMED** が bind |
 
 ---
 
 ## clause → property 被覆
 
-各 clause family ごとに bound（プロパティが根拠として引く）/ 未 bound を一覧する。未 bound は可視ギャップとして残し、増分で埋める。
+各 clause family ごとに bound（プロパティが根拠として引く）/ 構造・メタ（D 節で分類）/ 未 bound を一覧する。未 bound は可視ギャップとして残し、増分で埋める。
 
 ### A系（公理 6 本）
 
 | clause | bound by | 備考 |
 |---|---|---|
-| A1 | — | 未 bound: 構造公理（ノードのみが存在する） |
-| A2 | PR-CANCEL-SUNK | 追記専用——間接 bound（コスト保持の根拠） |
-| A3 | — | 未 bound: 構造公理（木＋DAG） |
-| A4 | — | 未 bound: 構造公理（c の定義）。PM-CAP-MONO が c を操作するが A4 自体は bind していない |
-| A5 | — | 未 bound: 三つの非対称。I6/R-U4 で個別に bind |
+| A1 | （D 節：構造公理） | PR-EVENTS-ONLY(R-U2)・PR-I1-ROLLUP(I1) が間接被覆 |
+| A2 | PR-CANCEL-SUNK・PR-EVENTS-ONLY | 追記専用——PR-EVENTS-ONLY が直接 bind、PR-CANCEL-SUNK がコスト保持で間接 |
+| A3 | MC-CYCLE-REJECT・PR-I1-ROLLUP | 木（価値集約=I1）＋DAG（非循環=I2/R-D3）の二重グラフ |
+| A4 | PR-CAP-DOMAIN・PR-CAP-HISTORY・PM-CAP-MONO | c の定義域・履歴・容量効果 |
+| A5 | PR-AGENT-UNLEVELED・MC-AGREE-HUMAN | 資源（人間のみ平準化）＋権限（人間のみ合意）。表現の対称は D 節 |
 | A6 | PR-CANCEL-SUNK | 単一通貨——間接 bound（コストは事実の根拠） |
 
 ### I系（不変条件 6 本）
 
 | clause | bound by | 備考 |
 |---|---|---|
-| I1 | PR-I1-ROLLUP | ロールアップ整合 |
-| I2 | — | **未 bound: 非循環。MC セクションに直接テストなし** |
-| I3 | PM-ORDER-INV・MC-CONFLICT・MC-IDUNIQ | (ts,id) 決定的順序 |
-| I4 | PR-DONE-LOCK | 完了施錠 |
-| I5 | — | **未 bound: 遷移の被指示性（R-D6 と対）** |
-| I6 | — | **未 bound: 合意権限（人間のみ。R-U4 と対）** |
+| I1 | PR-I1-ROLLUP・PR-COVERAGE-LEAF | ロールアップ整合・葉基底カバレッジ |
+| I2 | MC-CYCLE-REJECT・PR-SUPERSEDE-SHAPE | 非循環（全辺種別） |
+| I3 | PM-ORDER-INV・MC-CONFLICT・MC-IDUNIQ・PM-REDERIVE-CONSISTENT | (ts,id) 決定的順序 |
+| I4 | PR-DONE-LOCK・MC-UNAGREED-DONE | 完了施錠・未合意完了の空虚成立 |
+| I5 | MC-MACHINE-NAMED | 遷移の被指示性 |
+| I6 | MC-AGREE-HUMAN | 合意権限（人間のみ） |
 
 ### P系（原理 9 本）
 
 | clause | bound by | 備考 |
 |---|---|---|
-| P0 | — | 未 bound: メタ原理（コミット領域のみを語る） |
+| P0 | （D 節：メタ原理） | 可視ギャップ系プロパティの総体として現れる |
 | P1 | PR-EVPCT-RANGE・PM-SCALE-INV | EV% 導出 |
-| P2 | — | **未 bound: 見積カバレッジ（葉基底）。テスト追加候補** |
+| P2 | PR-COVERAGE-LEAF・PR-COVERAGE-DISCOVERY | 見積カバレッジ（葉基底）・発見信号 |
 | P3 | PR-AC-ROLLUP・PR-CANCEL-SUNK | AC 集約 |
 | P4 | PR-CANCEL-INVISIBLE | 三キュー同型 |
 | P5 | DN-MONOTONIC | 非単調 EV% |
-| P6 | PR-COST-NEUTRAL・PR-CANCEL-SUNK | 滞在≠コスト |
-| P7 | — | **未 bound: スケジュールは人間接点律速** |
+| P6 | PR-COST-NEUTRAL・PR-CANCEL-SUNK・PR-CRITPATH-AGENT | 滞在≠コスト・リードタイム |
+| P7 | PR-AGENT-UNLEVELED・PR-CRITPATH-AGENT | c 平準化・人間接点律速・クリティカルパス |
 | P8 | DN-IMPL-DATES | スケジュールは発見的（NP 困難） |
 
 ### R-U系（ユビキタス要件 14 本）
 
 | clause | bound by | 備考 |
 |---|---|---|
-| R-U1 | — | 未 bound: ノード＝唯一の実体 |
-| R-U2 | — | 未 bound: 追記専用・直接 mutation 拒否 |
-| R-U3 | — | 未 bound: 見積＝proposed/agreed を持つ提案 |
-| R-U4 | — | 未 bound: 合意は人間のみ（I6 と対） |
-| R-U5 | — | 未 bound: ノード単位合意 |
-| R-U6 | — | 未 bound: スキルモデル化しない |
-| R-U7 | — | 未 bound: 凍結値・理由付き改訂 |
-| R-U8 | PR-EVPCT-RANGE | EV%（合意済みのみ算入） |
-| R-U9 | — | 未 bound: コミット領域のみ・可視ギャップ |
+| R-U1 | （D 節：構造） | ノード＝唯一の実体（=A1） |
+| R-U2 | PR-EVENTS-ONLY | 追記専用・直接 mutation 拒否 |
+| R-U3 | （D 節：構造） | 見積＝proposed/agreed を持つ提案。合意面は MC-AGREE-HUMAN |
+| R-U4 | MC-AGREE-HUMAN | 合意は人間のみ（I6 と対） |
+| R-U5 | （D 節：設計非対称） | ノード単位合意（§7#3 開示） |
+| R-U6 | （D 節：構造） | スキルモデル化しない。PR-CAP-DOMAIN が隣接 |
+| R-U7 | PR-FROZEN-REASON | 凍結値・理由付き改訂 |
+| R-U8 | PR-EVPCT-RANGE・MC-UNAGREED-DONE | EV%（合意済みのみ算入） |
+| R-U9 | （D 節：メタ） | コミット領域のみ・可視ギャップ（=P0） |
 | R-U10 | PR-COST-NEUTRAL | コストを EV に折り込まない |
-| R-U11 | — | 未 bound: 人間のみ c 平準化 |
+| R-U11 | PR-AGENT-UNLEVELED・PR-CAP-DOMAIN | 人間のみ c 平準化 |
 | R-U12 | MC-CONFLICT | 矛盾合意検知 |
-| R-U13 | — | 未 bound: 未合意完了警告 |
-| R-U14 | — | 未 bound: c の変更履歴追跡 |
+| R-U13 | MC-UNAGREED-DONE | 未合意完了警告 |
+| R-U14 | PR-CAP-HISTORY | c の変更履歴追跡 |
 
 ### R-E系（見積要件 6 本）
 
 | clause | bound by | 備考 |
 |---|---|---|
-| R-E1 | — | 未 bound: 見積値は被見積ノードに乗る |
-| R-E1b | — | 未 bound: est(impl) は tasks.md 入力 |
-| R-E2 | — | 未 bound: 見積記録は decompose + transition |
-| R-E2b | — | 未 bound: 見積作業のノード化（P0 判断） |
+| R-E1 | （D 節：構造） | 見積値は被見積ノードに乗る |
+| R-E1b | PR-COVERAGE-DISCOVERY | est(impl) は別段・カバレッジ低下→回復 |
+| R-E2 | （D 節：構造） | 見積記録は decompose + transition |
+| R-E2b | DN-CPI-MODELING | 見積作業のノード化/畳む（P0 判断）・CPI 摂動 |
 | R-E3 | PR-DONE-LOCK・DN-MONOTONIC | agreed→proposed 復帰（未完了限定） |
-| R-E4 | DN-MONOTONIC | 残余作業増大→EV 低下 |
+| R-E4 | DN-MONOTONIC・PR-COVERAGE-DISCOVERY | 残余作業増大→EV 低下 |
 
 ### R-S系（進捗・状態要件 8 本）
 
 | clause | bound by | 備考 |
 |---|---|---|
-| R-S1 | — | 未 bound: 完了時凍結 |
-| R-S2 | — | 未 bound: 再導出契機 |
-| R-S3 | — | 未 bound: スラッシュ検知 |
-| R-S4 | — | 未 bound: 低カバレッジ時 de-rate |
+| R-S1 | （D 節：被覆済み=I4） | 完了時凍結。PR-DONE-LOCK が bind |
+| R-S2 | PM-REDERIVE-CONSISTENT | 再導出契機（イベント＋構成入力変更） |
+| R-S3 | PR-THRASH | スラッシュ検知・単発畳みコストの carve-out |
+| R-S4 | DN-EV-ALONE | 低カバレッジ時 de-rate |
 | R-S5 | PR-CUM-GE-EFF・MC-SUP-CANCEL | 累積 EV ≥ 有効 EV |
-| R-S6 | — | 未 bound: スケジュールカバレッジ de-rate |
-| R-S7 | — | **未 bound: 乖離フラグ・原因帰属・解除条件** |
-| R-S8 | — | 未 bound: 実行カバレッジ |
+| R-S6 | DN-SPI-ALONE | スケジュールカバレッジ de-rate |
+| R-S7 | DN-STALE-CONFIRM | 乖離標識・確認では非消滅（原因帰属・絶対値は DN-IMPL-DATES） |
+| R-S8 | PR-EXECCOV | 実行カバレッジ |
 
 ### R-T系（時間・スケジュール要件 6 本）
 
 | clause | bound by | 備考 |
 |---|---|---|
-| R-T1 | — | 未 bound: c 平準化スケジュール導出 |
-| R-T2 | — | 未 bound: エージェント作業のスパン表示 |
-| R-T3 | — | 未 bound: 過負荷検知 |
-| R-T4 | — | 未 bound: 期日超過検知 |
-| R-T5 | — | 未 bound: 暫定割当 |
-| R-T6 | — | 未 bound: バッファ導出 |
+| R-T1 | PR-AGENT-UNLEVELED・PM-REDERIVE-CONSISTENT | c 平準化スケジュール導出・増分再計算 |
+| R-T2 | PR-CRITPATH-AGENT | エージェント作業のスパン・パス長算入 |
+| R-T3 | MC-OVERLOAD ★ | 過負荷検知（impl-pending） |
+| R-T4 | MC-DEADLINE-ALERT ★ | 期日超過検知（impl-pending） |
+| R-T5 | PR-ASSIGNEE-REVIEWER | 単一担当・指名レビュー担当（会計非干渉） |
+| R-T6 | PR-BUFFER-CLAMP ★・PM-BUFFER-DEADLINE-MONO ★ | バッファ導出（impl-pending） |
 
 ### R-C系（キャンセル要件 3 本）
 
 | clause | bound by | 備考 |
 |---|---|---|
-| R-C1 | — | 未 bound: cancelled 発行（transition to terminal） |
+| R-C1 | MC-CANCEL-TERMINAL | cancelled 発行（terminal・削除なし） |
 | R-C2 | PR-CANCEL-EXCL・PR-CANCEL-SUNK・PR-CANCEL-INVISIBLE・MC-SUP-CANCEL | active basis 除外・サンク EV_abs |
-| R-C3 | — | 未 bound: キャンセル孤児警告 |
+| R-C3 | MC-CANCEL-ORPHAN ★ | キャンセル孤児警告（impl-pending） |
 
 ### R-D系（依存・整合要件 7 本）
 
 | clause | bound by | 備考 |
 |---|---|---|
-| R-D1 | — | 未 bound: 先行充足で ready |
-| R-D2 | — | 未 bound: 辺ポリシー既定 |
-| R-D3 | — | 未 bound: 循環拒否（I2 と対） |
-| R-D4 | — | 未 bound: 論理述語評価 |
-| R-D5 | — | 未 bound: 同一 ts の id 決定的順序（I3 と対） |
-| R-D6 | — | 未 bound: 状態機械名指し義務（I5 と対） |
-| R-D7 | — | 未 bound: supersede edge ≠ backward transition |
+| R-D1 | MC-READY-THRESHOLD・MC-CANCEL-ORPHAN | 先行充足で ready |
+| R-D2 | PR-EDGE-POLICY・MC-READY-THRESHOLD | 辺ポリシー既定 |
+| R-D3 | MC-CYCLE-REJECT | 循環拒否（I2 と対） |
+| R-D4 | MC-READY-THRESHOLD | 論理述語評価（葉述語・辺非増殖） |
+| R-D5 | （D 節：被覆済み=I3） | 同一 ts の id 決定的順序。PM-ORDER-INV・MC-IDUNIQ が bind |
+| R-D6 | （D 節：被覆済み=I5） | 状態機械名指し義務。MC-MACHINE-NAMED が bind |
+| R-D7 | PR-SUPERSEDE-SHAPE | supersede edge ≠ backward transition・新→旧・旧不変 |
 
 ### §系（構造規約）
 
 | clause | bound by | 備考 |
 |---|---|---|
-| §2.5 | MC-LIFECYCLE | 状態語彙・lifecycle 状態機械 |
-| §2.7 | MC-SUP-CANCEL | supersede 力学 |
-| §2.8 | PR-COST-DEDUP | 4 イベント（コスト dedup） |
-| §3 | PR-PV-EXCL・PM-CAP-MONO | EVM 原理・導出定義 |
-| §7 | DN-CAL-SILENT・DN-DRIFT-SILENT・DN-MATURITY-BLIND・DN-IMPL-DATES | 未解決・開放項目 |
+| §2.5 | MC-LIFECYCLE・MC-CANCEL-TERMINAL | 状態語彙・lifecycle 状態機械 |
+| §2.7 | MC-SUP-CANCEL・PR-SUPERSEDE-SHAPE | supersede 力学 |
+| §2.8 | PR-COST-DEDUP・PR-EVENTS-ONLY | 4 イベント（コスト dedup・追記専用） |
+| §3 | PR-PV-EXCL・PM-CAP-MONO・PR-EXECCOV・PR-BUFFER-CLAMP | EVM 原理・導出定義 |
+| §7 | DN-CAL-SILENT・DN-DRIFT-SILENT・DN-MATURITY-BLIND・DN-IMPL-DATES・DN-CPI-MODELING | 未解決・開放項目 |
 
 > §0/§1/§2.1-§2.4/§2.6/§2.9/§4/§5/§6 はメタ的記述または番号付き clause（A/I/P/R）と同型。独立にテストする対象ではなく、上記の番号付き clause 被覆で間接カバーされる。
 
@@ -203,50 +254,51 @@
 | シナリオ | 対応プロパティ | 状態 |
 |---|---|---|
 | cancel-task-midway | PR-CANCEL-EXCL・PR-CANCEL-SUNK・PR-CANCEL-INVISIBLE | draft |
-| estimate-spec-agreed | — | agreed |
-| estimate-spec-proposed | — | agreed |
-| assign-spec-provisional | — | agreed |
+| estimate-spec-agreed | PR-COVERAGE-LEAF・PR-COVERAGE-DISCOVERY | agreed |
+| estimate-spec-proposed | PR-COVERAGE-LEAF・MC-AGREE-HUMAN | agreed |
+| assign-spec-provisional | PR-ASSIGNEE-REVIEWER | agreed |
 
 ---
 
 ## 被覆サマリー
 
-| family | 全 clause 数 | bound 数 | 未 bound 数 | bound 率 |
-|---|---|---|---|---|
-| A系 | 6 | 2 | 4 | 33% |
-| I系 | 6 | 3 | 3 | 50% |
-| P系 | 9 | 6 | 3 | 67% |
-| R-U | 14 | 3 | 11 | 21% |
-| R-E | 6 | 2 | 4 | 33% |
-| R-S | 8 | 1 | 7 | 13% |
-| R-T | 6 | 0 | 6 | 0% |
-| R-C | 3 | 1 | 2 | 33% |
-| R-D | 7 | 0 | 7 | 0% |
-| **合計** | **65** | **18** | **47** | **28%** |
+bound＝falsifiable プロパティ（PBT/MC/DENY）が根拠として引く clause。構造・メタ＝D 節で「具現で被覆・独立テスト対象でない」と明示分類した clause。未 bound＝いずれでもない可視ギャップ。
 
-未 bound clause は可視ギャップとして残し、批准後に増分で埋める。**R-T 系と R-D 系は全 clause が未 bound** であり、次版の優先候補。
+| family | 全 clause 数 | bound | 構造・メタ | 未 bound | bound 率 |
+|---|---|---|---|---|---|
+| A系 | 6 | 5 | 1 | 0 | 83% |
+| I系 | 6 | 6 | 0 | 0 | 100% |
+| P系 | 9 | 8 | 1 | 0 | 89% |
+| R-U | 14 | 9 | 5 | 0 | 64% |
+| R-E | 6 | 4 | 2 | 0 | 67% |
+| R-S | 8 | 7 | 1 | 0 | 88% |
+| R-T | 6 | 6 | 0 | 0 | 100% |
+| R-C | 3 | 3 | 0 | 0 | 100% |
+| R-D | 7 | 5 | 2 | 0 | 71% |
+| **合計** | **65** | **53** | **12** | **0** | **82%** |
+
+未 bound（可視ギャップ）は v0.3 で **0** になった——全 clause が「falsifiable プロパティで bound」か「D 節で構造・メタとして明示分類」のいずれかに割り当てられた。**ただし bound のうち ★impl-pending（R-T3 過負荷・R-T4 期日アラート・R-T6 バッファ・R-S7 の標識発火）は参照実装に当該導出が未実装**であり、実行テスト化は実装到達後（仕様＝MODEL に対しては今すぐレビュー可）。クリティカルパス（PR-CRITPATH-AGENT）は leveler が cp／予測完了を既に算出済みで今すぐ PBT 可——未実現は「導出完了 D_pred の集約 read とバッファ可視化」の側。新規29プロパティはすべて `proposed`＝人間批准待ち。
 
 ---
 
-## v0.1→v0.2 変更点
+## v0.2→v0.3 変更点
 
-doc-refine（敵対的レビュー Round 1）で検出した以下を修正。**一文の意図を変更したものは `proposed` に戻して再批准を要求**している。
+未 bound の穴埋め。新規29プロパティ（PBT 14・メタモルフィック 2・MC 9・DENY 4）をすべて `proposed` で起案し、純構造・メタの 12 clause を新設 **D 節**で「具現で被覆・独立テスト対象でない」と明示分類した。これにより未 bound（silent gap）が 47→0 に。**新規プロパティは一文の意図が未批准のため全件 `proposed`**——人間の一文レビュー、または `doc-refine` 確定ゲートでの批准を要する。
 
-1. **現状列を廃止、レビュー列（proposed/agreed）を追加**——テスト実装状態は陳腐化するため人間の一文レビュー事実のみ保持（ユーザー裁定）。
-2. **被覆報告を clause family 別に完全化**——v0.1 は 40+ clause が bound/unbound いずれにも未列挙だった。全 65 clause を網羅。
-3. **PR-CANCEL-SUNK**: 根拠を A6/P6→A2/P3 に修正（A6 は単一通貨・P6 は滞在≠コストであり AC 保持の直接根拠ではない）。一文を簡潔化。→ `proposed`
-4. **PR-PV-EXCL**: 固定列「3除外」→「2条件」に修正。3つ目（cancelled 除外）は PV 固有でなく effective-set 経由。→ `proposed`
-5. **PM-CAP-MONO**: 「凍結スロットは動かない」を除去（定義上不変であり空虚）。根拠から R-S7 を除去（PM-CAP-MONO は R-S7 の中核要件=乖離フラグ・原因帰属を検証しない）。R-S7 は未 bound に移動。→ `proposed`
-6. **PM-SCALE-INV**: 「見積を k 倍」→**単位換算フレーム**（見積と実コストを同じ単位で測り直す=日→時間）に再framing。EV%/SPI/CPI/カバレッジすべて不変。「コストのみ非スケールだと CPI が壊れる」敵対者指摘への対応＝出来高(EV)は努力でなく予算ベースゆえ見積と共にスケールする、を人間批准で確定。
-7. **MC-CONFLICT**: 「同時刻に」→「時刻が同一でも異なっても」に修正（R-U12 は temporal proximity を問わない）。→ `proposed`
-8. **DN-MONOTONIC**: R-E3 の上昇機序（分母縮小→EV%上昇）を追記。→ `proposed`
-9. **PR-COST-NEUTRAL**: CPI は AC 分母ゆえ cost 追記で動くことを明記。→ `proposed`
-10. **PR-EVPCT-RANGE**: 分母ゼロケース（合意済みゼロ→EV%=0）を明記。意図不変のため `agreed` 維持。
-11. **PR-DONE-LOCK**: キャンセルによる active→sunk 分類移動の carve-out を明記。意図不変のため `agreed` 維持。
-12. **MC-LIFECYCLE**: 「絶対にない」→「ない」に調整。意図不変のため `agreed` 維持。
-13. **moira-naming.md 参照を除去**: P2 定義がノード基底のまま陳腐化（MODEL v18 は葉基底）。正典は MODEL に一本化。
-14. **「実行テストはこの一文の*射影*」→「形式化した射影を*目指す*」に正直化**。
+1. **A系**: A3（二重グラフ）を MC-CYCLE-REJECT＋PR-I1-ROLLUP、A4（c）を PR-CAP-DOMAIN／PR-CAP-HISTORY、A5（非対称）を PR-AGENT-UNLEVELED／MC-AGREE-HUMAN で bind。A1（純構造公理）は D 節へ。
+2. **I系**: I2 を MC-CYCLE-REJECT、I5 を MC-MACHINE-NAMED、I6 を MC-AGREE-HUMAN で bind（全 6/6）。
+3. **P系**: P2（葉基底カバレッジ）を PR-COVERAGE-LEAF／PR-COVERAGE-DISCOVERY、P7 を PR-AGENT-UNLEVELED／PR-CRITPATH-AGENT で bind。P0（メタ）は D 節へ。
+4. **R-U系**: R-U2／R-U7／R-U11／R-U13／R-U14 を新プロパティで bind。R-U1/3/5/6/9 は D 節（構造・メタ）。
+5. **R-E系**: R-E1b を PR-COVERAGE-DISCOVERY、R-E2b を DN-CPI-MODELING で bind。R-E1/E2 は D 節。
+6. **R-S系**: R-S2／R-S3／R-S4／R-S6／R-S7／R-S8 を新プロパティで bind。R-S1（=I4）は D 節。
+7. **R-T系（v0.2 で全未 bound）**: R-T1〜R-T6 を全 bind（PR-AGENT-UNLEVELED／PR-CRITPATH-AGENT／MC-OVERLOAD★／MC-DEADLINE-ALERT★／PR-ASSIGNEE-REVIEWER／PR-BUFFER-CLAMP★）。
+8. **R-C系**: R-C1 を MC-CANCEL-TERMINAL、R-C3 を MC-CANCEL-ORPHAN★ で bind。
+9. **R-D系（v0.2 で全未 bound）**: R-D1/2/3/4/7 を bind（MC-READY-THRESHOLD／PR-EDGE-POLICY／MC-CYCLE-REJECT／PR-SUPERSEDE-SHAPE）。R-D5（=I3）/R-D6（=I5）は D 節。
+10. **★impl-pending の明示**: R-T3/R-T4/R-T6・R-S7 標識発火は参照実装に導出が未実装で、PBT/MC 実行は実装到達後。仕様（MODEL）に対するレビューは今すぐ可。クリティカルパス（PR-CRITPATH-AGENT）は leveler が cp／予測完了を既に算出済みで PBT 可（未実現は D_pred 集約 read とバッファ可視化）。
+11. **被覆サマリーに「構造・メタ」列を新設**——「未 bound（穴）」と「設計上テスト対象にしない」を分離し、被覆率の誤読を防止。
 
-## 次手（批准が通ったら）
+## 次手（批准）
 
-最小パイロット（ログのみ・実装変更ゼロ）: **PR-EVPCT-RANGE / PR-I1-ROLLUP / PR-CANCEL-EXCL / PR-AC-ROLLUP / PM-ORDER-INV** ＋ 決定打 **PR-DONE-LOCK★**（現実装が赤になることを実走で確認）。生成器2つ（イベントログ＋容量 c）を敵対的構成・一級レビュー対象として用意する（[moira-verification.md](../.kiro/steering/moira-verification.md)）。
+1. **新規29プロパティの一文レビュー**——人間が `proposed→agreed` を判定、または `doc-refine` 確定ゲート（敵対者×独立採点）で批准。MODEL の制約・語彙・既定に触れる解釈が出れば `moira-model-update` へ委譲。
+2. **最小パイロット（ログのみ・実装変更ゼロ）**: 既 agreed の **PR-EVPCT-RANGE / PR-I1-ROLLUP / PR-CANCEL-EXCL / PR-AC-ROLLUP / PM-ORDER-INV** ＋ 決定打 **PR-DONE-LOCK★**（現実装が赤になることを実走で確認）。生成器2つ（イベントログ＋容量 c）を敵対的構成・一級レビュー対象として用意する（[moira-verification.md](../.kiro/steering/moira-verification.md)）。
+3. **★impl-pending プロパティ**は参照実装に当該導出（孤児警告・過負荷/期日アラート・バッファ・R-S7 標識）が実装された時点で PBT/MC 化する。

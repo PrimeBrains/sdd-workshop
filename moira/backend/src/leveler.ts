@@ -11,7 +11,10 @@
 //     calendar holes become schedule gaps (MODEL:184, MODEL:196).
 //   - critical-path priority: ties broken by longest downstream path (P7 MODEL:184).
 //   - heuristic / non-optimal: a feasible greedy fill, not an optimum (P8 MODEL:187).
-//   - agents not leveled, but their lead time delays human successors (R-T2 MODEL:306).
+//   - agents not leveled, but their lead time contributes to path length
+//     regardless of successor kind — even a trailing agent with no successor
+//     extends the derived completion; rate-limiting a human is the representative
+//     case, not a precondition (R-T2 / P7).
 //
 // This is ONE legitimate concrete fill heuristic; the choice is implementation-
 // dependent and disclosed, not removed (P8 MODEL:190).
@@ -130,8 +133,10 @@ export function level(
     const est = n.latestEstimate ?? 0;
 
     if (n.assignee.kind === 'agent') {
-      // Not leveled (R-U11 MODEL:244): consume calendar days as lead time, but
-      // still rate-limit human successors via earliest-start (R-T2 MODEL:306).
+      // Not leveled (R-U11): consume calendar days as lead time. This lead time
+      // feeds successors' earliest-start AND the node's own predicted completion,
+      // so it contributes to path length regardless of successor kind — a trailing
+      // agent (no successor) still extends the derived completion (R-T2 / P7).
       const days = Math.max(1, Math.ceil(est));
       predicted.set(id, addDays(start, days - 1));
       continue;
