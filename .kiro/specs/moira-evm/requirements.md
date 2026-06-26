@@ -2,7 +2,7 @@
 
 ## Introduction
 
-`moira-evm` は Moira 正典モデル `moira/MODEL.md`(v16, 凍結) を本番アーキテクチャへ落とす **CQRS 分解の Wave1（読/導出側）** であり、Moira の **EVM 会計（出来高・コスト・指数・カバレッジ）の導出を一箇所に集約して所有する** spec である。基盤契約 `moira-core`（emit/derive・二層データ・effective-set・latest-wins・状態機械・凍結属性記録）を **消費**する前提で、同一ログ・同一実装から次を MODEL §3／要件群（P0–P3・R-U8/U9/U10・R-S1/S3/S4/S8・R-C2）に忠実に導出する:
+`moira-evm` は Moira 正典モデル `moira/MODEL.md`(v19) を本番アーキテクチャへ落とす **CQRS 分解の Wave1（読/導出側）** であり、Moira の **EVM 会計（出来高・コスト・指数・カバレッジ）の導出を一箇所に集約して所有する** spec である。基盤契約 `moira-core`（emit/derive・二層データ・effective-set・latest-wins・状態機械・凍結属性記録）を **消費**する前提で、同一ログ・同一実装から次を MODEL §3／要件群（P0–P3・R-U8/U9/U10・R-S1/S3/S4/S8・R-C2）に忠実に導出する:
 
 1. **EV の二形** — 絶対出来高 EV_abs（完了凍結予算の総和・合意済みのみ）と達成率 EV%（= EV_abs / Σ合意済み最新見積 ∈ [0,1]）。
 2. **二つの読み** — 現行進捗（現行有効集合の EV%）と累積EV（EV_abs、supersede 済みを含む過去総出来高）の区別導出（R-S5・§2.7）。
@@ -49,8 +49,8 @@
    - 和訳: システムは累積EV（EV_abs）を、supersede 済みを含む全葉について cancelled ノードを除いて、EV_abs の算入条件（合意済み・完了・凍結予算；R1-AC1）を満たす葉に限り導出し——累積EV が EV_abs と同じ basis 差分のみで定義される（R1-AC1 とは basis〔全葉 vs 現行有効集合〕のみが異なる）ようにし、出来高として計上され後に supersede された作業が累積 basis に残るようにしなければならない。累積EV は supersede 済みを含む過去総出来高であり、サンク EV_abs（R10）とは別量である：cancelled ノードの出来高は本要件の累積EV からは除外され、サンク（R10）としてのみ読まれる——両者は同一の読みになることはない（NAMING §7）。
 3. The system shall derive cumulative EV (EV_abs) over a basis (all leaves) distinct from the currently-effective set with which estimate coverage is paired, so that it is not coupled to estimate coverage as companion data (the independence-of-coverage read follows from this basis difference; R2-AC2 / R1-AC1).
    - 和訳: システムは累積EV（EV_abs）を、見積カバレッジが対で読む現行有効集合とは異なる basis（全葉）の上で導出し、見積カバレッジの対データとして結びつけないようにしなければならない（カバレッジから独立に読まれることは、この basis 差分から従う；R2-AC2／R1-AC1）。
-4. The system shall not double-count a superseded old node in the coverage denominator (P2), keeping coverage measured over the currently-effective known tree.
-   - 和訳: システムは supersede 済みの旧ノードをカバレッジ分母（P2）に二重計上せず、カバレッジを現行有効な既知ツリーで測り続けなければならない。
+4. The system shall not count a superseded old leaf in the leaf-basis coverage denominator (P2), keeping coverage measured over the currently-effective known leaves (leaf-basis per PR-COVERAGE-LEAF).
+   - 和訳: システムは supersede 済みの旧葉を葉基底のカバレッジ分母（P2）に算入せず、カバレッジを現行有効な既知の葉（葉基底；PR-COVERAGE-LEAF）で測り続けなければならない。
 
 ### Requirement 3: 見積カバレッジの導出と EV% との対読み（P2/R-U9/P0）
 
@@ -58,10 +58,10 @@
 
 #### Acceptance Criteria
 
-1. The system shall derive estimate coverage as the count of independently-agreed effective nodes over all known effective nodes, measuring the known tree only and treating undiscovered work as unmeasurable.
-   - 和訳: システムは見積カバレッジを、独立に合意済みの有効ノード数 ÷ 既知の有効ノード総数として導出し、既知ツリーのみを測り未発見作業を測定不能として扱わなければならない。
-2. When the known effective node count is zero, the system shall derive estimate coverage as 0 as an honest empty value. (Design-level zero-denominator rule consistent with P0 and the R-S8 honest-empty convention; MODEL P2 does not specify a zero-denominator rule literally.)
-   - 和訳: 既知の有効ノード数が 0 のとき、システムは見積カバレッジを honest empty として 0 に導出しなければならない。（P0 および R-S8 の honest empty 慣行に整合する設計レベルのゼロ分母規則であり、MODEL P2 はゼロ分母規則を文言として規定しない。）
+1. The system shall derive estimate coverage as the count of agreed effective leaves over all known effective leaves (leaf-basis per PR-COVERAGE-LEAF / MODEL P2 v18 — intermediate/rollup nodes are NOT counted in either term, so all-leaves-agreed reaches 100%; superseded/cancelled leaves are excluded), measuring the known tree's leaves only and treating undiscovered work as unmeasurable.
+   - 和訳: システムは見積カバレッジを、合意済みの有効葉数 ÷ 既知の有効葉総数（葉基底；PR-COVERAGE-LEAF／MODEL P2 v18——中間・ロールアップノードは分子・分母とも数えず、全葉合意で 100% に達する。supersede/cancelled 葉は除外）として導出し、既知ツリーの葉のみを測り未発見作業を測定不能として扱わなければならない。
+2. When the known effective leaf count is zero, the system shall derive estimate coverage as 0 as an honest empty value. (Design-level zero-denominator rule consistent with P0 and the R-S8 honest-empty convention; MODEL P2 does not specify a zero-denominator rule literally.)
+   - 和訳: 既知の有効葉数が 0 のとき、システムは見積カバレッジを honest empty として 0 に導出しなければならない。（P0 および R-S8 の honest empty 慣行に整合する設計レベルのゼロ分母規則であり、MODEL P2 はゼロ分母規則を文言として規定しない。）
 3. The system shall expose the uncommitted region of EV — the un-agreed and un-estimated work — as a visible gap (estimate coverage) and shall not implicitly assume it.
    - 和訳: システムは EV の未コミット領域（未合意・未見積の作業）を可視のギャップ（見積カバレッジ）として公開し、暗黙に仮定してはならない。
 4. The system shall provide estimate coverage as the companion data to EV% so that EV% is always read paired with coverage.

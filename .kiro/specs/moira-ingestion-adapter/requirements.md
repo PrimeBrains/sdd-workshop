@@ -2,7 +2,7 @@
 
 ## Introduction
 
-`moira-ingestion-adapter` は Moira 正典モデル `moira/MODEL.md`(v16, 凍結) を本番アーキテクチャへ落とす **CQRS 分解の Wave1**（依存 = `moira-core`）であり、**仕様方法論の段階的成果物（抽象 spec-unit）→ ノード候補＋見積提案**への **read-only 正規化（producer）**を所有する spec である。具体的には次を所有する:
+`moira-ingestion-adapter` は Moira 正典モデル `moira/MODEL.md`(v19) を本番アーキテクチャへ落とす **CQRS 分解の Wave1**（依存 = `moira-core`）であり、**仕様方法論の段階的成果物（抽象 spec-unit）→ ノード候補＋見積提案**への **read-only 正規化（producer）**を所有する spec である。具体的には次を所有する:
 
 1. **方法論非依存の入力境界** — cc-sdd 等の固有語彙を内部マッピングに閉じ込め、抽象 spec-unit（成果物を段階的に作成し人間が承認していく構造化された開発プロセスの成果物；§2.3 の操作的定義／0c）を入力に取る。
 2. **ノード候補の正規化** — フェーズ成果物を §2.6 の「フェーズ＝feature の子ノード」へ写し、木の所属・DAG の論理依存・lifecycle 初期状態を **候補**として提示する。A1 射程（0a）に従い運用/バグ/ad-hoc 作業も feature ノード候補とする。
@@ -13,7 +13,7 @@
 
 ## Boundary Context
 
-- **In scope（ingestion-adapter が所有）**: 抽象 spec-unit 入力境界と cc-sdd → 抽象の内部マッピング（参照例）、フェーズ成果物 → ノード候補（木所属・DAG 論理依存・lifecycle 初期状態の提案）の正規化、一様見積連鎖（§2.3）に沿った `proposed` 見積提案の産出（R-E1/E1b/E2 の入力）、est(impl) を tasks と別個ノード候補として扱う提案（R-E1b）、A1 射程（0a）に従う非 spec 作業単位（運用/バグ/ad-hoc）の feature ノード候補化、正規化の決定性と read-only 性（emit せず・ログ/状態/第二層を mutate しない）。
+- **In scope（ingestion-adapter が所有）**: 抽象 spec-unit 入力境界と cc-sdd → 抽象の内部マッピング（参照例）、フェーズ成果物 → ノード候補（木所属・DAG 論理依存・lifecycle 初期状態の提案）の正規化、一様見積連鎖（§2.3）に沿った `proposed` 見積提案の産出（R-E1/E1b/E2 の入力）、est(impl) を tasks と別個の段として扱う提案（R-E1b；est 作業のノード化は R-E2b に従い重い場合のみ・軽微なら畳む）、A1 射程（0a）に従う非 spec 作業単位（運用/バグ/ad-hoc）の feature ノード候補化、正規化の決定性と read-only 性（emit せず・ログ/状態/第二層を mutate しない）。
 - **Out of scope（上流/下流が所有）**: イベント型・lifecycle/見積合意 状態機械・effective-set・latest-wins・二層データ・凍結記録の **定義** = `moira-core`（消費）、4 イベントの **emit** と取り込みの正本化 = `moira-spec-ingest` skill、見積の **合意確定**（`proposed→agreed`・人間承認）= `moira-estimate-agree` skill、分解の深さ・ノード化/畳むの **確定**（人間のコミット判断 P0）= 人間＋write skill、EV/被覆/PV 等の **導出** = `moira-evm`/`moira-schedule`/`moira-health`、ノード状態の正本（現行 lifecycle 状態）= core の fold、永続化・UI。
 - **consumer 側ガードレール（core 契約の再掲＝越境でない）**: core と概念が重なる要件——A1 射程に従う分類（R5；分類の **定義** は core R1）・read-only 性（R6；read-only の **定義** は core R2）・初期 lifecycle 状態（R2.AC4；状態機械の **定義** は core §2.5）・決定的マージ非付与（R7.AC3；I3 は発行時 core）——は、core が **定義**する契約を本 producer 側で **再掲したガードレール**であって責務の越境ではない。本 spec はこれらを **消費**し（再定義せず）、producer 固有の falsifiable 制約（候補/提案であり正本でない・呼出可能な write シームを持たない・同一入力→同一出力）に集約する。各要件の > トレース注が定義の所有先（consumed `moira-core/*`）を明示する。
 - **Adjacent expectations**: 本 spec が **産む**ノード候補/見積提案は、core が **定義**する語彙（4 イベントの decompose/transition で表現可能な木・DAG・lifecycle・見積状態）に整合させ、下流の write skill（spec-ingest/estimate-agree/decompose-author）が候補/提案を入力に emit する。本 spec の出力構造の形が変われば下流 write skill が再検証を要する（producer→consumer 契約）。R-E2 の分担: ingestion-adapter は見積値・合意対象の **構造／候補の正規化**（候補 `decompose` 入力の値・候補 `transition` の対象＝記録形）を所有し、その値の実 emit（`decompose` 発行・見積合意機械 `transition` 発行）は `moira-spec-ingest`/`moira-estimate-agree` skill が所有する（R-E2 line 283 の二節を producer/consumer に分担）。
@@ -54,15 +54,15 @@
 
 ### Requirement 3: 一様な見積の入力連鎖に沿った見積提案（§2.3 / R-E1 / R-E2）
 
-> トレース注: ヘッダの `R-E1`・`R-E2` はいずれも **所有ではなく接地/入力**を指す（roadmap line 119: R-E1/E1b/E2 は ingestion-adapter+spec-ingest の共有）。本 spec が所有するのは、(a) R-E1 の入力連鎖（§2.3）を **candidate node** として表す read 側の写像（R3.AC1 — MODEL R-E1 line 277 の「node を表現」を read-only producer ゆえ候補ノードへ縮約）と、(b) R-E2 のうち**記録形**（見積提案を候補 `decompose` 入力の値として構造化する=R3.AC4）のみ。R-E1/R-E2 の **emit**（`decompose`/`transition` 発行・合意確定）は下流 write skill `moira-spec-ingest`/`moira-estimate-agree` の責務であり、本 spec は emit しない。Introduction#3 の「R-E1/E1b/E2 の入力」もこの接地（所有でなく入力連鎖の read 写像）と一致する。
+> トレース注: ヘッダの `R-E1`・`R-E2` はいずれも **所有ではなく接地/入力**を指す（roadmap line 119: R-E1/E1b/E2 は ingestion-adapter+spec-ingest の共有）。本 spec が所有するのは、(a) R-E1 の入力連鎖（§2.3）の read 側の写像（R3.AC1 — 見積*値*は被見積ノードへ；見積*作業*の est ノード化は **R-E2b に従い重い場合のみ**候補ノードへ縮約、軽微なら畳む）と、(b) R-E2 のうち**記録形**（見積提案を候補 `decompose` 入力の値として構造化する=R3.AC4）のみ。R-E1/R-E2 の **emit**（`decompose`/`transition` 発行・合意確定）は下流 write skill `moira-spec-ingest`/`moira-estimate-agree` の責務であり、本 spec は emit しない。Introduction#3 の「R-E1/E1b/E2 の入力」もこの接地（所有でなく入力連鎖の read 写像）と一致する。
 
 **Objective:** producer 設計者として、前段成果物を入力に見積を `proposed` 提案として産みたい。それにより見積という一様な営みが、合意前の提案として下流に渡る。
 
 #### Acceptance Criteria
 
-1. When any work phase (req, design, tasks, implementation) requires an estimate, the system shall represent the estimation as a candidate node taking the prior phase's artifact as input, and shall propose the est-precedes-phase precedence edge (est(phase) → phase) — a DAG edge class distinct from the phase-to-phase logical-dependency edges owned by R2.AC2 (req → design → tasks, design → implementation).
-   - 和訳: 任意の作業フェーズ（req・design・tasks・実装）が見積を要するとき、システムはその見積を、前段フェーズの成果物を入力とする候補ノードとして表現し、見積がフェーズに先行する先行辺（est(phase) → phase）を提案しなければならない。これは R2.AC2 が所有するフェーズ間論理依存辺（req → design → tasks、design → 実装）とは別クラスの DAG 辺である。
-   > トレース注: 本 AC が所有する DAG 辺は **est ノード → phase の先行辺**（MODEL R-E1 line 277「the estimation as a node preceding that phase via a DAG edge」）であり、R2.AC2 が所有する **phase → phase の論理依存辺**とは辺クラスが異なる。両者は同一機構の二重記述ではなく、est→phase 辺は R3、phase→phase 辺は R2 が一意に所有する。
+1. When any work phase (req, design, tasks, implementation) requires an estimate, the system shall carry that estimate value as a `proposed` proposal on the node being estimated (R-E1), and — **only where the estimation activity is itself substantial (per R-E2b; a light activity is folded as a cost when incurred, not nodized)** — shall additionally represent that activity as a candidate node taking the prior phase's artifact as input, proposing the est-precedes-phase precedence edge (est(phase) → phase) — a DAG edge class distinct from the phase-to-phase logical-dependency edges owned by R2.AC2 (req → design → tasks, design → implementation). Whether to nodize or fold is a human commitment (P0); the producer proposes the nodized est candidate only for a substantial activity.
+   - 和訳: 任意の作業フェーズ（req・design・tasks・実装）が見積を要するとき、システムはその見積値を被見積ノード上の `proposed` 提案として表し（R-E1）、**見積作業自体が相応に重い場合に限り（R-E2b；軽微な作業は発生時に cost として畳みノード化しない）**、その作業を、前段フェーズの成果物を入力とする候補ノードとして追加的に表現し、見積がフェーズに先行する先行辺（est(phase) → phase）を提案しなければならない。これは R2.AC2 が所有するフェーズ間論理依存辺（req → design → tasks、design → 実装）とは別クラスの DAG 辺である。ノード化するか畳むかは人間のコミット判断（P0）であり、producer は重い見積作業に限り est 候補ノードを提案する。
+   > トレース注: 本 AC が所有する DAG 辺は **est 作業ノード → phase の先行辺**（MODEL R-E1「where the estimation activity is itself substantial it shall additionally represent that activity as its own node preceding the phase via a DAG edge, per R-E2b」）であり、**est 作業のノード化（ひいてはこの先行辺の発生）は R-E2b に従い見積作業が重い場合に限る**（軽微なら畳んで cost 計上＝先行辺なし。見積値自体は被見積ノードに乗る＝R-E1）。R2.AC2 が所有する **phase → phase の論理依存辺**とは辺クラスが異なる。両者は同一機構の二重記述ではなく、est→phase 辺は R3、phase→phase 辺は R2 が一意に所有する。
 2. The system shall take a project-external given (such as roadmap or brief) as the input for the first estimation (est(req)), grounding the input regress in an external given.
    - 和訳: システムは、最初の見積（est(req)）の入力として roadmap や brief 等のプロジェクト外部の所与を取り、入力の後退を外部所与に接地させなければならない。
 3. The system shall produce each estimation result as a `proposed` estimate proposal regardless of its source, and shall not transition any estimate to `agreed`.
@@ -76,10 +76,10 @@
 
 #### Acceptance Criteria
 
-1. The system shall treat the implementation estimate as a candidate node distinct from both the tasks node and any decompose candidate, taking tasks.md as input, so that the implementation estimate is not folded into a decompose (R-E1b) and the tasks-decomposition work and the implementation-estimation work remain separate candidate nodes.
-   - 和訳: システムは、実装見積を、tasks ノードとも、いかなる decompose 候補とも別個の、tasks.md を入力とする候補ノードとして扱い、実装見積を decompose に内包させず（R-E1b）、タスク分解という作業と実装を見積もる作業を別個の候補ノードとして保たなければならない。
-2. When the tasks node would complete, the system shall propose the implementation task nodes as born without an estimate, and propose a separate est(impl) node whose agreement (by a human, downstream) recovers coverage.
-   - 和訳: tasks ノードが完了する局面で、システムは実装タスク群を未見積で誕生する候補として提案し、その合意（下流で人間が行う）がカバレッジを回復する別個の est(impl) ノードを提案しなければならない。
+1. The system shall keep the implementation estimate as a step distinct from the tasks node, taking tasks.md as input, and shall not fold it into the same `decompose` that creates the implementation tasks (R-E1b); where that implementation-estimation activity is itself substantial it is represented as a separate candidate node (per R-E2b; folded as a cost when light), kept distinct from the tasks-decomposition work.
+   - 和訳: システムは、実装見積を tasks ノードとは別個の段として tasks.md を入力に保ち、実装タスクを生成するのと同一の `decompose` に内包させてはならない（R-E1b）。その実装見積作業自体が相応に重い場合は別個の候補ノードとして表し（R-E2b；軽微なら cost として畳む）、タスク分解という作業とは別に保つ。
+2. When the tasks node would complete, the system shall propose the implementation task nodes as born without an estimate, and propose a separate implementation-estimation step — nodized as an est(impl) candidate node when substantial, else folded as a cost (per R-E2b) — whose agreement (by a human, downstream) recovers coverage.
+   - 和訳: tasks ノードが完了する局面で、システムは実装タスク群を未見積で誕生する候補として提案し、別個の実装見積の段——相応に重ければ est(impl) 候補ノードとしてノード化、軽微なら cost として畳む（R-E2b）——を提案し、その合意（下流で人間が行う）がカバレッジを回復するようにしなければならない。
 
 ### Requirement 5: A1 射程に従う非 spec 作業単位の候補化（A1 射程消費 / 0a）
 
@@ -136,12 +136,12 @@
 | 2.2 | §2.6 | 論理依存 DAG 辺（木の所属と区別）；候補化 |
 | 2.3 | §2.6 | line 126 二段 decompose の主語（feature）と契機（tasks 完了）の区別；候補化 |
 | 2.4 | §2.5 | 初期 lifecycle 状態；状態機械の **定義** は consumed `moira-core/5.1`（再定義しない） |
-| 3.1 | R-E1 | est ノード→phase 先行辺（line 277）を candidate node へ縮約；emit は下流 spec-ingest |
+| 3.1 | R-E1, R-E2b | 見積*値*は被見積ノードへ（R-E1）；est *作業*のノード化＋est→phase 先行辺は R-E2b に従い重い場合のみ→候補化（軽微なら畳む）；emit は下流 spec-ingest |
 | 3.2 | §2.3, R-E1 | est(req) の入力＝roadmap/brief 等プロジェクト外部の所与（無限後退の底） |
 | 3.3 | R-U3, §2.2 | 出所を問わず `proposed`；`agreed` へ遷移させない（consumed `moira-core/4.1`） |
 | 3.4 | R-E2 | 見積提案を候補 `decompose` 入力の値として表現（記録形）；emission は下流 |
-| 4.1 | R-E1b | 実装見積＝tasks ノード／decompose 候補と別個、tasks.md 入力、decompose 非内包（line 280） |
-| 4.2 | §2.3, §2.6 | tasks 完了契機で実装タスク群が未見積誕生＋別個 est(impl)（line 102 生成順・line 126） |
+| 4.1 | R-E1b, R-E2b | 実装見積＝tasks ノードと別個の段、tasks.md 入力、decompose 非内包（R-E1b・line 280）；est(impl) のノード化は R-E2b に従い重い場合のみ |
+| 4.2 | §2.3, §2.6, R-E2b | tasks 完了契機で実装タスク群が未見積誕生＋別個の実装見積段（ノード化は R-E2b に従い重い場合・軽微なら畳む）（line 102 生成順・line 126） |
 | 5.1 | A1 | A1 射程（運用/バグ/ad-hoc=feature ノード）；分類の **定義** は consumed `moira-core/1.1`（0a） |
 | 5.2 | A1, §2.6, §2.5, P0 | フェーズ周期省略＝分解深さ（§2.1#4/P0）であって lifecycle 状態（§2.5）の省略でない |
 | 5.3 | §5 | isBuffer 却下（導出会計量はノードでない）；consumed `moira-core/1.2`（バッファ非ノード） |

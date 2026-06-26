@@ -2,7 +2,7 @@
 
 ## Introduction
 
-`moira-surface-spec-value` は Moira 正典モデル `moira/MODEL.md`(v16, 凍結) を本番アーキテクチャへ落とす **CQRS 分解の Wave3（read サーフェス群）** の一つで、**「仕様・価値」軸の常駐 read-only ダッシュボード**を所有する spec である。MODEL §0 が確定する「進捗・価値はすべて 4 イベントからの導出」というモデルに対し、本 spec はその導出を**読むだけ**で次を人間に提示する:
+`moira-surface-spec-value` は Moira 正典モデル `moira/MODEL.md`(v19) を本番アーキテクチャへ落とす **CQRS 分解の Wave3（read サーフェス群）** の一つで、**「仕様・価値」軸の常駐 read-only ダッシュボード**を所有する spec である。MODEL §0 が確定する「進捗・価値はすべて 4 イベントからの導出」というモデルに対し、本 spec はその導出を**読むだけ**で次を人間に提示する:
 
 1. **ノード木** — feature ─ req/design/tasks/impl（MODEL §2.6 フェーズ＝ノード）のライフサイクル状態と見積状態を、アコーディオン＋進行中（`implementing`）上位で表示。
 2. **トレーサビリティ＋DAG ビューア** — 木と relate DAG（依存辺・supersede 辺）を区別して描く再利用可能な部品。
@@ -78,8 +78,8 @@
 
 #### Acceptance Criteria
 
-1. The system shall display the estimate coverage (P2: agreed-estimated known-tree ratio over the currently-effective set) as derived by `moira-evm`, always paired with the EV% reading.
-   - 和訳: システムは、見積カバレッジ（P2: 現行有効集合上の合意済み見積／既知ツリー比率。`moira-evm` が導出）を、必ず EV% の読みと対で表示しなければならない。
+1. The system shall display the estimate coverage (P2: agreed effective-leaf ratio over the known effective leaves — leaf-basis per PR-COVERAGE-LEAF; intermediate/rollup nodes are NOT in the denominator, so all-leaves-agreed reaches 100%; superseded/cancelled leaves excluded) as derived by `moira-evm`, always paired with the EV% reading.
+   - 和訳: システムは、見積カバレッジ（P2: 合意済み有効葉 ÷ 既知有効葉の比率＝葉基底；PR-COVERAGE-LEAF。中間・ロールアップノードは分母に数えず全葉合意で 100% に達する。supersede/cancelled 葉は除外。`moira-evm` が導出）を、必ず EV% の読みと対で表示しなければならない。
 2. While estimate coverage is low, the system shall de-rate the presentation of EV% and shall not present it as project-wide completion. The "low" judgement (whether de-rating applies) is itself a predicate supplied by the derivation layer (`moira-evm` per R-S4); this surface reflects the supplied de-rate flag/standard only and shall not hold the threshold itself (no magic number in this surface — the threshold belongs to design and below, per Introduction).
    - 和訳: 見積カバレッジが低い間、システムは EV% の提示を割り引き、全体完了度として提示してはならない。「低い」かどうかの判定（de-rate すべきか）の述語そのものも導出層（`moira-evm`／R-S4）が供給するものであり、本サーフェスは供給された de-rate 標識を反映するのみで、閾値を自前に持ってはならない（閾値の magic number を本サーフェスに埋め込まず design 以下に置く＝Introduction）。
 3. The system shall present the uncommitted region — work that is not agreed-estimated — as a visible gap and shall never implicitly assume it as complete.

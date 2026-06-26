@@ -2,7 +2,7 @@
 
 ## Introduction
 
-`moira-schedule` は Moira 正典モデル `moira/MODEL.md`(v16, 凍結) を本番アーキテクチャへ落とす **CQRS 分解の Wave1**（依存: `moira-core`）であり、Moira の **時間軸（schedule）導出**を所有する read/導出 spec である。具体的には次を所有する:
+`moira-schedule` は Moira 正典モデル `moira/MODEL.md`(v19) を本番アーキテクチャへ落とす **CQRS 分解の Wave1**（依存: `moira-core`）であり、Moira の **時間軸（schedule）導出**を所有する read/導出 spec である。具体的には次を所有する:
 
 1. **生きた予測スケジュール** — 人間が与えた割当と DAG の上での **c(i,d) 平準化（P7/P8）**・クリティカルパス優先の発見的増分解として、各サブ単位の予測完了を導出する（R-T1/R-U11/R-T2）。割当の読み取りでは、各サブ単位の被割当者を作業開始ライフサイクル遷移の単一属性（latest-wins 置換）として解釈し、平準化が誰の容量を消費するかを一意に決める（R-T5/§2.4）。
 2. **未割当バックログとキュー（P4 同一クエリ）** — 割当なしの合意済み作業を可視ギャップ（P0）として、エージェント作業キューと人間レビューキューを同一 DAG×ログへの actor フィルタ違い（P4）として導出する（参照実装 `queues.ts`＝二導出列＝`agentWorkQueue`／`humanReviewQueue`）。P4 見出しの「三キュー」および UI-ARCHITECTURE §4.1 の「作業/レビュー/エージェント」は、この同一クエリへの actor フィルタ・プリセット（全員/人間/エージェント）の表記であり、被覆上は **1 導出**（UI-ARCHITECTURE §4.1 line 73）として数える——本 spec が出すのはこの 1 導出（二導出列）であって、第 3 の独立キューを再計算しない。
@@ -49,8 +49,8 @@
    - 和訳: システムは c(i,d) 平準化を人間資源にのみ適用し、エージェント資源を容量による制約の対象外としなければならない。
 2. The system shall display agent work as schedulable spans between human touchpoints even though agent work is not leveled.
    - 和訳: システムはエージェント作業を、平準化対象外でも人間接点間の実行可能スパンとして表示しなければならない。
-3. The system shall include an agent task's lead time (P6) in dependency-chain path-length calculations so that an agent task rate-limiting a human successor contributes to the critical path.
-   - 和訳: システムはエージェントタスクのリードタイム（P6）を依存連鎖のパス長計算に算入し、人間後続を律速するエージェントタスクがクリティカルパスに寄与するようにしなければならない。
+3. The system shall include an agent task's lead time (P6) in dependency-chain path-length calculations **unconditionally — regardless of successor kind, including a trailing agent task with no successor** — so that it always contributes to the critical path (the longest path through the dependency chains, supersede edges excluded; R-D7/§2.7). Rate-limiting a human successor is merely the representative case, NOT a precondition for the contribution; the contribution is over scheduled effective assigned leaves (P0). (PR-CRITPATH-AGENT / R-T2 / P7, v19.)
+   - 和訳: システムはエージェントタスクのリードタイム（P6）を、後続の種別を問わず——後続が無い末尾のエージェントタスクを含め——**無条件に**依存連鎖のパス長計算に算入し、常にクリティカルパス（依存連鎖の最長路；置換辺=supersede は除く＝R-D7/§2.7）へ寄与させなければならない。人間後続を律速する場合は代表例にすぎず、寄与の**条件ではない**。寄与の対象はスケジュール対象＝有効・割当済みの葉に限る（P0）。（PR-CRITPATH-AGENT／R-T2／P7、v19）
 
 ### Requirement 3: 未割当バックログの可視ギャップ導出（P0/R-U9）
 
@@ -123,8 +123,8 @@
 
 #### Acceptance Criteria
 
-1. If the derived schedule exceeds the external deadline, then the system shall surface deadline-overrun detection data carrying the overrun magnitude (derived completion − deadline), and shall not automatically add resources or cut scope (the derived schedule already includes agent-span lead time per Req2 AC3 / R-T2, so the overrun fires correctly even when agent work rate-limits a human successor — MODEL R-T4 references this as an R-T2 prerequisite, not an independent requirement).
-   - 和訳: 導出スケジュールが外部期日を超える場合、システムは超過量（導出完了 − 期日）を伴う期日超過検出データを提示し、自動で要員追加やスコープ削除を行ってはならない（導出スケジュールは Req2 AC3／R-T2 によりエージェント区間のリードタイムを既に算入済みのため、エージェント作業が人間後続を律速する場合も超過が正しく発火する——MODEL R-T4 はこれを R-T2 の前提として参照するのみで独立要件化していない）。
+1. If the derived schedule exceeds the external deadline, then the system shall surface deadline-overrun detection data carrying the overrun magnitude (derived completion − deadline), and shall not automatically add resources or cut scope (the derived schedule already includes agent-span lead time per Req2 AC3 / R-T2 — included **unconditionally**, so the overrun fires correctly whether an agent rate-limits a human successor OR is a trailing agent with no successor — MODEL R-T4 references this as an R-T2 prerequisite, not an independent requirement).
+   - 和訳: 導出スケジュールが外部期日を超える場合、システムは超過量（導出完了 − 期日）を伴う期日超過検出データを提示し、自動で要員追加やスコープ削除を行ってはならない（導出スケジュールは Req2 AC3／R-T2 によりエージェント区間のリードタイムを**無条件に**算入済みのため、エージェントが人間後続を律速する場合でも、後続の無い末尾エージェントの場合でも超過が正しく発火する——MODEL R-T4 はこれを R-T2 の前提として参照するのみで独立要件化していない）。
 2. The system shall let the deadline-overrun condition persist while the derived schedule exceeds the deadline and become false only when the derived schedule comes within the deadline (a configuration-input change or other commitment moves it), surfacing it as detection data for downstream warning confirmation (health) rather than auto-resolving.
    - 和訳: システムは期日超過条件を、導出スケジュールが期日を超える間は持続させ、導出スケジュールが期日内に収まったとき（構成入力変更その他のコミットがそれを動かす）にのみ偽化させ、自動解決でなく下流の警告確定（health）のための検出データとして提示しなければならない。
 
@@ -134,8 +134,8 @@
 
 #### Acceptance Criteria
 
-1. The system shall read a node's single assignee as a property of its lifecycle transition into the active state and shall treat a provisional assignee set ahead of time identically for forecasting.
-   - 和訳: システムはノードの単一被割当者を、作業開始（active 状態への）ライフサイクル遷移の属性として読み取り、事前に設定された暫定被割当者も予測のため同一に扱わなければならない。
+1. The system shall read a node's single assignee as a property of a lifecycle `transition` — the work-start transition into the active state, or, for a provisional assignee set ahead of time, a **state-preserving transition (to=current state) carrying the assignee attribute** (R-T5/§2.4/§2.8) — and shall treat a provisional assignee identically for forecasting.
+   - 和訳: システムはノードの単一被割当者を、ライフサイクル `transition` の属性——作業開始（active 状態への）遷移、または事前設定の暫定被割当者では**状態を保つ遷移（to=現状態）に載せた assignee 属性**（R-T5/§2.4/§2.8）——として読み取り、暫定被割当者も予測のため同一に扱わなければならない。
 2. When multiple assignee namings exist on a node, the system shall use the `(ts,id)` latest-wins assignee as the current one for leveling, treating naming as replacement rather than addition.
    - 和訳: ノードに複数の被割当者名指しが存在するとき、システムは平準化のため `(ts,id)` latest-wins の被割当者を現行として用い、名指しを追加でなく置換として扱わなければならない。
 
@@ -215,7 +215,7 @@
    - 和訳: システムは各ノードの指名 `reviewer`（`implemented→accepted` を行う人間）を、`moira-core` の fold が供給する per-node 属性 read（latest-wins）として、人間レビュー待ちキュー・予測 read と並べて提示し、本 spec で reviewer を再導出してはならない。
 2. The system shall keep the `humanReviewQueue` derivation actor-independent and unchanged (the agreed effective leaves at `implemented`, Req4 AC3) regardless of whether a reviewer is designated — a designated reviewer shall not narrow or widen the queue membership; the reviewer is co-located as a per-node attribute only, leaving any narrowing to a presentation-layer filter that selects on the per-node `reviewer` attribute (no viewpoint-actor/"self" concept; MODEL §7#18(f)).
    - 和訳: システムは `humanReviewQueue` の導出を、reviewer の指名有無に依らず actor 非依存・不変（`implemented` の合意済み有効葉＝Req4 AC3）に保たなければならない——指名 reviewer はキューの母集合を狭めも広げもしない。reviewer は per-node 属性として併置されるのみで、『特定のレビュー担当の分だけ』の絞り込みは per-node `reviewer` 属性を選んで突き合わせる提示層フィルタに委ねる（視点 actor を要さない＝MODEL §7#18(f)）。
-3. The system shall keep the reviewer out of c(i,d) leveling (P7) and out of every schedule derivation (forecast, D_pred, schedule coverage, stale-slot, over-allocation, buffer) — the reviewer consumes no capacity and rate-limits no path — because review is a lifecycle step, not an estimated, assigned work unit (§7#18(b)); only the assignee (Req9/R-T5) is consumed by leveling.
-   - 和訳: システムは reviewer を c(i,d) 平準化（P7）から外し、あらゆるスケジュール導出（予測・D_pred・スケジュールカバレッジ・スロット陳腐化・過負荷・バッファ）からも外さなければならない——reviewer は容量を消費せず、いかなるパスも律速しない——レビューは見積を持ち割り当てられた作業単位ではなく lifecycle ステップだからである（§7#18(b)）。平準化が消費するのは被割当者（Req9/R-T5）のみである。
+3. The system shall keep the reviewer **attribute** out of c(i,d) leveling (P7) and out of every schedule derivation (forecast, D_pred, schedule coverage, stale-slot, over-allocation, buffer) — the reviewer *designation* consumes no capacity and rate-limits no path — because the reviewer attribute carries no estimate (the `implemented→accepted` review is a lifecycle step, not an estimated work unit); only the assignee (Req9/R-T5) is consumed by leveling. (Review *work* itself, if substantial, MAY be nodized as a normal A1 work node that earns EV and is leveled via that node's OWN assignee — a separate concern from this non-interfering reviewer attribute; PR-ASSIGNEE-REVIEWER / §7#18(b).)
+   - 和訳: システムは reviewer **属性**を c(i,d) 平準化（P7）から外し、あらゆるスケジュール導出（予測・D_pred・スケジュールカバレッジ・スロット陳腐化・過負荷・バッファ）からも外さなければならない——reviewer の**指名**は容量を消費せず、いかなるパスも律速しない——reviewer 属性は見積を持たない（`implemented→accepted` レビューは見積を持つ作業単位ではなく lifecycle ステップ）からである。平準化が消費するのは被割当者（Req9/R-T5）のみである。（レビュー**作業そのもの**は、相応に重ければ A1 の通常作業ノードとして立て、その**ノード自身の assignee** を通じて EV を獲得し平準化に参加しうる——これは非干渉な reviewer 属性とは別の論点；PR-ASSIGNEE-REVIEWER／§7#18(b)。）
 4. Where a node reaches `implemented` with no designated reviewer, the system shall still include it in the (unchanged) human review queue while surfacing the reviewer as absent (an "undesignated" visible gap, P0), and shall not fabricate a reviewer.
    - 和訳: ノードが reviewer 未指名のまま `implemented` に達した場合、システムはそれを（不変の）人間レビュー待ちキューになお含めつつ、reviewer を未指名（『未指名』の可視ギャップ、P0）として提示し、reviewer を捏造してはならない。
