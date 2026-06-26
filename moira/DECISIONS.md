@@ -199,6 +199,20 @@
 
 独立採点者(moira-gate-judge)の残存 Critical/Important = 0(PASS;参照実装 leveler.ts/derive.ts/queues.ts/fold.ts/types.ts・agreed 単位 L319/L325/L326 と照合)。新公理・新イベント・新状態・新原理番号・新要件番号なし(R-T5 を reviewer 記録へ拡張・付帯属性1つ追加ゆえ版上げ)。全 46 backend テスト緑。
 
+## 確定済みの分岐(v19 内訂正: 「自分のレビュー」絞り込みを視点 actor 非依存の reviewer 属性フィルタへ是正・版据え置き)
+
+> 人間が「本システムは認証を持たず『自分』という主体がないので、レビュー待ちは**担当者を指定して絞る**のが要件」と指摘。v19 は §7#18(f)・版ヘッダ・NAMING で「『自分のレビュー』絞り込みは視点 actor(いま誰が見ているか)＝提示層で別途」と記していた。moira-model-update の敵対ループ(R1: adversary×3〔V1–V6〕→ ユーザー裁定 FORK×2 → 著者パッチ → R2: adversary×3〔横断整合/新文面/下流〕→ gate-judge)を経て確定。
+
+- **【ユーザー裁定 FORK①(概念の深さ)】最小訂正を選択**(他候補:認証なしを MODEL に明記)。視点 actor/『自分』という中間概念を外し「per-node `reviewer` 属性を選んで突き合わせる提示層フィルタ」へ。**「認証を持たない」は MODEL に書かない**(射程外)・将来の閲覧者識別拡張も閉じない。
+- **【ユーザー裁定 FORK②(確定範囲)】正典矛盾を残さず一括同期を選択**(他候補:MODEL+NAMING のみ先行)。視点 actor 表記が MODEL 自身(版ヘッダ JP/EN・§7 EN gloss)・NAMING に加え surface-schedule Req14・moira-schedule Req14(§7#18(f) を直接引用)・確定済シナリオ・UI-ARCH・UI-DESIGN-BRIEF に散在し、MODEL だけ訂正すると引用先が引用元を否定する自己矛盾になるため。
+- **撤回(著者の当初案=過剰主張):** 「本システムは認証を持たない」を MODEL 正典に書く案を撤回——(i) MODEL は認証に一切言及せず意図的スコープ外なのに新前提を密輸、(ii)**認証≠識別**で認証がなくても担当者の選択で絞り込みは成立、(iii) UI-DESIGN-BRIEF「視点 actor は backend に無い」(=未実装)を「概念として恒久的に持たない」へ過剰一般化し将来の閲覧者識別拡張予約を殺す——を R1 で3敵対者が独立に指摘。是正後の §7#18(f) は認証に一切触れない(MODEL の射程外を維持)。
+- **撤回(版上げ案):** 当初 v19→v20 と版を上げる案だったが、R2 敵対者が「導出・数式・状態機械・A/I/P/R 番号を一切変えず §7 開示の文面のみ訂正するなら、v16 Phase 0／v16 見積二面性明確化の先例(編集的明確化は版据え置き)に照らし版上げは過剰」と先例照合で指摘。**版据え置き(v19 内訂正)に是正**。版ヘッダ(line 1–8)は『現行版の要約』ゆえ gloss 撤回を反映してよく、v19 来歴行は遡及改変しない。
+- **反証された Critical:** (a)「reviewer 名で語ると Actor 型と齟齬・同名衝突」→ 突き合わせを `reviewer` の **Actor {kind,id}** と明記して解消(表示名の一意性に非依存)。(b)「MODEL だけ訂正すると下流が §7#18(f) を引用して自己矛盾」→ 一括同期(FORK②)で解消。(c) 完全性=未指名ノードはどの reviewer 選択にも一致しないが**フィルタで隠さず**『未指名』可視ギャップに残す(P0)を §7#18(f)・各 spec AC に明記。
+- **波及同期(本コミット):** MODEL(版ヘッダ JP/EN・§7 intro・§7#18(f)・§7 EN gloss)・NAMING §7 表・surface-schedule Req14(全 AC)・moira-schedule Req14・moira-surface-spec-value Req11 AC4・UI-ARCHITECTURE.md・UI-DESIGN-BRIEF.md・受け入れシナリオ `requirements-spec-drafted`(§1/§4-3/§6 EARS/§7;**§3 不可侵=人間の種は不変**;あわせて R2 で検出した既存の軽微誤り——§6 EARS のトレースと honest-empty 参照 AC——も是正)。
+- **別タスク開示:** 参照実装フロントエンド `ScheduleTimeSurface.tsx` のコメント/tooltip(「視点 actor 拡張で解禁」)の reviewer フィルタ化は別タスク(v19 のフロントエンド同期方針を踏襲;『自分』選択肢の disabled 挙動は reviewer 選択フィルタ**未供給**ゆえ現状なお正しく、コメント文言のみ陳腐)。doc ヘッダの版ポインタ(UI-DESIGN-BRIEF「v14」・UI-ARCH/spec「v16」)は本訂正以前からの既存ドリフトで別の doc 衛生タスク。
+
+独立採点者(moira-gate-judge)の残存 Critical/Important = 0(PASS)。**版番号据え置き(v19)**・新公理・新イベント・新状態・新原理番号・新要件番号なし(§7#18(f) の文面訂正のみ)。backend コード変更なし(46 テスト緑のまま)。
+
 ## 確定済みの分岐(v17 → v18: 見積カバレッジ P2 を葉基底へ是正)
 
 > 受け入れシナリオ駆動レビュー(kiro-scenario)で人間(外的妥当性オーナー)が「req/design/tasks を全葉合意したのに見積カバレッジが 75%(100% でない)」を指摘し moira-model-update へ ESCALATE。敵対ループ(R1: moira-adversary×3〔V1–V6 分担:最小性·矛盾/完全性·スケール/過剰主張·空虚性〕→ 著者パッチ → 同一ラウンド再反論 moira-adversary×1 → moira-gate-judge PASS)を経て確定。シナリオ層(人間=妥当性)が委譲した正典ギャップを専門家ループが裁定した3例目。

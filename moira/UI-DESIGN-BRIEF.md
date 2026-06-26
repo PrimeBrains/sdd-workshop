@@ -11,7 +11,7 @@
 `moira/backend/src/` の実地検証で確定した事実と、それが課す設計制約。**全実装者の必須チェック項目。**
 
 1. **`ForecastRow.frozenSlot` は完了葉でも `null` になりうる**（`types.ts:152-156`, `pv.ts`, MODEL:197）。c=0 の日だけ働いて完了した葉＝「完了・未スケジュール」。稲妻線の完了葉Xを一律 `frozenSlot` に置く設計は禁止（null を 0/asOf に代入した瞬間 P0・R-S6 違反）。→ **第三状態「完了・未スケジュール（PV不算入の可視ギャップ）」を明示描画**。
-2. **視点 actor は backend に無い**。三キュー＝`kind`（作業/レビュー/エージェント, `queues.ts`）であって「自分/他者」ではない。**actorフィルタは「全員/人間/エージェント」に確定**、「自分」キューは backend 拡張までグレーアウト予約。
+2. **『自分』という視点 actor 概念は持たない**（MODEL §7#18(f)：認証された『自分』を介さず、レビュー待ちは per-node `reviewer` を選んで絞る reviewer フィルタで扱う）。三キュー＝`kind`（作業/レビュー/エージェント, `queues.ts`）。**actor 種別フィルタは「全員/人間/エージェント」に確定**、レビュー担当を選ぶ reviewer フィルタは per-node `reviewer`（v19 で fold が供給）に対する提示層フィルタでスライス未供給（予約）。
 3. **trend 系列・valid-time c が無い**（`http.ts` は `/derived?asOf=` 単発、`capacityOf` に as-of 引き無し、MODEL:479 が valid-time 未担保と明言）。**trend/前日比は valid-time c lookup 新設までブロッカー**、それまで「単一 asOf のみ正・過去点は描かない」に縮退。
 4. **スケジュール・バッファは MODEL v15（R-T6）で正典化されたが backend には未実装**。期日・目標日を構成入力とし、**バッファ残量 = max(0, 期日 − 導出完了)**・消費率を**スケジュール・カバレッジ対読みで de-rate**して導出する（R-T6/§3）。**ただし `isBuffer` ノードは A1 違反ゆえ不採用**（「isBufferノード由来」表現は全廃のまま）、**CCPM のバッファ生成・工数軸（BAC×想定生産性）・ゾーン閾値は不採用**（§5・§7#11）。backend に確定導出ができるまでは **Fever/buffer は別型の provisional 専用ソースのみ**から供給し、未供給時は空状態を正直表示（fever 風の消費%×進捗% 可視化は提示の自由 P0、ただし正典のバッファ定義は二参照日付＋導出完了であって安全余裕集約ではない）。
 5. **`cumulativeEvAbs` は supersede 込・cancelled（サンク）除外**（`ev.ts:39`）。「サンク込」表記は誤り。サンク EV_abs を出すなら別系列（backend 拡張依存）。
@@ -105,7 +105,7 @@ evm-app のジグザグ SVG path・clipPath 左右色分け・基準日縦線・
 - 行バー色は `spiTone`（SPI生値）由来を**撤去**し、`葉の lifecycle ＋ predicted vs frozenSlot 乖離`由来に再定義（母 view で SPI 生表示は R-S6 違反）。
 
 ### 3.4 三キュー・未割当・de-rate
-- **actorフィルタ＝kind 三キュー**（全員/人間/エージェント）。`agentWorkQueue`/`humanReviewQueue` 射影。「自分」タブはグレーアウト予約（赤線#2）。
+- **actorフィルタ＝kind 三キュー**（全員/人間/エージェント）。`agentWorkQueue`/`humanReviewQueue` 射影。レビュー担当を選ぶ reviewer フィルタ（per-node `reviewer` 選択）はスライス未供給で予約（赤線#2；視点 actor は要さない＝MODEL §7#18(f)）。
 - **未割当**（`unassignedBacklog`）は時間軸に載せず**最上部の別レーン（時間軸を持たない「未スケジュール」バンド）**で常時可視（P0/R-U9）。
 - Gantt 上部 SPI 表示は必ず `scheduleCoverage` 帯を隣接、低カバレッジ区間は淡色 de-rate＋注記。値は derive の射影そのまま。
 
@@ -169,7 +169,7 @@ evm-app のジグザグ SVG path・clipPath 左右色分け・基準日縦線・
 |---|---|---|---|
 | SPI/CPI trend 折れ線・前日比 | valid-time c lookup（capacity の as-of 引き）＋ snapshot | なし | 単一 asOf 1点・「履歴は実装後」注記 |
 | R-S7 原因別 stale | `ForecastRow.staleCause` | なし | 「stale（原因未分類）」 |
-| 「自分」キュー | derive の視点 actor パラメータ化 | なし | グレーアウト予約 |
+| reviewer フィルタ（担当者選択） | per-node `reviewer`（v19）に対する提示層フィルタ | なし（MODEL §7#18(f)：視点 actor を要さない） | スライス未供給（予約） |
 | contract改定→inbox 第5判断 | `commit-decision` 導出 | なし | 連動保留（履歴のみ） |
 | スケジュール・バッファ残量/消費率 | 期日・目標日の構成入力＋ D_pred からの導出（R-T6） | **MODEL v15/R-T6 で正典化済**（isBuffer/CCPM生成/工数軸は不採用） | provisional 空状態（backend 導出までは別型ソースのみ） |
 

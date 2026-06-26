@@ -128,7 +128,7 @@ MODEL が提示方法を個別に規定する要件群（R-S4/R-S5/R-S6/R-S7 お
 - 警告 → inbox: R-U12 矛盾合意、R-U13 未合意完了、R-C3 起点、P5 起点。
 
 **schedule-time（スケジュール・時間 / 母 view・全 actor）**
-- 上部: actor フィルタ（KIND: 全員/人間/エージェント。「自分」は backend に視点 actor が無いため無効化）＋ **SPI＋スケジュールカバレッジ strip（R-S6 副 host）**——参照実装 `ScheduleTimeSurface.tsx` は SPI と scheduleCoverage を対で表示し、低カバレッジ時は**カバレッジバーを淡色化（`derate={cov < 0.999}`）＋注記**で SPI を全体進捗と読ませない（SPI 値自体は素値表示・health と同一導出の read・再計算なし）。
+- 上部: actor フィルタ（KIND: 全員/人間/エージェント。レビュー担当を選ぶ reviewer フィルタは per-node `reviewer` 選択でスライス未供給＝予約；視点 actor は要さない＝MODEL §7#18(f)）＋ **SPI＋スケジュールカバレッジ strip（R-S6 副 host）**——参照実装 `ScheduleTimeSurface.tsx` は SPI と scheduleCoverage を対で表示し、低カバレッジ時は**カバレッジバーを淡色化（`derate={cov < 0.999}`）＋注記**で SPI を全体進捗と読ませない（SPI 値自体は素値表示・health と同一導出の read・再計算なし）。
 - 本体: Gantt（木×DAG 射影＋生きた予測 P7）、凍結 PV（health と同一ベースラインを参照）。per-leaf のスケジュール済み標識は行明細で表示（集約スケジュールカバレッジは health が host）。
 - 可視ギャップ: 未割当バックログ（P0）。
 - 行為への deep-link（write skill 起動）: 割当 transition（`moira-assign-schedule`；R-T5 単一被割当者）、着手（`moira-progress`）。surface は write せず skill を起動する。
