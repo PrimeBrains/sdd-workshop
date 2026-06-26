@@ -114,6 +114,8 @@ And   実装は見積なしのまま（このユニットの対象外）
 
 ### 履歴画面（新規）
 
+<small>※ レビュー作業ノード（各フェーズのレビュー）はこの時点ではまだ木に無い——後続の計画ユニット `review-work-estimated` で追加・見積され、その追加時に見積カバレッジが一時 100%→50% に低下する（新規作業の発見信号）。本ユニットはその前段ゆえ 3 葉（フェーズのみ）で 100% となる。</small>
+
 <table style="border-collapse:collapse;font-family:system-ui,sans-serif;font-size:13px;width:100%;margin-top:10px">
   <tr style="background:#374151;color:#fff"><td colspan="2" style="padding:6px 10px">🕓 履歴画面（新規）（After）</td></tr>
   <tr>
