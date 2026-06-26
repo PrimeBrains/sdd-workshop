@@ -118,7 +118,7 @@ And   実装は見積なしのまま（このユニットの対象外）
   <tr style="background:#374151;color:#fff"><td colspan="2" style="padding:6px 10px">🕓 履歴画面（新規）（After）</td></tr>
   <tr>
     <td style="padding:6px 10px;border:1px solid #cbd5e1;white-space:nowrap">たった今</td>
-    <td style="padding:6px 10px;border:1px solid #cbd5e1">開発者が <b>要件定義・設計・タスクの見積案を承認</b>（要件定義 3人日 / 設計 5人日 / タスク 2人日・<span style="color:#16a34a">承認済み</span>）</td>
+    <td style="padding:6px 10px;border:1px solid #cbd5e1">太郎が <b>要件定義・設計・タスクの見積案を承認</b>（要件定義 3人日 / 設計 5人日 / タスク 2人日・<span style="color:#16a34a">承認済み</span>）</td>
   </tr>
   <tr>
     <td style="padding:6px 10px;border:1px solid #cbd5e1;white-space:nowrap">先ほど</td>
@@ -188,7 +188,7 @@ And   実装は見積なしのまま（このユニットの対象外）
 - **WHEN** 見積が合意されたとき、**システムは** その時点の見積値を凍結値として確定**しなければならない**。
 - **WHEN** 見積が合意されたとき、**システムは** 画面上の印を「提案中（未承認）」から「承認済み」に変え**なければならない**。
 - **WHEN** 見積が合意されたとき、**システムは** 見積もり済みの割合の表示を、合意済みになったノードを反映して更新**しなければならない**。
-- **WHEN** 見積が合意されたとき、**システムは** 履歴画面に「見積を承認」の行を追加**しなければならない**。
+- **WHEN** 見積が合意されたとき、**システムは** 履歴画面に「見積を承認」の行を、承認した担当者名（固有名詞・ログの actor と一致）とともに追加**しなければならない**。
 - **WHILE** 人間が承認していない間、**システムは** 見積を「合意済み」に変更**してはならない**。
 - **WHEN** 見積が合意されたとき、**システムは** 担当の割当を変更**してはならない**（本ユニットは割当を扱わない）。
 - **WHEN** 見積が合意されたとき、**システムは** 実装の見積状態を変更**してはならない**。
@@ -202,3 +202,4 @@ And   実装は見積なしのまま（このユニットの対象外）
 - **画面表現は参照実装に接地（`frozenBudget` 独立列を描かない）:** spec-value のノード木は `frozenBudget` を独立列として表示せず、各葉に lifecycle・estimate 印・「見積／EV寄与」を示す（EV寄与 = 完了かつ合意済みのとき `frozenBudget`、未完了の本ユニットでは 0）。出所＝参照実装 `moira/frontend/src/surfaces/spec/SpecValueSurface.tsx`、moira-surface-spec-value Req6 AC3。`frozenBudget` は §4 データ表に per-node 属性（素の値）として保持する。
 - **見積カバレッジは「読むだけ・再計算しない」:** spec-value は導出（`moira-evm` 所有の P2）を読んで表示するのみで、自前で再計算しない（出所＝moira-surface-spec-value Req9 AC2）。§6 はこの規律に合わせ「カバレッジ表示の更新」と表現し、「再計算」とは書かない。
 - **履歴画面は新規サーフェス（前段で起票決定済み）:** §4/§5 の「履歴画面（新規）」は前段ユニット [estimate-spec-proposed](./estimate-spec-proposed.md) §7 で新規要件化を決定済みのアクティビティ画面。本ユニットはこれを継承し `(新規)` と明示する。
+- **履歴画面のアクターは固有名詞で表示（一般名詞「開発者」にしない）:** 履歴画面の各行は「誰が行ったか」を**ログの actor と一致する固有名詞**で表示する。本ユニットの承認者はログ `actor.id = "dev:taro"`（§5）に対応する担当者名「**太郎**」で表示する（[assign-spec-provisional](./assign-spec-provisional.md) の表示名「👤 太郎」と同一人物）。一般名詞「開発者」は監査記録として「誰が承認したか」を失うため使わない。エージェントが行った行は同じ規律でエージェント名「Claude」を表示する（ログ `actor.id = "claude"`）。なお §3 ふるまい・§6 EARS・frontmatter `actor` は**役割**としての「開発者」を保つ（特定の人ではなく役割の記述だから）。
