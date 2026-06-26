@@ -184,9 +184,24 @@
 
 独立採点者(moira-gate-judge)の残存 Critical/Important = 0(PASS;参照実装 ev.ts/fold.ts/leveler.ts/coverage.ts/types.ts と照合)。新公理・新イベント・新状態・新原理番号・新要件番号なし(既存 R-E1/R-E3/R-T5 の意味論明確化と §2.8 への付帯記録専用 `transition` の明示)。**下流 spec(moira-core/moira-schedule)の R-T5「into active state」文言同期は別タスク(§7#14(f))。**
 
+## 確定済みの分岐(v17 → v18: 見積カバレッジ P2 を葉基底へ是正)
+
+> 受け入れシナリオ駆動レビュー(kiro-scenario)で人間(外的妥当性オーナー)が「req/design/tasks を全葉合意したのに見積カバレッジが 75%(100% でない)」を指摘し moira-model-update へ ESCALATE。敵対ループ(R1: moira-adversary×3〔V1–V6 分担:最小性·矛盾/完全性·スケール/過剰主張·空虚性〕→ 著者パッチ → 同一ラウンド再反論 moira-adversary×1 → moira-gate-judge PASS)を経て確定。シナリオ層(人間=妥当性)が委譲した正典ギャップを専門家ループが裁定した3例目。
+
+- **【ユーザー裁定 product fork】見積カバレッジ → 「全葉合意=100%」を選択**(他候補:75% 正典維持＋画面明示)。これに伴い P2 を moira-model-update の敵対ゲートにかけ葉基底化を確定。
+- **中核の是正:** P2 を**ノード基底**`Σ(合意済み見積ノード)/Σ(既知ツリーの全ノード)` から**葉基底**`|合意済み有効葉|/|既知の有効葉|` へ。参照実装 `coverage.ts` を `effectiveNodes→effectiveLeaves` に同期。根拠=I1 で原始的見積は葉のみ・親は Σ(合意済み子) のロールアップで §7#14(d) のとおり独立合意の対象でない;旧ノード基底は親を分母に数えるため分解木で構造的に 100% 不能(2階層で上限75%)だった(「全葉=100%」と両立には P2 か §7#14(d) の一方変更を要し、P2 側を採った=**設計選択**)。葉基底で EV%(P1)・scheduleCoverage(R-S6)・executionCoverage(R-S8) と有効葉**集合**が統一(測度は EV%=MD 加重・他=カウントで異なり和・交換しない)。§2.3 発見信号は保たれる。
+- **Critical「中間ノード合意の不可視=情報損失」を反証→同一ラウンド再反論で SOUND 確認:** 中間ノードへの独立合意は core が構造強制で禁じていない(`fold.ts` の estimate-agreement 分岐は I6=human のみ検査;構造拒否は I2/I6 のみ)が、親見積は I1 で「Σ(合意済み子)」と**規範上**定まるため親合意は冗長 or stale で、葉基底が無視するのは全ケースで正しい coverage(stale 合意親/中間直接合意/子全合意 を検証)。**情報損失でなく §7#14(d) との整合回復**と決着。新不変条件(中間合意の構造禁止)は**最小性により足さず** §7#17(b) に deferred 開示。
+- **再反論で検出・解消した Important:** (i) 反証の過剰表現「親値は I1 で**完全決定**(実装でも保証)」を是正——`fold.ts` は親見積を Σ 再計算しないため stale 親 estimateState/frozenBudget が `computeNodeStates`(node-state 読み)に残る。P2 coverage でも他の葉基底導出でもなく **I1 実装 enforcement/提示**の既存事項(正常系=feature 先 decompose では親 never-agreed で非発生;発生は agree→decompose 等の異常系)で **P2 スコープ外として deferred**。(ii) fixture `tiny-project.ts` L21 の旧 5/6 コメント残存→ 1.0 へ修正。(iii)「旧ノード基底は §7#14(d) と内的に矛盾」を「両立に一方変更を要する**設計選択**」へ緩和(P2本文/§6/§7#17、JA+EN)。
+- **撤回(自己の過去正典):** P2 ノード基底定義、`coverage.ts` コメント「independently-agreed effective nodes / known effective nodes」、受け入れシナリオ単位(estimate-spec-agreed §7・requirements-spec-drafted)の「P2 はノード基底=75% が canon の設計」。
+- **波及同期:** MODEL P2/§2.3/§6/§7#17/版ヘッダ・NAMING §7 表・`coverage.ts`・`coverage.test.ts`/`golden.test.ts`・`tiny-project.ts`・thought-experiment-11 を本コミットで同期(全 46 backend テスト緑)。受け入れシナリオ 3 単位(estimate-proposed/agreed・requirements-spec-drafted)の 75%→100% 同期は **kiro-scenario 所管の別タスク**。
+- **残余開示(§7#17):** 葉基底で前倒し合意も 100% に達しうる(成熟度を P2 は区別しない=§7#15(a) 同型の無警告楽観)/中間合意の stale 親 estimateState の扱い(presentation / fold 無効化 / 警告)は I1 enforcement の deferred 事項。
+
+独立採点者(moira-gate-judge)の残存 Critical/Important = 0(PASS;参照実装 coverage.ts/effective-set.ts/fold.ts/ev.ts と照合)。新公理・新イベント・新状態・新原理番号・新要件番号なし(P2 基底の是正のみ)。
+
 ## 未解決の論点 / 次の一手
 
 - **次の一手**:検証シナリオ **S4(健全性のリアルタイム把握)を一本貫き**、4イベントを fold して EV%+カバレッジ+SPI/CPI を導出する最小バックエンドで「イベント→導出→表示」の型を作る。
+- **次の一手(v18 シナリオ単位同期)**:P2 葉基底化に伴い、受け入れシナリオ単位 `estimate-spec-proposed.md`・`estimate-spec-agreed.md`・`requirements-spec-drafted.md` の「P2 ノード基底=75%」表記を 100%(葉基底)へ同期する(kiro-scenario 所管)。本タスクは MODEL と派生確定文書のみ確定。
 - **次の一手(v17 下流同期)**:v17 で R-T5 が「作業開始遷移 **or** 状態保持遷移(暫定割当=to=現状態)」へ、見積が「入力連鎖=理想形・前倒し許容(§2.3/R-E3 incomplete 限定)」へ拡張されたため、下流 spec の文言を同期する——`moira-schedule/requirements.md`(assignee を "lifecycle transition into the active state" とのみ規定)・`moira-core` R-T5 系・`moira-ingestion-adapter`(§7#14(f) 既出)。本タスクは MODEL と派生文書のみ確定し、下流 spec 同期は別タスクとして切り出し済み(gate-judge も対象外と確認)。
 - **保留:Moira と既存 EVM Studio 系 spec の関係。** 既存 `evm-studio` / `sdd-dashboard` は使い捨てプロトタイプ実験(スナップショット方式・単一アクター)であり、Moira はその失敗を踏まえた**完全新規・別概念**。具体アーキテクチャは MODEL を前提に今後検討。
 - **運用上の確認事項**(MODEL 構造には影響しない):

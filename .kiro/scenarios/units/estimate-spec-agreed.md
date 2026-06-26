@@ -34,7 +34,7 @@ touches_requirements:
 | └ 設計 | proposed（未承認） | 5人日 | pending |
 | └ タスク | proposed（未承認） | 2人日 | pending |
 
-見積カバレッジ（P2・合意済みベース）：**0%**（合意済みノード 0 / 既知の有効ノード 4。分母は親 F を含むノード基底＝§7）
+見積カバレッジ（P2・合意済みベース・**葉基底**＝MODEL v18）：**0%**（合意済み有効葉 0 / 既知の有効葉 3＝§7）
 
 ## 3. ふるまい（When / Then）
 
@@ -62,7 +62,7 @@ And   実装は見積なしのまま（このユニットの対象外）
     <td style="padding:6px 10px;border:1px solid #cbd5e1"><b>F（フィーチャー）</b></td>
     <td style="padding:6px 10px;border:1px solid #cbd5e1">—</td>
     <td style="padding:6px 10px;border:1px solid #cbd5e1"><span style="background:#e2e8f0;border-radius:4px;padding:1px 6px">pending</span></td>
-    <td style="padding:6px 10px;border:1px solid #cbd5e1">見積カバレッジ <b>0%</b>（合意済みベース・0/4）<br><span style="color:#b45309">見積案 3 葉に提示済み（合意は未）</span></td>
+    <td style="padding:6px 10px;border:1px solid #cbd5e1">見積カバレッジ <b>0%</b>（合意済みベース・0/3・葉基底）<br><span style="color:#b45309">見積案 3 葉に提示済み（合意は未）</span></td>
   </tr>
   <tr>
     <td style="padding:6px 10px 6px 28px;border:1px solid #cbd5e1">└ 要件定義</td>
@@ -90,7 +90,7 @@ And   実装は見積なしのまま（このユニットの対象外）
     <td style="padding:6px 10px;border:1px solid #cbd5e1"><b>F（フィーチャー）</b></td>
     <td style="padding:6px 10px;border:1px solid #cbd5e1">—</td>
     <td style="padding:6px 10px;border:1px solid #cbd5e1"><span style="background:#e2e8f0;border-radius:4px;padding:1px 6px">pending</span></td>
-    <td style="padding:6px 10px;border:1px solid #cbd5e1">見積カバレッジ <b>75%</b>（3/4）<br><span style="color:#16a34a">葉は全て合意済み（親 F はロールアップ）</span></td>
+    <td style="padding:6px 10px;border:1px solid #cbd5e1">見積カバレッジ <b>100%</b>（3/3・葉基底）<br><span style="color:#16a34a">葉は全て合意済み（中間ノード F はロールアップで分母外）</span></td>
   </tr>
   <tr>
     <td style="padding:6px 10px 6px 28px;border:1px solid #cbd5e1">└ 要件定義</td>
@@ -130,12 +130,12 @@ And   実装は見積なしのまま（このユニットの対象外）
 
 | ノード | lifecycle | 見積状態 | 見積値 | 凍結値（frozenBudget） | P2 への算入 |
 |---|---|---|---|---|---|
-| F（フィーチャー） | pending | — | — | — | 分母に算入・未合意（I1 ロールアップ＝独立合意なし） |
-| └ 要件定義 | pending | agreed（承認済み） | 3人日 | 3 | ✅ 分子・分母とも算入（合意済み） |
-| └ 設計 | pending | agreed（承認済み） | 5人日 | 5 | ✅ 分子・分母とも算入（合意済み） |
-| └ タスク | pending | agreed（承認済み） | 2人日 | 2 | ✅ 分子・分母とも算入（合意済み） |
+| F（フィーチャー） | pending | — | — | — | 分母外（中間ノード＝I1 ロールアップ・葉基底では数えない） |
+| └ 要件定義 | pending | agreed（承認済み） | 3人日 | 3 | ✅ 分子・分母とも算入（合意済み葉） |
+| └ 設計 | pending | agreed（承認済み） | 5人日 | 5 | ✅ 分子・分母とも算入（合意済み葉） |
+| └ タスク | pending | agreed（承認済み） | 2人日 | 2 | ✅ 分子・分母とも算入（合意済み葉） |
 
-見積カバレッジ（P2・合意済みベース）：**75%**（合意済みノード 3 / 既知の有効ノード 4。分母に親 F を含むノード基底＝§7）<br>
+見積カバレッジ（P2・合意済みベース・**葉基底**）：**100%**（合意済み有効葉 3 / 既知の有効葉 3＝§7）<br>
 凍結済み合計：**10人日**（3 + 5 + 2）
 
 <small>注：`frozenBudget` は合意時に確定する per-node 属性（上表は素の値）。spec-value のノード木はこれを独立列として表示せず、EV寄与（完了かつ合意済みのとき `frozenBudget` が乗り、未完了の本ユニットでは 0）として現す（参照実装 `moira/frontend/src/surfaces/spec/SpecValueSurface.tsx`、moira-surface-spec-value Req6）。</small>
@@ -198,7 +198,7 @@ And   実装は見積なしのまま（このユニットの対象外）
 - **スコープ＝happy path（一括承認）に限定:** 本ユニットは「開発者が3ノードの見積案を問題ないと判断して一括承認する」経路のみを扱う。**承認拒否（差し戻し → 再見積 R-E3）** と **部分承認（ノード単位合意・MODEL §2.2）** は、それぞれ将来の別ユニットとして切り出す（ユーザー裁定 FORK）。§3 は不可侵の人間意図であり、これらの否定系・部分系をここに混入させない。
 - **承認 write の所有は `moira-estimate-agree`（⚠未実装）:** 合意（`proposed→agreed`）は spec-value 画面が自ら実行せず、独立 write skill `moira-estimate-agree` が所有する人間のコミット判断である。spec-value は当該 write 文脈への**深リンクのみ**を提供する（出所＝moira-surface-spec-value Req7 AC3、UI-ARCHITECTURE §4.2/§5）。見積案を提示する `moira-estimate-propose`（仮称）とは別スキル。
 - **凍結は予算次元のみ（スロットは対象外）:** 合意時に確定するのはベースライン**予算**（`frozenBudget`）であり、**計画スロット**（`frozenSlot`）は初回スケジュール載り時に確定する（MODEL §3 の二次元ベースライン）。本ユニットの postcondition「担当はまだ付いておらず」はスロット未凍結と整合し、スロット凍結は後段（割当・スケジュール）の責務。
-- **P2 分母はノード基底（親 F を含む。3葉合意で 75%）:** MODEL P2「Σ(合意済み見積ノード) / Σ(既知ツリーの全ノード)」の分母は**既知の有効ノード全体**であり、中間ノード（フィーチャー F）も分母に含む。F の見積は I1 ロールアップ（親 = Σ合意済み子）で**独立した合意 transition を受けない**ため、F は分母に居続けながら分子（独立合意ノード）に入らない。ゆえに3葉すべてを合意しても P2 = 3/4 = **75%** であり 100% には達しない（出所＝参照実装 `moira/backend/src/derivations/coverage.ts`〔分母 `effectiveNodes.size`・親はロールアップで独立合意なし〕とゴールデンテスト `coverage.test.ts`〔`F + a 合意 → 1/2`〕）。§3 の「0% から上がる」はこの 0%→75% で充足する。**葉基底との別概念:** scheduleCoverage(R-S6)・executionCoverage(R-S8) は葉基底（`effectiveLeaves`）だが、estimateCoverage(P2) はノード基底である点が canon の設計（coverage.ts の `effectiveNodes` vs `effectiveLeaves`）。前段ユニット [estimate-spec-proposed](./estimate-spec-proposed.md) の「有効葉 3」表記は基底ラベルとして不正確だが、その値 0% は基底不変（0/3 = 0/4 = 0）ゆえ前段の確定値とは矛盾しない（前段ラベルの訂正は別タスク）。
+- **P2 は葉基底（中間ノードは分母外。3葉合意で 100%）＝MODEL v18 で是正:** MODEL v18 で P2 を「|合意済み有効葉| / |既知の有効葉|」の**葉基底**へ是正した（旧版はノード基底で親 F を分母に含み、3葉合意でも 3/4 = 75% 止まりだった）。中間ノード（フィーチャー F）は I1 ロールアップ（親 = Σ合意済み子）で**独立した合意 transition を受けない**＝§7#14(d) のとおり独立合意の対象でないため、**葉基底では分母に入らない**。ゆえに3葉すべてを合意すると P2 = 3/3 = **100%**（出所＝MODEL §3 P2・§6 v17→v18 来歴・§7#17、参照実装 `moira/backend/src/derivations/coverage.ts` の `effectiveLeaves` 基底、ゴールデンテスト `coverage.test.ts`／`golden.test.ts`）。§3 の「0% から上がる」はこの 0%→100% で充足する。**基底の統一:** estimateCoverage(P2)・scheduleCoverage(R-S6)・executionCoverage(R-S8) はいずれも葉基底（`effectiveLeaves`）に統一された（v18；測度は EV%=MD 加重・各 coverage=カウントで異なり和・交換しない）。前段ユニット [estimate-spec-proposed](./estimate-spec-proposed.md) の「有効葉 3」表記は葉基底として正確（値 0% は基底不変）。**この是正は受け入れシナリオレビューで人間が「全葉合意なのに 75% は直感に反する」と指摘し、`moira-model-update` の独立敵対ゲートを PASS して確定した（v17→v18）。**
 - **画面表現は参照実装に接地（`frozenBudget` 独立列を描かない）:** spec-value のノード木は `frozenBudget` を独立列として表示せず、各葉に lifecycle・estimate 印・「見積／EV寄与」を示す（EV寄与 = 完了かつ合意済みのとき `frozenBudget`、未完了の本ユニットでは 0）。出所＝参照実装 `moira/frontend/src/surfaces/spec/SpecValueSurface.tsx`、moira-surface-spec-value Req6 AC3。`frozenBudget` は §4 データ表に per-node 属性（素の値）として保持する。
 - **見積カバレッジは「読むだけ・再計算しない」:** spec-value は導出（`moira-evm` 所有の P2）を読んで表示するのみで、自前で再計算しない（出所＝moira-surface-spec-value Req9 AC2）。§6 はこの規律に合わせ「カバレッジ表示の更新」と表現し、「再計算」とは書かない。
 - **履歴画面は新規サーフェス（前段で起票決定済み）:** §4/§5 の「履歴画面（新規）」は前段ユニット [estimate-spec-proposed](./estimate-spec-proposed.md) §7 で新規要件化を決定済みのアクティビティ画面。本ユニットはこれを継承し `(新規)` と明示する。

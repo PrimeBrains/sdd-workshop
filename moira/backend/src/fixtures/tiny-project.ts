@@ -18,7 +18,7 @@
 // Hand-computed at asOf = 2026-01-28 (startDate auto = earliest slot 2026-01-05):
 //   EV_abs   = 4+6+2+8        = 20   (impl-2 not completed)
 //   EV%      = 20 / 26        ≈ 0.7692   (denom = 4+6+2+8+6 latest of agreed leaves)
-//   est cov  = 5 / 6          ≈ 0.8333   (F is an I1 rollup, not independently agreed)
+//   est cov  = 5 / 5          = 1.0      (leaf-based P2 v18: all 5 effective leaves agreed; F is an internal rollup, excluded)
 //   sched cov= 5 / 5          = 1.0
 //   PV(0128) = 4+6+2+8        = 20   (impl-2 slot 2026-01-31 > 0128 excluded)
 //   AC       = 4+7+2+12+0     = 25

@@ -17,7 +17,8 @@ describe('golden: tiny-project at asOf 2026-01-28', () => {
     expect(d.evAbs).toBe(20);
     expect(d.cumulativeEvAbs).toBe(20);
     expect(d.evPercent).toBeCloseTo(20 / 26, 10); // ≈ 0.7692
-    expect(d.estimateCoverage).toBeCloseTo(5 / 6, 10); // ≈ 0.8333
+    expect(d.estimateCoverage).toBeCloseTo(1, 10); // leaf-based (P2 v18): all 5 effective leaves agreed → 5/5
+
   });
 
   it('derives the schedule pair (SPI ↔ schedule coverage)', () => {

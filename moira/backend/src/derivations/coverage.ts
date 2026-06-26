@@ -10,23 +10,36 @@ import type { ProjectedState } from '../types.js';
 import type { EffectiveSet } from './effective-set.js';
 
 /**
- * coverage = |independently-agreed effective nodes| / |known effective nodes|
- *            (P2 MODEL:169 — measured in node count, over the effective set so
- *            superseded nodes are not double-counted).
+ * coverage = |agreed effective leaves| / |known effective leaves|
+ *            (P2 MODEL:181 — measured in LEAF count, over the effective set so
+ *            superseded/cancelled nodes are not counted).
  *
- * "Independently agreed" = the node carries its own agreement transition. Parent
- * nodes whose estimate is an I1 rollup are NOT agreed independently (they never
- * receive an estimate-agreement transition), so they correctly lower coverage
- * until decomposed work is itself agreed.
+ * Leaf-based (v18): leaves are where estimates are primitive (I1 — original
+ * estimates are at leaves only) and where work is performed and EV is earned.
+ * Intermediate (rollup) nodes are excluded: by I1 a parent's estimate is
+ * Σ(agreed children), a derived quantity that is never an independent agreement
+ * target (§7#14d), so counting parents in the denominator (the old node-basis)
+ * made 100% structurally unreachable for any decomposed tree and contradicted
+ * §7#14d. Sharing the leaf basis with EV% (P1), scheduleCoverage and
+ * executionCoverage removes the lone basis asymmetry. The §2.3 discovery signal
+ * is preserved: an impl leaf born unestimated enters the denominator and drops
+ * coverage; est(impl) agreement recovers it. (A stray agreement on an
+ * intermediate node — not structurally forbidden; the estimate-agreement branch
+ * in fold.ts checks only I6 (actor kind) — is coverage-inert here, which is
+ * correct: a parent's estimate is Σ(agreed children) by I1 *as a norm*, so a
+ * parent agreement is redundant or stale. The reference fold does not recompute
+ * that rollup, so such a stale parent estimateState/frozenBudget persists in the
+ * node-state read but never in any leaf-based derivation — a pre-existing
+ * I1-enforcement/presentation concern independent of P2. §7#17.)
  */
 export function computeEstimateCoverage(
   state: ProjectedState,
   eff: EffectiveSet,
 ): number {
-  const known = eff.effectiveNodes.size;
+  const known = eff.effectiveLeaves.length;
   if (known === 0) return 0; // honest empty (P0)
   let agreed = 0;
-  for (const id of eff.effectiveNodes) {
+  for (const id of eff.effectiveLeaves) {
     const n = state.nodes.get(id);
     if (n !== undefined && n.estimateState === 'agreed') agreed += 1;
   }
