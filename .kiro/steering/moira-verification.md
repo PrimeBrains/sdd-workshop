@@ -14,7 +14,7 @@
 
 - **外的妥当性 → シナリオ**（作るべきか／ユーザーが気づけるか）。人間が所有（`.kiro/scenarios/README.md`）。
 - **内的整合性 → プロパティ目録の「平易な一文」**。人間が批准する（`moira/PROPERTIES.md`）。
-- **構造的健全性 → 設計判断（Decisions）の「平易な判定文」**。MODEL にもプロパティにもシナリオにも bind できない 0→1 の設計判断——CQRS 境界・所有権分配・`ready` 二語分離・永続化の所在・タスク分解の構造など（実例: `.kiro/specs/moira-core/requirements.md` の Boundary Context「core は構造のみ所有・値は下流」）。人間が批准する（`moira/DECISIONS-CATALOG.md`・**新規／未実体化**）。**ただし第三面は仕分け弁を持つ**——後述のとおり (a) 責任・帰結・ドメイン意味の判断はプロダクトオーナーが見、(b) 純工学判断は技術ゲートへ分流する。よって「3面」はプロダクトオーナーが向き合う**入口**の数であり、第三面の (b) 成分は別主体（技術敵対ゲート）が担う。
+- **構造的健全性 → 設計判断（Decisions）の「平易な判定文」**。MODEL にもプロパティにもシナリオにも bind できない 0→1 の設計判断——CQRS 境界・所有権分配・`ready` 二語分離・永続化の所在・タスク分解の構造など（実例: `.kiro/specs/moira-core/requirements.md` の Boundary Context「core は構造のみ所有・値は下流」）。人間が批准する（`moira/DECISIONS-CATALOG.md`・初版実体化済）。**ただし第三面は仕分け弁を持つ**——後述のとおり (a) 責任・帰結・ドメイン意味の判断はプロダクトオーナーが見、(b) 純工学判断は技術ゲートへ分流する。よって「3面」はプロダクトオーナーが向き合う**入口**の数であり、第三面の (b) 成分は別主体（技術敵対ゲート）が担う。
 - **残りは機械（自動検証・整備途上、下記 R/D/T 節）と技術敵対ゲートが担う。** プロダクトオーナーがこの3面（の人間担当分）だけを見れば、意図どおりのシステムが立つ——を**設計目標**とする（達成済みの断定ではない）。
 - 消えない**残余＝未発見（P2）**。いかなる手法の組合せも「ドメイン妥当性」を立証しない。これは**非ゴールとして明記**し、green が穴を塞いだという誤った安心を禁ずる。
 
@@ -22,7 +22,7 @@
 
 ## 設計判断目録（Decisions）
 
-- **場所**: `moira/DECISIONS-CATALOG.md`（人間レビュー用の判定目録・**本方針で新設する成果物。現状は未実体化——別タスクで起票する**）。実体化すれば `PROPERTIES.md` と並ぶ、人間がレビューする一次成果物となる。**既存の `moira/DECISIONS.md` は別物**——確定済み分岐を時系列に記録し `moira-model-update` が保守する**意思決定ジャーナル（来歴・専門家向け）**である。目録で `agreed` になった判断は、必要に応じてジャーナルへ来歴として記録される（目録＝人間レビューの入口、ジャーナル＝archive）。
+- **場所**: `moira/DECISIONS-CATALOG.md`（人間レビュー用の判定目録。2026-06-26 初版3件で実体化済・要拡充）。`PROPERTIES.md` と並ぶ、人間がレビューする一次成果物。**既存の `moira/DECISIONS.md` は別物**——確定済み分岐を時系列に記録し `moira-model-update` が保守する**意思決定ジャーナル（来歴・専門家向け）**である。目録で `agreed` になった判断は、必要に応じてジャーナルへ来歴として記録される（目録＝人間レビューの入口、ジャーナル＝archive）。
 - **列**: 名前／**どんな場面の話か**（専門用語ゼロの状況描写）／**決めたこと（案）**（採った選択肢と**誰の責任か**）／**他にありえた選び方**（却下した代替——これが無いと判子押しになる）／**外すとどうなるか**（観測できる被害＝賭け金）／**あなたが判定する一文**（`proposed → agreed` で批准する yes/no）／**仕分け (a)/(b)**（下記）／〔**裏面**・人間は読まなくてよい〕根拠 clause（**安定 A/I/P/R ID で参照・行番号禁止**）・関連実装 ref。
 - **規律**:
   - シナリオ README・プロパティ目録と同等の**平易な言語規約**（専門用語・skill 実名を本文に出さない）。
@@ -37,7 +37,7 @@
 - `requirements.md`／`design.md`／`tasks.md` は、同じ MODEL 正典の**「機械に向けた顔」＝中間表現（IR）**である。プロダクトオーナーが逐語レビューする一次成果物ではない——人間が読む一次成果物は上の3面（シナリオ・プロパティ・Decisions）。R/D/T はそれらと並列の別系統ではなく、**同一正典の実装向けの射影**。
 - これは cc-sdd の3フェーズ承認（`CLAUDE.md`：Requirements/Design/Tasks 各フェーズで人間レビュー）と**緊張する**。Moira 固有の方針として、本書は cc-sdd の R/D/T フェーズ承認のうち**プロダクトオーナーの逐語レビュー部分**を下記①②で置換する。ここで「Moira spec」とは **`moira/MODEL.md` を SSOT として宣言する spec**（現状 `.kiro/specs/moira-*` 系）を指す。この置換は当該 spec で CLAUDE.md の一般則に優先し、CLAUDE.md の一般則は正典（MODEL）を持たない他 spec に適用される。
 - 置換は**「素通り」ではない**。R/D/T 逐語レビューを外すなら、その代わりに必ず: ①**正典 ↔ R/D/T の一致チェック**（clause → property/AC 被覆レポートで未 bound を可視ギャップに）＋②**工学残余の技術敵対ゲート**（`doc-refine`。上の仕分け (b)）を置く。
-- **正直な現状（当面どう運用するか）**: シナリオとプロパティ目録は稼働、**Decisions 目録は未実体化**、**①の機械的な一致チェックは未整備**（3器構成のいずれにも属さず、PROPERTIES.md の clause→property 被覆も property 側の手動表に留まる）。よって**いまは従来どおり R/D/T も人間が見つつ**、Decisions 目録と①の整備が進んだ領域から R/D/T 逐語レビューを縮退させる（**段階的移行**）。①未整備のまま全面卒業はしない。
+- **正直な現状（当面どう運用するか）**: シナリオとプロパティ目録は稼働、**Decisions 目録は初版実体化済（要拡充）**、**①の機械的な一致チェックは未整備**（3器構成のいずれにも属さず、PROPERTIES.md の clause→property 被覆も property 側の手動表に留まる）。よって**いまは従来どおり R/D/T も人間が見つつ**、Decisions 目録と①の整備が進んだ領域から R/D/T 逐語レビューを縮退させる（**段階的移行**）。①未整備のまま全面卒業はしない。
 - 全体として**依存関係**である：R/D/T の正典忠実性が①②で保証されて初めて、3面レビューだけで足りる。R/D/T を「AI 用だから放置でよい」と扱うと、IR が正典から静かにズレても誰も気づかない——**動機節の R-E3/I4 がまさにその実例**。
 
 ## 3器構成（不変条件を SUT 別に割り当てる）
@@ -90,6 +90,6 @@
 ## 変更時のゲート対応
 
 - MODEL の制約・語彙・既定を変える → `moira-model-update`（不変条件の形式スライス・bound プロパティ・モデル検査を同一 run で再確定）。
-- **設計判断（Decisions）を新規・改訂し批准する → `doc-refine`（`moira/DECISIONS-CATALOG.md`〔新規・未実体化〕を確定ゲートで磨く）。MODEL の制約・語彙・既定に触れる判断は `moira-model-update` で正典へ昇格。**
+- **設計判断（Decisions）を新規・改訂し批准する → `doc-refine`（`moira/DECISIONS-CATALOG.md` を確定ゲートで磨く）。MODEL の制約・語彙・既定に触れる判断は `moira-model-update` で正典へ昇格。**
 - 確定文書（steering・エージェント定義等）を磨く → `doc-refine`。
-- 関連: [moira-model.md](moira-model.md) ／ [moira-naming.md](moira-naming.md) ／ [testing-conventions.md](testing-conventions.md) ／ `moira/MODEL.md` ／ `moira/PROPERTIES.md` ／ `moira/DECISIONS-CATALOG.md`（人間レビュー目録・新規／未実体化） ／ `moira/DECISIONS.md`（意思決定ジャーナル＝来歴） ／ `.kiro/scenarios/README.md`。
+- 関連: [moira-model.md](moira-model.md) ／ [moira-naming.md](moira-naming.md) ／ [testing-conventions.md](testing-conventions.md) ／ `moira/MODEL.md` ／ `moira/PROPERTIES.md` ／ `moira/DECISIONS-CATALOG.md`（人間レビュー目録） ／ `moira/DECISIONS.md`（意思決定ジャーナル＝来歴） ／ `.kiro/scenarios/README.md`。
