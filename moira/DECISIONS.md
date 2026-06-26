@@ -184,6 +184,21 @@
 
 独立採点者(moira-gate-judge)の残存 Critical/Important = 0(PASS;参照実装 ev.ts/fold.ts/leveler.ts/coverage.ts/types.ts と照合)。新公理・新イベント・新状態・新原理番号・新要件番号なし(既存 R-E1/R-E3/R-T5 の意味論明確化と §2.8 への付帯記録専用 `transition` の明示)。**下流 spec(moira-core/moira-schedule)の R-T5「into active state」文言同期は別タスク(§7#14(f))。**
 
+## 確定済みの分岐(v18 → v19: 指名レビュー担当 `reviewer` を付帯属性として追加)
+
+> 受け入れシナリオ駆動レビュー(kiro-scenario)で人間(外的妥当性オーナー)が「Claude が要件定義を作成し `implemented`(レビュー待ち)になったとき、**次にレビューするのは誰か(太郎)**を spec-value/schedule の両画面で per-node に見たい。担当が Claude のままなのは嫌」と要望。現行モデルは assignee=作業者・単一、人間レビュー待ちキューは `implemented` の **actor 非依存**導出で「誰がレビューするか」を持たない。
+
+- **【ユーザー裁定 FORK・2巡】** 「レビュー担当をどう表すか」を2案で敵対ゲートにかけた:
+  - **Option A=assignee を ball-holder(現在の手番)へ再定義 → 却下。** moira-adversary×3 が一致で破った——(i) `leveler.ts:44-52` の schedulable は `assignee≠null∧agreed∧estimated` を **lifecycle 無関係**に平準化対象とするため、`implemented` で assignee を太郎へ張り替えると完了作業の見積分、太郎の c を**誤消費**し P7/R-T3/R-T6/R-S7 を汚染、(ii) humanReviewQueue は actor 非依存ゆえ張り替えても**太郎が出ない**、(iii) §2.1#2「割当は自動化しない」と『implemented で自動張り替え』が抵触、(iv) agreed 単位の『担当(作業者)≠玉(手番)』分離と矛盾。
+  - **Option B=reviewer を assignee と別の付帯属性で持つ → ユーザー選択・確定。**
+- **R2 最重量 Critical「視点フィルタで足り reviewer 冗長(agreed 単位 L326 が MODEL 変更不要と裁定済み)」を反証→同一ラウンド再反論=SOUND:** 自分フィルタ(viewer 依存・自分の分のみ)と per-node 指名レビューア(全員に・事前に可視)は**別 UC**。L326 は『自分フィルタ』限定で per-node 指名を含まず(L319 が後者をキュー導出の穴と明示)。`humanReviewQueue` は NodeId のみでレビューア datum 無し・視点フィルタは viewer 依存ゆえ per-node 指名を全員に出せない＝reviewer は実装上必要(再反論者が queues.ts/leveler.ts/L319/L326 の現物で確認)。
+- **中核の確定:** `reviewer`(implemented→accepted を行う指名された人間)を `transition` の付帯属性として追加(§2.4/§2.8/R-T5)——単一・latest-wins・**人間限定(書込み層規律;fold は assignee 同型に非強制)**・assignee と別軸で **leveler/EV/PV/coverage を消費しない**(レビューは見積を持つ作業単位でない;§7#18)。
+- **ゲート指摘の解消:** (i) 五判断の数=reviewer 指名は §2.1#2 割当に含め**5維持**(承認の*行為*は品質確認で判断でない・agreed L325 と整合)、(ii) 指名 reviewer と実承認者(accept actor)の不一致は**許容**(構造強制せず;強制 UC 発生時に I6 同型を別途検討)、(iii) leveler 非消費を `leveler.ts` 現物で確認、(iv) 最小性=別役割の単一指名で UC ありゆえペア却下と異なる、(v) §2.1#2「割当」拡張が agreed 単位 `assign-spec-provisional`(割当=作業者) の所管に **additive** に触れる旨を §7#18(g) 開示。
+- **撤回:** Option A(assignee=ball-holder)を leveler 汚染等で却下し §6 に明記。
+- **波及同期:** `types.ts`/`fold.ts`(reviewer 属性)・NAMING を本コミットで同期。spec(core/schedule/surface)の reviewer 要件化・参照実装フロントエンドの reviewer 表示・受け入れシナリオ単位への反映は別タスク。
+
+独立採点者(moira-gate-judge)の残存 Critical/Important = 0(PASS;参照実装 leveler.ts/derive.ts/queues.ts/fold.ts/types.ts・agreed 単位 L319/L325/L326 と照合)。新公理・新イベント・新状態・新原理番号・新要件番号なし(R-T5 を reviewer 記録へ拡張・付帯属性1つ追加ゆえ版上げ)。全 46 backend テスト緑。
+
 ## 確定済みの分岐(v17 → v18: 見積カバレッジ P2 を葉基底へ是正)
 
 > 受け入れシナリオ駆動レビュー(kiro-scenario)で人間(外的妥当性オーナー)が「req/design/tasks を全葉合意したのに見積カバレッジが 75%(100% でない)」を指摘し moira-model-update へ ESCALATE。敵対ループ(R1: moira-adversary×3〔V1–V6 分担:最小性·矛盾/完全性·スケール/過剰主張·空虚性〕→ 著者パッチ → 同一ラウンド再反論 moira-adversary×1 → moira-gate-judge PASS)を経て確定。シナリオ層(人間=妥当性)が委譲した正典ギャップを専門家ループが裁定した3例目。

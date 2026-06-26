@@ -23,6 +23,7 @@
 - **Adjacent expectations**: 本 spec は `moira-core` が**定義**する横断概念（R-S2 導出群・effective-set・latest-wins・二層データ・凍結属性記録）と、上流が導出する EV%／見積カバレッジ／実行カバレッジ／tree+DAG／ready を**消費する**前提で提示要件を書く（これらの概念を再定義しない）。これら上流契約の形が変われば本 spec は再検証を要する。深リンクの**発信元**は `moira-surface-decision` 等であり、本 spec は着地（受理）側の責務のみを所有する。
 - **Forward 注記（UI-ARCH §3/§5 との host 帰属差分の解消）**: UI-ARCHITECTURE §3（行38）と §5（行115）は spec-value の責務に**行為**として「見積合意 proposed→agreed（人間のみ；R-U4）・再見積（R-E3）・見積の深さ判断（R-E2b）」を列挙している。これらの行為は、本リポジトリの CQRS 分解（roadmap 行39/108：read=surface／write=skill）により **write skill 群（`moira-estimate-agree`／`moira-cost-log` 等）へ移管済み**である。よって本 surface はこれらの**行為（write）を一切実行・提供せず**、当該 write 文脈への**深リンク（参照）のみ**を所有する（Req7 AC3）。UI-ARCH §3/§5 の行為記述は v16 時点の文脈ビュー帰属の名残であり、本 spec を**正**として write を排する（design は UI-ARCH の行為記述を根拠に write を引き込んではならない）。
 - **Forward 注記（参照実装との差分）**: 三者対読みの三者目＝実行カバレッジ（R-S8）は、導出側（`moira-evm` の `executionCoverage`）には既に実在するが、フォワード本番の参照実装 `SpecValueSurface.tsx` は現状これを未提示（見積カバレッジ／スケジュールカバレッジのみ描画）であり、副 host の `moira-surface-health` が唯一実体を持つ。本 spec は §4.1 が定める三者対読みの**主 host** として、実行カバレッジを EV%・見積カバレッジと三者併置で**新規に提示する**責務を所有する（health は EVM 文脈での再掲＝§4.1 副 host）。主 host 責務が空洞のまま下流タスクへ伝播しないよう、design/tasks はこの三者目の追加を明示すること。
+- **Reference-implementation deviation（担当・レビュー担当の列が参照実装に無い・read 表示の新設）**: Req10（担当 assignee の常時表示）・Req11（レビュー担当 reviewer の表示）の各 read 列は、フォワード本番の参照実装 `moira/frontend/src/surfaces/spec/SpecValueSurface.tsx` に**未描画である**——同サーフェスのノード木／被覆マトリクスが描く列は「葉／合意／スケジュール／完了／EV寄与」のみで、**担当（assignee）列も reviewer 表示も存在しない**（担当の常時表示は現状 `moira-surface-schedule` の Inspector〔`surfaces/schedule/Inspector.tsx` の Avatar＋name〕にのみ実在）。供給側は `moira-core` の fold が射影する per-node 属性（`ProjectedNode.assignee`／`ProjectedNode.reviewer`・latest-wins。`types.ts` に v19 で `reviewer` 追加済）であり、本 spec はこれを**読んで列として表示する read 提示**を新設する（per-node 属性射影＝UI-ARCHITECTURE §6.6(b) が read-only として許容する flavor で、二系統計算ではない；Req6 AC3 の EV_abs 寄与射影と同列）。すなわち Req10/Req11 は MODEL/spec が定める「あるべき read 提示」への目標受け入れ基準であり、現スライス（担当列なし）の挙動には縛られない（design/tasks はこの担当列・reviewer 表示の新設を明示すること）。reviewer は出来高・会計を一切動かさない read 表示である（MODEL §2.4/R-T5/§7#18(b)）。
 
 ## Requirements
 
@@ -160,3 +161,33 @@
    - 和訳: 本サーフェスが役割プリセット（UI-ARCHITECTURE §5「初期プリセット: 開発者」着地）を適用する場合、システムは役割（管理者/開発者）を**同一の単一導出に対する actor フィルタ／初期プリセット**として扱い、役割ごとに別系統計算を走らせる物理分割としては扱ってはならない（UI-ARCHITECTURE §2「役割はモデル外」＝役割を actor フィルタ／プリセットに降格。役割で分割し乖離する第二の値を計算するのは画面層の「二つの真実」反パターンであり禁止）。
 7. The system may hold transient presentation/view state (accordion expand/collapse, the active unagreed-filter ON/OFF, the active role actor-preset selection of AC9.6, deep-link landing highlight, and any temporary reveal of AC8.2), but every such presentation state shall satisfy all of: (a) it is never a source of truth for any derived value (the derived value is always read back from the single R-S2 supply, AC9.1); (b) it never drops an item from the P0 visible-gap accounting (AC9.4); (c) it never represents an acknowledge/dismiss/seen state for a warning (MODEL §2.1: "the system holds NO acknowledge/dismiss/seen mutable state" — collapsing/de-emphasizing is presentation freedom, removing from the visible-gap accounting is forbidden; UI-ARCHITECTURE §6.5). Salience suppression (collapse, de-emphasis, re-ordering, mark-as-seen) is allowed; removal from the accounting is not.
    - 和訳: システムは、一時的な提示状態（アコーディオンの展開/折りたたみ・未合意フィルタの ON/OFF・AC9.6 の役割 actor プリセット選択・深リンク着地ハイライト・AC8.2 の一時的可視化）を保持してよいが、いかなる提示状態も次のすべてを満たさねばならない: (a) いかなる導出値の真実源にもならない（導出値は常に単一の R-S2 供給から読み戻す＝AC9.1）。(b) P0 可視ギャップ会計から項目を落とさない（AC9.4）。(c) warning の acknowledge/dismiss/既読を表さない（MODEL §2.1「本システムは acknowledge/dismiss/既読を可変状態として持たない」——畳む・淡色化は提示の自由、可視ギャップ会計から除くのは不可。UI-ARCHITECTURE §6.5）。顕著さの抑制（畳む・淡色化・並び替え・mark-as-seen）は許容されるが、会計からの除去は許されない。
+
+### Requirement 10: ノード木の担当（作業者 assignee）の常時表示（R-T5・A4/R-U6・P0/R-U9）
+
+**Objective:** 仕様・価値を読む人間として、ノード木の各葉に、その作業を誰がやる/やったか（単一被割当者）を常に見たい。それにより割当の偏りや未割当を、状態・出来高と同じ木の上で一目で把握できる。これは `moira-surface-schedule` Req3（担当の常時表示）と同方針を「仕様・価値」軸にも持たせるものであり、表示するのは identity（avatar/name）のみで、スキル/習熟度は出さない（A4/R-U6）。
+
+#### Acceptance Criteria
+
+1. The system shall display each leaf's single assignee (the worker) as an always-visible property of its row in the node tree, showing the assignee as identity (avatar/name) only, read from the per-node attribute projected by `moira-core` (`ProjectedNode.assignee`, latest-wins) and never re-derived in this surface.
+   - 和訳: システムは各葉の単一被割当者（作業者）を、ノード木の行の常時表示プロパティとして、identity（avatar/name）のみで表示し、`moira-core` が射影する per-node 属性（`ProjectedNode.assignee`・latest-wins）から読み取り、本サーフェスで再導出してはならない。
+2. The system shall not display any human skill or proficiency for the assignee, treating assignment purely as a human-provided input read from upstream (A4/R-U6).
+   - 和訳: システムは被割当者について人間のスキルや習熟度を一切表示せず、割当を上流から読み取った人間が与える入力としてのみ扱わなければならない（A4/R-U6）。
+3. Where a leaf has no assignee, the system shall present the assignee as an unassigned visible gap (P0/R-U9), and shall not fabricate an assignee; the assignee shown is the `(ts,id)` latest-wins single assignee, never an accumulation of multiple assignees on one node.
+   - 和訳: 葉が未割当の場合、システムは被割当者を未割当の可視ギャップ（P0/R-U9）として提示し、被割当者を捏造してはならない。表示する被割当者は `(ts,id)` latest-wins の単一被割当者であり、一ノードに複数を蓄積してはならない。
+4. The system shall treat the assignee column as a read-only per-node attribute projection (the UI-ARCHITECTURE §6.6(b) blessed flavor, isomorphic to the schedule Inspector's assignee identity and to Req6 AC3's EV_abs projection), performing no write (assignment is a human commitment owned by a write skill) and computing no aggregate derive()-owned value.
+   - 和訳: システムは担当列を read-only の per-node 属性射影（UI-ARCHITECTURE §6.6(b) の許容 flavor。schedule Inspector の担当 identity・Req6 AC3 の EV_abs 射影と同型）として扱い、書き込みを行わず（割当は write skill が所有する人間のコミット判断）、集約 derive() 所有値を計算してはならない。
+
+### Requirement 11: レビュー担当 reviewer の表示（R-T5・§2.4/§7#18・P0/R-U9）
+
+**Objective:** 仕様・価値を読む人間として、`implemented`（レビュー待ち）の葉について、その `implemented→accepted` を行うべく指名されたレビュー担当（reviewer）が誰かを per-node で見たい。それにより「次にレビューするのは誰か（例：太郎）」が、担当（作業者）が Claude のままでも分かる。reviewer は assignee とは別に表示し、出来高・会計には一切影響しない read 表示である（MODEL §2.4/R-T5/§7#18(b)；v19）。
+
+#### Acceptance Criteria
+
+1. The system shall display, on an `implemented` (awaiting-review) leaf, its designated `reviewer` (the human to perform `implemented→accepted`) as identity (avatar/name), read from the per-node attribute projected by `moira-core` (`ProjectedNode.reviewer`, latest-wins) and never re-derived in this surface.
+   - 和訳: システムは `implemented`（レビュー待ち）の葉に、その指名 `reviewer`（`implemented→accepted` を行う人間）を identity（avatar/name）で表示し、`moira-core` が射影する per-node 属性（`ProjectedNode.reviewer`・latest-wins）から読み取り、本サーフェスで再導出してはならない。
+2. The system shall display the reviewer distinctly from the assignee (a separate role on the row), so that a node whose worker is an agent while its reviewer is a human is read correctly — the reviewer is not the worker and the worker column is not the reviewer.
+   - 和訳: システムは reviewer を被割当者とは区別して（行の別役割として）表示し、作業者がエージェントでレビュー担当が人間であるノードが正しく読まれるようにしなければならない——reviewer は作業者ではなく、担当列は reviewer ではない。
+3. Where an `implemented` leaf has no designated reviewer, the system shall present the reviewer as an "undesignated" visible gap (P0/R-U9) and shall not fabricate a reviewer; the human review queue membership is unaffected by whether a reviewer is designated (the queue is the actor-independent `implemented` derivation; `moira-schedule` Req14 AC2).
+   - 和訳: `implemented` の葉が reviewer 未指名の場合、システムは reviewer を『未指名』の可視ギャップ（P0/R-U9）として提示し、reviewer を捏造してはならない。人間レビュー待ちキューの母集合は reviewer 指名の有無に依らない（キューは actor 非依存の `implemented` 導出；`moira-schedule` Req14 AC2）。
+4. The system shall treat the reviewer as a read-only display that moves no derived accounting — it shall not feed EV%/EV_abs, coverage, PV, SPI/CPI, or the schedule, and shall not host a "my reviews" narrowing (that requires a viewpoint actor owned by `moira-surface-schedule`); designating or changing a reviewer is a human commitment (§2.1#2 assignment) owned by a write skill, so this surface performs no reviewer write (offering at most a deep link to the write context).
+   - 和訳: システムは reviewer を、いかなる導出会計も動かさない read-only 表示として扱わなければならない——EV%/EV_abs・カバレッジ・PV・SPI/CPI・スケジュールに与えず、「自分のレビュー」絞り込みを host しない（それは `moira-surface-schedule` が所有する視点 actor を要する）。reviewer の指名・変更は write skill が所有する人間のコミット判断（§2.1#2 割当）であり、本サーフェスは reviewer の書き込みを行わない（行うのは高々 write 文脈への深リンク）。

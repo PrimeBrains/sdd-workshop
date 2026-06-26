@@ -51,7 +51,8 @@ export interface TransitionEvent extends EventBase {
   node: NodeId;
   machine: StateMachine; // I5/R-D6 — every transition names its machine
   to: LifecycleState | EstimateState;
-  assignee?: Actor; // single assignee (§2.4 MODEL:106, R-T5 MODEL:315)
+  assignee?: Actor; // single assignee = worker (§2.4, R-T5)
+  reviewer?: Actor; // single designated reviewer, human-only, attendant attr; distinct from assignee, not leveled (§2.4/R-T5, v19)
   frozenBudget?: number; // value frozen on the agreement transition (§3① MODEL:194)
   frozenSlot?: IsoDate; // slot frozen on the first-scheduling transition (§3② MODEL:194)
   reason?: string; // required on a reason-stamped re-baseline (R-U7 MODEL:232)
@@ -118,7 +119,8 @@ export interface ProjectedNode {
   latestEstimate: number | null; // latest decompose value — drives EVM/forecast (R-U7 MODEL:232)
   frozenBudget: number | null; // frozen at agreement (§3① MODEL:194)
   frozenSlot: IsoDate | null; // frozen at first scheduling (§3② MODEL:194)
-  assignee: Actor | null; // latest-wins (§2.4 MODEL:102)
+  assignee: Actor | null; // worker, latest-wins (§2.4)
+  reviewer: Actor | null; // designated reviewer, latest-wins; not consumed by leveling/EV/PV/coverage (§2.4/R-T5, v19)
   ownCost: number; // Σ deduped cost (P3 MODEL:172)
   parent: NodeId | null;
   agreedActorValues: Map<string, number>; // per distinct human's latest agreed value (R-U12 context)

@@ -24,6 +24,7 @@ function emptyNode(id: NodeId): ProjectedNode {
     frozenBudget: null,
     frozenSlot: null,
     assignee: null,
+    reviewer: null,
     ownCost: 0,
     parent: null,
     agreedActorValues: new Map(),
@@ -105,6 +106,10 @@ export function fold(events: readonly Event[]): ProjectedState {
           if (ev.to === 'implemented') n.reachedImplemented = true;
           // Assignee: latest-wins (§2.4 MODEL:102).
           if (ev.assignee !== undefined) n.assignee = ev.assignee;
+          // Reviewer: latest-wins attendant attr (§2.4/R-T5, v19) — distinct from
+          // assignee, not consumed by leveling/EV/PV/coverage. Human-only is a
+          // MODEL/write-layer constraint (not re-checked here, mirroring assignee).
+          if (ev.reviewer !== undefined) n.reviewer = ev.reviewer;
           // First-scheduling slot freeze: only the FIRST scheduling freezes the
           // baseline slot (§3② MODEL:194-195); later changes are a reason-stamped
           // re-baseline, which the engine treats as the immutable first value.

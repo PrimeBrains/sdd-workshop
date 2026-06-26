@@ -108,9 +108,9 @@
 6. When a backward lifecycle transition is emitted, the system shall record it append-only without rejecting it on grounds of transition legality, rejecting only structural violations (a cycle, I2; a non-human `agreed`, I6); the semantic-anomaly detection of a backward transition (the mis-certified spec-fix at-risk, P5) is owned downstream by `moira-health`, core not enforcing transition legality (MODEL P5-faithful).
    - 和訳: 後退ライフサイクル遷移が emit されたとき、システムはそれを遷移合法性を理由に拒否せず append-only で記録し、拒否するのは構造違反（循環 I2・非人間 agreed I6）のみに限らなければならない。後退遷移の意味的異常検知（仕様FIX判定の誤りによる at-risk、P5）は下流の `moira-health` が所有し、core は遷移合法性を enforce しない（MODEL P5 忠実）。
 
-### Requirement 6: 単一被割当者の latest-wins 記録（§2.4・R-U6）
+### Requirement 6: 単一被割当者とレビュー担当の latest-wins 記録（§2.4・R-T5・R-U6・§7#18）
 
-**Objective:** assign 系 write skill 作者として、被割当者を作業開始遷移の属性として単一・置換で記録したい。それにより第5イベントなしで割当を表せる。
+**Objective:** assign 系 write skill 作者として、被割当者（作業者）を作業開始遷移の属性として単一・置換で記録したい。それにより第5イベントなしで割当を表せる。あわせて、`implemented→accepted`（成果物レビュー）を行うべく指名された単一の **レビュー担当 `reviewer`** を、被割当者とは別の付帯属性として latest-wins で記録したい。それにより「誰がレビューするか」を、平準化・会計を一切汚さずに per-node で保持できる（v19；MODEL §2.4/§2.8/R-T5/§7#18）。
 
 #### Acceptance Criteria
 
@@ -120,6 +120,12 @@
    - 和訳: 後続の `transition` で新しい被割当者が名指されたとき、システムは被割当者を追加するのではなく `(ts,id)` latest-wins で前任を置換しなければならない。
 3. The system shall not model human skills or proficiency, and shall treat assignment as a human-provided input received via the emit path.
    - 和訳: システムは人間のスキルや習熟度をモデル化せず、割当を emit 経路で受け取る人間が与える入力として扱わなければならない。
+4. The system shall record a node's single `reviewer` — the human designated to perform `implemented→accepted` — as an attendant attribute of a `transition` (§2.4/§2.8/R-T5), distinct from the assignee field, and shall replace a previously-named reviewer by `(ts,id)` latest-wins rather than appending an additional one (a same-value re-naming is latest-wins-inert).
+   - 和訳: システムは、ノードの単一 `reviewer`（`implemented→accepted` を行うべく指名された人間）を `transition` の付帯属性として（§2.4/§2.8/R-T5）、被割当者フィールドとは別に記録し、既に名指された reviewer を追加せず `(ts,id)` latest-wins で置換しなければならない（同値再名指しは latest-wins-inert）。
+5. The system shall treat the reviewer's human-only nature as a MODEL/write-layer discipline rather than a fold-enforced structural invariant — the fold shall record the reviewer attribute without re-checking its actor kind, mirroring how it does not enforce the assignee's actor kind (the only structurally-enforced rejections being a cycle I2 and a non-human `agreed` I6; a designated reviewer that is not human is not a structural rejection target here). (Should a human-only enforcement UC arise, an I6-isomorphic invariant is a disclosed future extension; §7#18(a).)
+   - 和訳: システムは、reviewer の人間限定性を fold で enforce する構造不変条件ではなく **MODEL/書込み層の規律**として扱わなければならない——fold は reviewer 属性を actor 種別を再検査せずに記録し、これは fold が被割当者の actor 種別を強制しないのと同型である（構造的に強制される拒否は循環 I2 と非人間 `agreed` I6 のみであり、人間でない指名 reviewer はここでの構造拒否の対象ではない）。（人間限定を強制する UC が生じた場合、I6 同型の不変条件は開示済みの将来拡張である；§7#18(a)。）
+6. The system shall keep the reviewer attribute non-participating in any planning/accounting derivation — it shall NOT be consumed by leveling (P7), EV_abs/EV%, PV, or coverage, and shall not affect the unassigned backlog (an assignee=null basis) — because review is a lifecycle step, not an estimated work unit (§7#18(b)); the designated reviewer is a plan and MAY differ from the actor that actually emits `accepted` (the accept actor is recorded on its own transition; the designated-vs-actual mismatch is tolerated, not structurally enforced; §7#18(c)).
+   - 和訳: システムは、reviewer 属性をいかなる計画/会計の導出にも参加させてはならない——平準化（P7）・EV_abs/EV%・PV・カバレッジに消費させず、未割当バックログ（assignee=null 基底）にも影響させない——レビューは見積を持つ作業単位ではなく lifecycle ステップだからである（§7#18(b)）。指名 reviewer は plan であり、実際に `accepted` を発行する actor と**異なってよい**（実承認 actor はその遷移に記録される。指名 reviewer と実承認者の不一致は許容され、構造強制されない；§7#18(c)）。
 
 ### Requirement 7: 凍結見積値と理由付き改訂・ベースライン凍結記録（R-U7/I4）
 
@@ -267,6 +273,9 @@
 | 6.1 | §2.4, R-U6 | |
 | 6.2 | §2.4, I3 | latest-wins |
 | 6.3 | R-U6, A4 | 能力非モデル化 |
+| 6.4 | §2.4, §2.8, R-T5 | reviewer 付帯属性・latest-wins（v19；§7#18(d) 同値再名指し inert） |
+| 6.5 | R-T5, I6, §7#18(a) | reviewer 人間限定は書込み層規律; fold は actor 種別非強制（assignee 同型）; 構造拒否は I2/I6 のみ |
+| 6.6 | R-T5, P7, §7#18(b)(c) | reviewer は leveler/EV/PV/coverage 非消費・未割当バックログ非干渉; 指名 vs 実承認の不一致許容 |
 | 7.1 | R-U7 | |
 | 7.2 | R-U7, §3 | 予算凍結=合意時 |
 | 7.3 | §3 | スロット凍結=初回スケジュール（初回判定は `moira-schedule` 所有） |

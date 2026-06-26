@@ -185,3 +185,37 @@
    - 和訳: システムはいかなる予測導出中も凍結ベースライン・スロットを再計算・上書きしてはならない（不可侵はここに一本化して所有する;暫定割当変更や supersede では生きた予測のみを動かし、凍結ベースライン・スロットは動かさない）。
 3. The system shall keep frozen-slot selection implementation-dependent and reproducible only for the same log under the same leveling implementation, addressing the non-determinism (P8) by disclosure rather than removal.
    - 和訳: システムは凍結スロットの選定を実装依存とし、同一ログ・同一平準化実装に対してのみ再現可能とし、非決定性（P8）を除去でなく開示で扱わなければならない。
+
+### Requirement 13: 作業の予定/実績 開始・終了の per-node 導出（§2.5/§3・lifecycle transition 時刻）
+
+**Objective:** read サーフェス作者として、各サブ単位の作業詳細を読むために、予定終了（凍結スロット）に加えて **予定開始・実績開始・実績終了** を per-node 導出として得たい。それにより作業詳細（Inspector）が、予定（ベースライン）と実績（lifecycle 進行）の開始・終了を対で読める。
+
+> **新設の根拠（参照実装 `DerivedState` に未存在）:** 現行の read 契約 `moira/backend/src/types.ts` の `ForecastRow` は `predictedCompletion`（生きた予測完了）と `frozenSlot`（凍結ベースライン完了スロット＝予定終了）の二項のみを公開し、**実績開始/終了・予定開始を供給する read 口が存在しない**。MODEL は完了スロット（予定終了）のみを凍結記録し（§3②）、開始日を一級の凍結属性としては持たない——したがって本要件が要求するのは、(a) 実績開始/終了を lifecycle `transition` の時刻から、(b) 予定開始を予定終了−所要から **per-node に導出する read データ**の新設であり、いずれも提示層のための導出（MODEL の構造を変えず・新イベント/新凍結属性を足さない）である。基準完了日（frozenSlot）は既存（Req2/Req12 が所有）。
+
+#### Acceptance Criteria
+
+1. The system shall derive each sub-unit's actual start date from the timestamp of its lifecycle `transition` into `implementing` (`→implementing`) and its actual completion date from the timestamp of its `transition` into `implemented` (`→implemented`), reading these timestamps from the append-only log (via `moira-core`) and never inventing a new event or frozen attribute for them.
+   - 和訳: システムは各サブ単位の**実績開始日**を、その lifecycle `transition`（`→implementing`）の時刻から、**実績終了日**を `transition`（`→implemented`）の時刻から導出し、これらの時刻を追記専用ログ（`moira-core` 経由）から読み取り、そのために新イベントや新たな凍結属性を作り出してはならない。
+2. The system shall derive each scheduled sub-unit's planned start date as its planned completion (the frozen baseline slot `frozenSlot`; MODEL §3②) minus its duration (derived from the latest estimate under capacity), keeping the frozen baseline slot itself as the canonical planned-completion record and treating the planned start as a derived read only (the MODEL freezes only the completion slot, not a start date).
+   - 和訳: システムは各スケジュール済みサブ単位の**予定開始日**を、その予定終了（凍結ベースライン・スロット `frozenSlot`；MODEL §3②）から所要（容量下の最新見積から導出）を引いて導出し、凍結ベースライン・スロットそのものを予定完了の正本記録として保ち、予定開始は導出 read としてのみ扱わなければならない（MODEL は完了スロットのみを凍結し開始日を持たない）。
+3. The system shall surface the planned-start / actual-start / actual-completion reads as per-node derived data alongside the existing `ForecastRow` (predicted completion + frozen slot), so a read surface can compose the work-detail dates without re-deriving them; where a sub-unit has not yet reached `implementing` (or `implemented`), the corresponding actual date shall be absent (an honest empty), not fabricated.
+   - 和訳: システムは、予定開始/実績開始/実績終了の read を、既存の `ForecastRow`（予測完了＋凍結スロット）と並ぶ per-node 導出データとして提示し、read サーフェスがそれらを再導出せずに作業詳細の日付を合成できるようにしなければならない。サブ単位がまだ `implementing`（または `implemented`）に達していない場合、対応する実績日付は（捏造せず）欠落（honest empty）としなければならない。
+4. The system shall derive these dates from the lifecycle state and timestamps (log-deterministic) and from the frozen slot, and shall not recompute or move the frozen baseline slot in the process (the frozen-baseline inviolability of Req12 AC2 is preserved).
+   - 和訳: システムはこれらの日付を lifecycle 状態と時刻（ログから決定的）および凍結スロットから導出し、その過程で凍結ベースライン・スロットを再計算・移動してはならない（Req12 AC2 の凍結ベースライン不可侵を保つ）。
+
+### Requirement 14: レビュー担当 reviewer の per-node 併置とレビュー待ちキューの不変性（R-T5/§2.4・P4・§7#18）
+
+**Objective:** read サーフェス/decision 作者として、人間レビュー待ちキュー（`implemented` の有効葉・actor 非依存）を読むのと並んで、各ノードの **指名レビュー担当 `reviewer`** を per-node 属性として得たい。それにより surface が「誰がレビューするか」を表示し、提示層で「自分のレビュー」に絞り込める。ただしキュー導出そのものは actor 非依存のまま不変で、reviewer は平準化（P7）に**入らない**。
+
+> **境界の明示（v19 reviewer の落とし込み）:** reviewer は `moira-core` の fold（`ProjectedNode.reviewer`・latest-wins）が供給する per-node 属性であり（Req6/moira-core）、本 spec はそれを **時間軸の read（キュー/forecast）に併置して公開する**だけで reviewer 自体を再計算しない（UI-ARCH §6 二系統計算の禁止）。`humanReviewQueue` の導出（Req4 AC3＝`implemented` の有効葉・actor 非依存）は **不変**であり、reviewer 指名の有無で母集合が変わらない——reviewer は per-node 属性として併置されるのみで、「自分のレビュー」絞り込みは視点 actor（提示層・MODEL 非保持）に委ねる（`moira-surface-schedule` 所管）。reviewer は **leveler（P7）・EV/PV/coverage・未割当バックログを一切動かさない**（§7#18(b)；参照実装 `leveler.ts` は reviewer を参照しない）。
+
+#### Acceptance Criteria
+
+1. The system shall surface each node's designated `reviewer` (the human to perform `implemented→accepted`) as a per-node attribute read supplied by `moira-core`'s fold (latest-wins), placing it alongside the human review queue and forecast reads, without re-deriving the reviewer in this spec.
+   - 和訳: システムは各ノードの指名 `reviewer`（`implemented→accepted` を行う人間）を、`moira-core` の fold が供給する per-node 属性 read（latest-wins）として、人間レビュー待ちキュー・予測 read と並べて提示し、本 spec で reviewer を再導出してはならない。
+2. The system shall keep the `humanReviewQueue` derivation actor-independent and unchanged (the agreed effective leaves at `implemented`, Req4 AC3) regardless of whether a reviewer is designated — a designated reviewer shall not narrow or widen the queue membership; the reviewer is co-located as a per-node attribute only, leaving any "my reviews" narrowing to a presentation-layer viewpoint actor.
+   - 和訳: システムは `humanReviewQueue` の導出を、reviewer の指名有無に依らず actor 非依存・不変（`implemented` の合意済み有効葉＝Req4 AC3）に保たなければならない——指名 reviewer はキューの母集合を狭めも広げもしない。reviewer は per-node 属性として併置されるのみで、「自分のレビュー」絞り込みは提示層の視点 actor に委ねる。
+3. The system shall keep the reviewer out of c(i,d) leveling (P7) and out of every schedule derivation (forecast, D_pred, schedule coverage, stale-slot, over-allocation, buffer) — the reviewer consumes no capacity and rate-limits no path — because review is a lifecycle step, not an estimated, assigned work unit (§7#18(b)); only the assignee (Req9/R-T5) is consumed by leveling.
+   - 和訳: システムは reviewer を c(i,d) 平準化（P7）から外し、あらゆるスケジュール導出（予測・D_pred・スケジュールカバレッジ・スロット陳腐化・過負荷・バッファ）からも外さなければならない——reviewer は容量を消費せず、いかなるパスも律速しない——レビューは見積を持ち割り当てられた作業単位ではなく lifecycle ステップだからである（§7#18(b)）。平準化が消費するのは被割当者（Req9/R-T5）のみである。
+4. Where a node reaches `implemented` with no designated reviewer, the system shall still include it in the (unchanged) human review queue while surfacing the reviewer as absent (an "undesignated" visible gap, P0), and shall not fabricate a reviewer.
+   - 和訳: ノードが reviewer 未指名のまま `implemented` に達した場合、システムはそれを（不変の）人間レビュー待ちキューになお含めつつ、reviewer を未指名（『未指名』の可視ギャップ、P0）として提示し、reviewer を捏造してはならない。
