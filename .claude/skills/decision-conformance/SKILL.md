@@ -2,7 +2,7 @@
 name: decision-conformance
 description: >-
   moira/DECISIONS-CATALOG.md の設計判断のうち自動テストに落とせないもの（計器⑥AI整合性チェック）を、
-  独立 checker で「Decision↔実装」整合（conformance）を検証する設計。本機構は**定義済・実走は後続**。
+  独立 checker で「Decision↔実装」整合（conformance）を検証する設計。本機構は**定義済・サンプル試走済（網羅実走は後続）**。
   「設計判断と実装の整合をチェック」「Decisions の conformance を回す」「目録と実装がズレていないか確認」で起動。
   validity（判断の妥当性）は人間レビュー/doc 敵対ゲートの役割で本スキルは扱わない。Opus 4.8+ / effort max を推奨。
 allowed-tools: Read, Grep, Glob, Bash, Agent, AskUserQuestion
@@ -11,12 +11,12 @@ metadata:
   origin: "custom"
 ---
 
-# decision-conformance — 設計判断↔実装の整合を独立 checker で検証する（定義・実走は後続）
+# decision-conformance — 設計判断↔実装の整合を独立 checker で検証する（定義済・サンプル試走済・網羅実走/採点脚は後続）
 
 `moira/DECISIONS-CATALOG.md` の設計判断のうち、**自動テストに落とせない判断（計器⑥）**——および基盤未整備で①②③④のテストがまだ無い領域——について、
 **判断が実装で守られているか（held か破れているか＝conformance）**を、独立した `decision-conformance-checker` で検証する。
 **validity（その判断が妥当か）は扱わない**——それは人間レビューと `doc-refine` 敵対ゲートの役割。本スキルは **conformance（held か）**のみを falsifiable に示す。
-**現状は定義のみ（実走は後続ステージ）。** 採点ゲートの主体は未確定の設計点（後述）。
+**現状は定義済・サンプル試走済（2026-06-27 に D-34／D-40 を試走＝ともに ALIGNED）。網羅実走は後続ステージ。** 採点ゲートの主体は**方向(A)確定・実装は後続**（詳細は `SKILL.ja.md` 手順5）。
 
 **この英語ファイルは規約シェル。完全な規範手順は [`SKILL.ja.md`](./SKILL.ja.md)**（プロジェクト言語）にある。二重正典を避けるため手順はここに複製しない——`SKILL.ja.md` に従う。
 検証アーキテクチャ上の位置づけ（計器⑥は `moira-verification.md` の節「Decisions の検証割付」内）と被覆規律は `.kiro/steering/moira-verification.md`、計器割付の現物は `moira/DECISIONS-CATALOG.md` の被覆マップが正典。

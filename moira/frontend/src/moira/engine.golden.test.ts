@@ -11,7 +11,10 @@ describe('frontend single-source pipeline (golden parity)', () => {
   it('reproduces the hand-computed golden values', () => {
     expect(d.evAbs).toBe(20);
     expect(d.evPercent).toBeCloseTo(0.7692, 3);
-    expect(d.estimateCoverage).toBeCloseTo(0.8333, 3);
+    // P2 v18 leaf-based coverage: all 5 effective leaves agreed → 5/5 = 1. Mirrors
+    // backend/src/golden.test.ts (this test re-exports the SAME derive + fixture).
+    // (Was a stale pre-v18 node-based constant 0.8333.)
+    expect(d.estimateCoverage).toBeCloseTo(1, 10);
     expect(d.scheduleCoverage).toBe(1);
     expect(d.pv).toBe(20);
     expect(d.ac).toBe(25);

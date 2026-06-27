@@ -37,7 +37,7 @@
 - `requirements.md`／`design.md`／`tasks.md` は、同じ MODEL 正典の**「機械に向けた顔」＝中間表現（IR）**である。プロダクトオーナーが逐語レビューする一次成果物ではない——人間が読む一次成果物は上の3面（シナリオ・プロパティ・Decisions）。R/D/T はそれらと並列の別系統ではなく、**同一正典の実装向けの射影**。
 - これは cc-sdd の3フェーズ承認（`CLAUDE.md`：Requirements/Design/Tasks 各フェーズで人間レビュー）と**緊張する**。Moira 固有の方針として、本書は cc-sdd の R/D/T フェーズ承認のうち**プロダクトオーナーの逐語レビュー部分**を下記①②で置換する。ここで「Moira spec」とは **`moira/MODEL.md` を SSOT として宣言する spec**（現状 `.kiro/specs/moira-*` 系）を指す。この置換は当該 spec で CLAUDE.md の一般則に優先し、CLAUDE.md の一般則は正典（MODEL）を持たない他 spec に適用される。
 - 置換は**「素通り」ではない**。R/D/T 逐語レビューを外すなら、その代わりに必ず: ①**正典 ↔ R/D/T の一致チェック**（clause → property/AC 被覆レポートで未 bound を可視ギャップに）＋②**工学残余の技術敵対ゲート**（`doc-refine`。上の仕分け (b)）を置く。
-- **正直な現状（当面どう運用するか）**: シナリオとプロパティ目録は稼働、**Decisions 目録は実体化済（D-1〜D-3 agreed＋D-4〜D-62 proposed・要レビュー）**、**①の機械的な一致チェックは整備途上**（その実体は**第4器＝アーキ適合（fitness関数）と ⑥AI整合性チェック（`decision-conformance`）**だが、前者はツール未導入・後者は実走前。PROPERTIES.md の clause→property 被覆も property 側の手動表に留まる）。よって**いまは従来どおり R/D/T も人間が見つつ**、Decisions 目録と①の整備が進んだ領域から R/D/T 逐語レビューを縮退させる（**段階的移行**）。①未整備のまま全面卒業はしない。
+- **正直な現状（当面どう運用するか）**: シナリオとプロパティ目録は稼働、**Decisions 目録は実体化済（D-1〜D-3 agreed＋D-4〜D-62 proposed・要レビュー）**、**①の機械的な一致チェックは整備途上**（その実体は**第4器＝アーキ適合（fitness関数）と ⑥AI整合性チェック（`decision-conformance`）**。前者は**ツール導入済・トポロジ2ルール稼働**＝monolith 段階の弱い境界で、強い fitness は CQRS 分解後／後者は**サンプル試走済・網羅実走は後続**。PROPERTIES.md の clause→property 被覆も property 側の手動表に留まる）。よって**いまは従来どおり R/D/T も人間が見つつ**、Decisions 目録と①の整備が進んだ領域から R/D/T 逐語レビューを縮退させる（**段階的移行**）。①未整備のまま全面卒業はしない。
 - 全体として**依存関係**である：R/D/T の正典忠実性が①②で保証されて初めて、3面レビューだけで足りる。R/D/T を「AI 用だから放置でよい」と扱うと、IR が正典から静かにズレても誰も気づかない——**動機節の R-E3/I4 がまさにその実例**。
 
 ## 計器構成（4器：不変条件と構造判断を SUT 別に割り当てる）
@@ -49,9 +49,9 @@
 | **PBT・メタモルフィック** | 参照実装（`moira/backend` の純 fold + 導出） | 数値・関係・代数（境界・ロールアップ・スケーリング不変・順序不変・round-trip） | 毎 CI |
 | **境界モデル検査** | **MODEL を仕様として**（実装に依らず） | 順序・到達可能性・状態機械（I2/I3・R-U12 同時刻・supersede×cancel 到着順・lifecycle 到達可能性） | `moira-model-update` ゲート内・MODEL の形式スライス変更時のみ |
 | **E2E・シナリオ回帰** | `agreed` シナリオ unit から生成 | 妥当性の**preservation（回帰固定）**。establishment ではない | 毎 CI |
-| **アーキ適合（fitness関数）** | 実装の依存構造・モジュール境界 | **構造判断**（境界・所有権・依存方向。「core は下流の値を import しない」「式は evm にしか無い」「surface は seam 経由でのみ読む」等） | 毎 CI（dependency-cruiser／eslint-plugin-boundaries 等。**基盤は未導入＝整備途上**） |
+| **アーキ適合（fitness関数）** | 実装の依存構造・モジュール境界 | **構造判断**（境界・所有権・依存方向。「core は下流の値を import しない」「式は evm にしか無い」「surface は seam 経由でのみ読む」等） | 毎 CI（dependency-cruiser。**トポロジ2ルール導入済・稼働**＝`no-circular`＋`fold-no-downstream`＝monolith 段階の弱い境界。強い CQRS fitness は物理分解後） |
 
-**整備状況（正直）**: CI（`.github/workflows`）は未設定で、現状テストは手動 `vitest run`。第1器 PBT は**最小パイロット稼働**（green 5＋PR-DONE-LOCK★ は RED tripwire）、第3器 E2E は golden/rederive が一部該当、**第2器 境界モデル検査と第4器 アーキ適合は未実装**。表の「毎 CI」「`moira-model-update` ゲート内」は**到達目標**であり現状の稼働ではない。
+**整備状況（正直・2026-06-27 テスト基盤ステージで更新）**: **CI（`.github/workflows/ci.yml`）新設・稼働**（backend: `tsc` build＋型テスト＋`vitest run`＋カバレッジ＋dependency-cruiser／frontend: typecheck＋lint＋`vitest run`＋カバレッジ）。カバレッジ計測（@vitest/coverage-v8）配線済。第1器 PBT は**最小パイロット稼働**（green 5＋PR-DONE-LOCK★ は RED tripwire）、第3器 E2E は golden/rederive＋frontend golden パリティが該当、**第4器 アーキ適合は基盤導入＝トポロジ2ルール稼働**（`no-circular`＋`fold-no-downstream`＝monolith 段階の弱い境界。強い CQRS fitness は分解後）。**第2器 境界モデル検査は依然未実装**。⑥AI整合性チェックは**サンプル試走済**（D-34/D-40＝ALIGNED）・網羅実走は後続。**整備は agreed（D-1〜D-3）分のみ**反映し proposed は据え置き（「割付≠検証済」）。表の「`moira-model-update` ゲート内」（第2器）は**到達目標**であり現状の稼働ではない。
 
 **爆発制御の規律**：境界モデル検査は**小スコープ＋対称性簡約＋プロパティごとの最小フラグメント**で回し、**検証スコープを明示**する（例「ノード≤4・actor≤3・イベント≤8」）。**連続／大領域（日付・c(i,d)・予算）はモデル検査に入れない**——状態爆発を招くため PBT 側へ。離散・順序のみをモデル検査へ。反例の witness は実際小さい（R-E3/I4＝1ノード数イベント、R-U12＝1ノード2人2イベント等）。
 

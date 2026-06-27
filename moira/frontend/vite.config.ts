@@ -1,4 +1,5 @@
-import { defineConfig, type Plugin } from 'vite';
+import { defineConfig } from 'vitest/config';
+import type { Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import { fileURLToPath } from 'node:url';
 import { existsSync } from 'node:fs';
@@ -68,5 +69,26 @@ export default defineConfig({
     // parent `moira/` dir so Vite serves backend modules via /@fs/ in dev instead
     // of 403 (don't rely on git-root auto-detection).
     fs: { allow: [fileURLToPath(new URL('..', import.meta.url))] },
+  },
+  // Vitest runs through THIS config so the moiraBackendResolver plugin + the
+  // node:fs alias still apply (a standalone vitest.config.ts would lose them and
+  // break @backend/* resolution). Existing tests use renderToStaticMarkup, so no
+  // DOM env is needed. Coverage via @vitest/coverage-v8 (v8 provider).
+  test: {
+    include: ['src/**/*.{test,test-d}.{ts,tsx}'],
+    passWithNoTests: true,
+    environment: 'node',
+    coverage: {
+      provider: 'v8',
+      reportsDirectory: './coverage',
+      reporter: ['text', 'lcov'],
+      include: ['src/**/*.{ts,tsx}'],
+      exclude: [
+        'src/**/*.test.{ts,tsx}',
+        'src/main.tsx',
+        'src/shims/**',
+        'src/**/*.d.ts',
+      ],
+    },
   },
 });

@@ -4,7 +4,7 @@ description: >-
   decision-conformance スキルから派遣される「設計判断↔実装」整合検証ワーカー。
   `moira/DECISIONS-CATALOG.md` の各設計判断の「決めたこと」一文と裏面 ref（根拠 clause・spec・実装ファイル）を、
   参照実装（`moira/backend`/`moira/frontend`）・spec・正典に照らし、その判断が実装で**守られているか（held か破れているか）**を検証する。
-  自動テストに落とせない判断（計器⑥）の照合（＋テスト未整備領域の暫定照合）が主務。本機構は定義済・実走は後続。各判断に ALIGNED / DRIFTED / UNVERIFIABLE を返す。
+  自動テストに落とせない判断（計器⑥）の照合（＋テスト未整備領域の暫定照合）が主務。本機構は定義済・サンプル試走済（網羅実走は後続）。各判断に ALIGNED / DRIFTED / UNVERIFIABLE を返す。
   「強制していない」を確かめる**負の照合**も担う。設計判断の良し悪し（validity）は判定しない。
 tools: Read, Grep, Glob, Bash
 model: opus

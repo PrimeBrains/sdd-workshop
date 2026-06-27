@@ -40,6 +40,7 @@
 - **外すとどうなるか**: 「着手可」が記録なのか計算結果なのか曖昧化し、「着手できる一覧」が現実とずれても気づけない。
 - **あなたが判定する一文**: 「“着手したという記録”と“着手してよいはずという資格”は別物として扱うべきだ。」
 - 〔**裏面**〕`ready` 二語分離。Boundary Context（2026-06-22 裁定）／R-D1/D2/D4／§2.5。状態保持=core、資格評価=`moira-scope-deps`、`ready` 遷移 emit=`moira-progress`。計器: ①＝core が ready-eligible を評価しない（依存方向）／②＝`ready` は lifecycle 状態として保持。
+  - **計器資産（2026-06-27）**: ①＝`backend/.dependency-cruiser.cjs` の `fold-no-downstream`（monolith 段階の弱い代理・CI 稼働）／②＝`backend/src/decisions/ready-lifecycle.test-d.ts`（`ready`∈LifecycleState の正＋`readyEligible` 系算出フィールド不在の負・CI 型ゲートで実走）。
 
 ## D-3　すべての記録をどう保存するか（過去を書き換えない積み上げ式）
 
@@ -50,6 +51,7 @@
 - **外すとどうなるか（人間に見える帰結）**: 「なぜこの数字になったか」を過去にさかのぼって再現・監査できなくなる。
 - **あなたが判定する一文（帰結のみ）**: 「過去を書き換えずに保存し、いつでも同じ結果を再現・監査できるべきだ。」
 - 〔**裏面**〕A2／R-U14。moira-core req 1・14。計器: ②＝削除 API 不在・イベント4種固定／③＝`PM-ORDER-INV`（順序不変・再導出決定性）。
+  - **計器資産（2026-06-27）**: ②＝`backend/src/decisions/events.test-d.ts`（`Event['kind']` ＝4種固定の正＋`'delete'` 等の削除イベント種別を強制しない負・CI 型ゲートで実走）／③＝`backend/src/pbt/green-properties.pbt.test.ts` の PM-ORDER-INV（既存・緑）。
 
 ---
 
@@ -546,21 +548,23 @@
 
 # Decision → 計器 被覆マップ（draft・2026-06-26）
 
-> 各 Decision がどの計器で担保されるかと、その資産・状態。**状態凡例**: `実装済`＝テスト/ルールが存在し緑／`RED tripwire`＝意図的赤で実装乖離を露出／`未実装`＝計器は割付済だが資産未整備（基盤＝CI・dependency-cruiser・c8 が後続のため大半はここ）／`AIチェック`＝⑥で照合（実走は後続）／`人間のみ`＝⑦。
+> 各 Decision がどの計器で担保されるかと、その資産・状態。**状態凡例**: `実装済`＝テスト/ルールが存在し緑／`一部実装`＝一部（多くは agreed 分）に資産が稼働し残りは未整備／`RED tripwire`＝意図的赤で実装乖離を露出／`未実装`＝計器は割付済だが資産未整備（強い fitness 等の後続分はここ）／`AIチェック`＝⑥で照合（網羅実走は後続）／`人間のみ`＝⑦。
 > **網羅**: D-1〜D-62 は全件に計器を割付済（未割付＝可視ギャップは無し）。未確定(D-60〜62)は確定後に計器を再割付。
+> **基盤整備（2026-06-27 テスト基盤ステージ）**: CI（`.github/workflows/ci.yml`）新設・カバレッジ（@vitest/coverage-v8）配線・dependency-cruiser 導入が完了。状態更新は **agreed（D-1/D-2/D-3）分のみ**——`proposed`（D-4〜D-62）は人間未批准ゆえ**テスト未記述・状態は据え置き**（「割付≠検証済」を保持）。
 
 | 計器 | Decision | 状態 | 資産（予定/既存） |
 |---|---|---|---|
-| **①アーキ適合** | D-2,4,5,6,7,8,9,10,11,12,13,14,19,24,25,29,52,53,55 | 未実装 | dependency-cruiser / eslint-plugin-boundaries ルール（後続導入）。「core→下流値の依存禁止」「式は evm のみ」「surface は seam 経由」等 |
-| **②型・スキーマ** | D-2,3,12,15,16,17,18,19,20,21,22,24,25,26,27,28,30,31,32,33,34,37,40,42,43,44,46,47,48,54,58,59 | 未実装 | Vitest 型/構造テスト（後続）。「イベント4種」「assignee 単一」「isBuffer 無し」等の正/負テスト |
-| **③PBT** | D-1,3,17,18,20,22,28,29,36,37,42,45,46,58,59 | 一部実装 | `backend/src/pbt/`。**D-1=PR-DONE-LOCK★（RED tripwire）**・D-3=PM-ORDER-INV（緑・既存）。他は新規 property 追加（後続） |
-| **④E2E/シナリオ** | D-21,30,41,52,53,56,57 | 一部実装 | golden/rederive（既存）＋シナリオ回帰。UI host 系は後続 |
+| **①アーキ適合** | D-2,4,5,6,7,8,9,10,11,12,13,14,19,24,25,29,52,53,55 | 一部実装（基盤稼働） | `moira/backend/.dependency-cruiser.cjs` 導入・CI 実行。トポロジ2ルール稼働: `no-circular` ＋ `fold-no-downstream`（fold は derivations/derive を import しない＝**D-2/D-4 の弱い代理**・monolith 段階）。強い CQRS fitness（core→下流値の依存禁止・式は evm のみ・surface は seam 経由）は**物理分解後**。proposed の大半は未実装据え置き |
+| **②型・スキーマ** | D-2,3,12,15,16,17,18,19,20,21,22,24,25,26,27,28,30,31,32,33,34,37,40,42,43,44,46,47,48,54,58,59 | 一部実装 | Vitest 型テスト基盤稼働（`test:types`＝`vitest --typecheck.only` ＋ `tsc` build の二重実走・CI）。**agreed のみ**: D-3=`backend/src/decisions/events.test-d.ts`（イベント4種固定・削除API不在の正/負）／D-2=`backend/src/decisions/ready-lifecycle.test-d.ts`（ready は lifecycle 状態・readyEligible 系算出フィールド不在）。他②（proposed）は未実装据え置き |
+| **③PBT** | D-1,3,17,18,20,22,28,29,36,37,42,45,46,58,59 | 一部実装 | `backend/src/pbt/`（カバレッジ @vitest/coverage-v8 を CI 配線）。**D-1=PR-DONE-LOCK★（RED tripwire・実装是正は別タスク）**・D-3=PM-ORDER-INV（緑・既存）。他は新規 property 追加（後続） |
+| **④E2E/シナリオ** | D-21,30,41,52,53,56,57 | 一部実装 | backend golden/rederive（既存）＋ frontend `engine.golden.test.ts`（同一 derive のパリティ・P2 v18 葉基底へ陳腐定数を是正）＋シナリオ回帰。UI host 系は後続 |
 | **⑤境界モデル検査** | （Decisions では該当なし） | — | 順序・状態機械は主にプロパティ側 |
-| **⑥AI整合性チェック** | D-10,11,14,15,16,23,26,27,32,34,35,39,40,41,49,54,55,56,57 | 割付済・**未実走** | `decision-conformance` スキル＋`decision-conformance-checker`（定義済・実走は後続。「割付＝検証済」ではない） |
+| **⑥AI整合性チェック** | D-10,11,14,15,16,23,26,27,32,34,35,39,40,41,49,54,55,56,57 | 割付済・**サンプル試走済（網羅は後続）** | `decision-conformance` スキル＋`decision-conformance-checker`。2026-06-27 サンプル試走: **D-34・D-40＝ともに ALIGNED**（負の照合・mechanism 動作確認）。採点脚は**方向(A)＝専用採点者新設で確定**（実装は後続）。網羅実走（⑥全件）は後続。「割付＝検証済」ではない |
 | **⑦人間のみ** | D-23,35,38,39,43,49,50,51,60,61,62 | 人間のみ | 人間レビュー＋doc 敵対ゲート。footprint 無し（テスト対象が定義上存在しない） |
 
 > 集計（割付ベース・重複計上）: ①19・②32・③15・④7・⑥19・⑦11。多くが①②③に落ち、自動テスト化の余地が大きい。⑥⑦は計 26（重複 D-23/35/39/49 の4件）で、うち⑦（純人間）は 11。
-> **後続で更新**: 基盤(CI・dependency-cruiser・c8)整備後、状態を `未実装→実装済` へ更新し、`decision-conformance` 実走で⑥の照合結果を反映する。
+> **整備済（2026-06-27）**: 基盤(CI・dependency-cruiser・@vitest/coverage-v8)導入完了。**agreed 分のみ**状態更新（①=fold境界の弱代理稼働／②=D-2/D-3 型サンプル稼働／⑥=D-34/D-40 サンプル試走 ALIGNED）。**proposed は据え置き**（割付≠検証済）。
+> **後続**: (1) D-1 fold 完了ガードの実装是正（別タスク。直すと PR-DONE-LOCK★ が PASS して `it.fails` 反転＝通常 `it()` 昇格の合図）。(2) CQRS 物理分解後に強い①fitness を追加。(3) `proposed` 批准後に当該テストを記述し状態更新。(4) ⑥網羅実走＋採点脚(A)の実装。
 
 ---
 
