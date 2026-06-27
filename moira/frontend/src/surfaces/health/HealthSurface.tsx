@@ -25,27 +25,27 @@ export function HealthSurface() {
         <SectionTitle hint="現行有効集合（supersede/cancel 除外）">現行進捗</SectionTitle>
         <div style={{ display: 'flex', gap: 26, flexWrap: 'wrap', alignItems: 'flex-end' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <SummaryStat label="EV%" value={pct(d.evPercent, 1)} tone="brand" big sub={`見積カバレッジ ${pct(d.estimateCoverage)}`} />
+            <SummaryStat label="EV%" value={pct(d.evPercent, 1)} tone="brand" big sub={`見積カバレッジ ${pct(d.estimateCoverage)}`} testid="metric:ev-percent" />
             <div style={{ width: 150 }}>
               <Bar value={d.estimateCoverage} tone="brand" derate={covLow} />
             </div>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <SummaryStat label="SPI" value={idx(d.spi)} sub={`スケジュールカバレッジ ${pct(d.scheduleCoverage)}`} />
+            <SummaryStat label="SPI" value={idx(d.spi)} sub={`スケジュールカバレッジ ${pct(d.scheduleCoverage)}`} testid="metric:spi" />
             <div style={{ width: 150 }}>
               <Bar value={d.scheduleCoverage} tone="ok" derate={schedLow} />
             </div>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <SummaryStat label="実行中 (仕掛)" value={pct(d.executionCoverage, 0)} tone="warn" sub="EV%が落とす執行中領域 (R-S8)" />
+            <SummaryStat label="実行中 (仕掛)" value={pct(d.executionCoverage, 0)} tone="warn" sub="EV%が落とす執行中領域 (R-S8)" testid="metric:execution-coverage" />
             <div style={{ width: 150 }}>
               <Bar value={d.executionCoverage} tone="warn" />
             </div>
           </div>
-          <SummaryStat label="CPI" value={idx(d.cpi)} />
-          <SummaryStat label="EV_abs (MD)" value={d.evAbs.toFixed(0)} />
-          <SummaryStat label="PV (MD)" value={d.pv.toFixed(0)} />
-          <SummaryStat label="AC (MD)" value={d.ac.toFixed(0)} />
+          <SummaryStat label="CPI" value={idx(d.cpi)} testid="metric:cpi" />
+          <SummaryStat label="EV_abs (MD)" value={d.evAbs.toFixed(0)} testid="metric:ev-abs" />
+          <SummaryStat label="PV (MD)" value={d.pv.toFixed(0)} testid="metric:pv" />
+          <SummaryStat label="AC (MD)" value={d.ac.toFixed(0)} testid="metric:ac" />
           <SummaryStat label="SV (MD)" value={signed(d.evAbs - d.pv)} tone={varTone(d.evAbs - d.pv)} />
           <SummaryStat label="CV (MD)" value={signed(d.evAbs - d.ac)} tone={varTone(d.evAbs - d.ac)} />
         </div>

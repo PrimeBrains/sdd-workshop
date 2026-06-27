@@ -131,6 +131,7 @@ export function ScheduleGantt({ model, asOf, selected, onSelect, dayW = 18 }: Pr
             return (
               <div
                 key={r.node}
+                data-testid={`gantt-row:${r.node}`}
                 className="evm-row"
                 onClick={() => onSelect(r.node)}
                 style={{

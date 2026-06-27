@@ -4,3 +4,6 @@ dist-ssr
 coverage
 *.local
 .vite
+test-results
+playwright-report
+.playwright

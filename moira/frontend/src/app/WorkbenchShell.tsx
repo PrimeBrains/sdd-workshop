@@ -68,6 +68,7 @@ export function WorkbenchShell() {
               <button
                 key={p}
                 onClick={() => setPreset(p)}
+                data-testid={`role-toggle:${p}`}
                 style={{
                   border: 'none',
                   background: preset === p ? EVM.brand : 'transparent',
@@ -88,6 +89,7 @@ export function WorkbenchShell() {
               type="date"
               value={asOf}
               onChange={(e) => setAsOf(e.target.value)}
+              data-testid="asof-input"
               style={{ fontFamily: EVM.fontMono, border: `1px solid ${EVM.rule}`, borderRadius: 6, padding: '4px 8px', background: EVM.paperWarm }}
             />
           </label>
@@ -134,7 +136,7 @@ export function WorkbenchShell() {
         </nav>
 
         {/* main */}
-        <main style={{ flex: '1 1 auto', minWidth: 0, overflow: 'auto', background: EVM.paper }}>{body}</main>
+        <main data-testid={`surface-root:${surface}`} style={{ flex: '1 1 auto', minWidth: 0, overflow: 'auto', background: EVM.paper }}>{body}</main>
       </div>
     </div>
   );
@@ -145,13 +147,14 @@ function NavBtn({
   active,
   onClick,
 }: {
-  item: { label: string; axis: string };
+  item: { id: SurfaceId; label: string; axis: string };
   active: boolean;
   onClick: () => void;
 }) {
   return (
     <button
       onClick={onClick}
+      data-testid={`nav:${item.id}`}
       style={{
         textAlign: 'left',
         border: 'none',

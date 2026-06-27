@@ -37,6 +37,7 @@ export function ScheduleTimeSurface() {
                 <button
                   key={k}
                   onClick={() => setKind(k)}
+                  data-testid={`queue-filter:${k}`}
                   style={{
                     fontSize: 11.5,
                     border: `1px solid ${kind === k ? EVM.brandDeep : EVM.rule}`,
@@ -60,13 +61,13 @@ export function ScheduleTimeSurface() {
             </div>
 
             <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 10, minWidth: 280 }}>
-              <span className="mono" style={{ fontSize: 13, color: spi === null ? EVM.na : EVM.ink }}>
+              <span data-testid="metric:spi" className="mono" style={{ fontSize: 13, color: spi === null ? EVM.na : EVM.ink }}>
                 SPI {spi === null ? '算出不能' : spi.toFixed(2)}
               </span>
               <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: EVM.ink3 }}>
                   <span>スケジュールカバレッジ</span>
-                  <span className="mono">{(cov * 100).toFixed(0)}%</span>
+                  <span data-testid="metric:schedule-coverage" className="mono">{(cov * 100).toFixed(0)}%</span>
                 </div>
                 <Bar value={cov} tone="brand" derate={cov < 0.999} />
               </div>
@@ -88,6 +89,7 @@ export function ScheduleTimeSurface() {
                 <button
                   key={id}
                   onClick={() => setSelected(id)}
+                  data-testid={`backlog-item:${id}`}
                   style={{ fontSize: 11.5, border: `1px solid ${EVM.rule}`, background: EVM.paperWarm, color: EVM.ink2, borderRadius: 6, padding: '4px 9px', cursor: 'pointer' }}
                 >
                   {labelOf(id)}

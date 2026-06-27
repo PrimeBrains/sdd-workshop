@@ -14,11 +14,11 @@ import type { Actor, Event, LifecycleState, NodeId } from '../../moira/engine';
 
 const FORWARD: LifecycleState[] = ['ready', 'implementing', 'implemented', 'accepted'];
 
-function Field({ k, v, tone }: { k: string; v: React.ReactNode; tone?: string }) {
+function Field({ k, v, tone, testid }: { k: string; v: React.ReactNode; tone?: string; testid?: string }) {
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, padding: '3px 0', fontSize: 12 }}>
       <span style={{ color: EVM.ink3 }}>{k}</span>
-      <span className="mono" style={{ color: tone ?? EVM.ink, textAlign: 'right' }}>{v}</span>
+      <span className="mono" data-testid={testid} style={{ color: tone ?? EVM.ink, textAlign: 'right' }}>{v}</span>
     </div>
   );
 }
@@ -125,7 +125,7 @@ export function Inspector({ node }: { node: NodeId | null }) {
   };
 
   return (
-    <Card style={{ width: 360, flex: '0 0 auto', display: 'flex', flexDirection: 'column', gap: 10 }}>
+    <Card testid="inspector" style={{ width: 360, flex: '0 0 auto', display: 'flex', flexDirection: 'column', gap: 10 }}>
       <div>
         <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>{labelOf(node)}</div>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -143,8 +143,8 @@ export function Inspector({ node }: { node: NodeId | null }) {
 
       {/* read zone — standard EVM: PV / EV / AC, then variances, then context */}
       <div style={{ borderTop: `1px solid ${EVM.ruleSoft}`, paddingTop: 6 }}>
-        <Field k="PV 計画価値 (MD)" v={taskPv} tone={taskPv > 0 ? EVM.ink : EVM.ink3} />
-        <Field k="EV 出来高 (MD)" v={taskEv} tone={taskEv > 0 ? EVM.ok : EVM.ink3} />
+        <Field k="PV 計画価値 (MD)" v={taskPv} tone={taskPv > 0 ? EVM.ink : EVM.ink3} testid="field:pv" />
+        <Field k="EV 出来高 (MD)" v={taskEv} tone={taskEv > 0 ? EVM.ok : EVM.ink3} testid="field:ev" />
         <Field k="AC 実コスト (MD)" v={ac} />
         <div style={{ borderTop: `1px solid ${EVM.ruleSoft}`, margin: '5px 0' }} />
         <Field k="SV 差異 (= EV − PV)" v={fmtSigned(sv)} tone={varianceTone(sv)} />
@@ -152,11 +152,12 @@ export function Inspector({ node }: { node: NodeId | null }) {
         <div style={{ borderTop: `1px solid ${EVM.ruleSoft}`, margin: '5px 0' }} />
         <Field k="BAC 予算・確定 (MD)" v={n.frozenBudget ?? '—'} />
         <Field k="最新見積 (MD)" v={n.latestEstimate ?? '—'} />
-        <Field k="基準完了日（ベースライン）" v={frozenSlot ?? '—'} tone={frozenSlot ? EVM.ink : EVM.crit} />
+        <Field k="基準完了日（ベースライン）" v={frozenSlot ?? '—'} tone={frozenSlot ? EVM.ink : EVM.crit} testid="field:frozen-slot" />
         <Field
           k="予測完了日（生きた予測）"
           v={predicted ?? '—'}
           tone={overdue || forecastBehind ? EVM.crit : EVM.ink}
+          testid="field:predicted"
         />
       </div>
 

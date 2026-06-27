@@ -27,12 +27,12 @@ export function SpecValueSurface() {
         <div style={{ display: 'flex', gap: 26, alignItems: 'center', flexWrap: 'wrap' }}>
           <div>
             <div style={{ fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase', color: EVM.ink3, fontWeight: 600 }}>EV%（現行有効集合）</div>
-            <div className="serif" style={{ fontSize: 30, color: EVM.brandDeep, fontVariantNumeric: 'tabular-nums' }}>{pct(derived.evPercent, 1)}</div>
+            <div data-testid="metric:ev-percent" className="serif" style={{ fontSize: 30, color: EVM.brandDeep, fontVariantNumeric: 'tabular-nums' }}>{pct(derived.evPercent, 1)}</div>
           </div>
           <div style={{ minWidth: 220, display: 'flex', flexDirection: 'column', gap: 3 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: EVM.ink3 }}>
               <span>見積カバレッジ</span>
-              <span className="mono">{pct(derived.estimateCoverage)}</span>
+              <span data-testid="metric:estimate-coverage" className="mono">{pct(derived.estimateCoverage)}</span>
             </div>
             <Bar value={derived.estimateCoverage} tone="brand" derate={covLow} />
             {covLow && <span style={{ fontSize: 10.5, color: EVM.ink3 }}>霧の中の既知部分の達成度（低カバレッジ de-rate・R-S4）</span>}
@@ -49,6 +49,7 @@ export function SpecValueSurface() {
             return (
               <div
                 key={r.node}
+                data-testid={`spec-row:${r.node}`}
                 className="evm-row"
                 style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 6px', borderBottom: `1px solid ${EVM.ruleSoft}`, paddingLeft: 6 + r.depth * 16 }}
               >
@@ -88,7 +89,7 @@ export function SpecValueSurface() {
               const scheduled = r.frozenSlot !== null;
               const ev = r.completed && agreed ? r.frozenBudget ?? 0 : 0;
               return (
-                <tr key={r.node} style={{ background: agreed ? 'transparent' : 'rgba(184,72,46,0.06)' }}>
+                <tr key={r.node} data-testid={`cov-row:${r.node}`} style={{ background: agreed ? 'transparent' : 'rgba(184,72,46,0.06)' }}>
                   <td style={{ padding: '4px 6px' }}>{r.label}</td>
                   <td style={{ padding: '4px 6px' }}>{agreed ? <Pill tone="ok">agreed</Pill> : <Pill tone="crit">proposed</Pill>}</td>
                   <td style={{ padding: '4px 6px' }}>{scheduled ? <Pill tone="brand">slot</Pill> : <Pill tone="warn">未</Pill>}</td>

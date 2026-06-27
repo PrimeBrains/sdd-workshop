@@ -75,7 +75,12 @@ export default defineConfig({
   // break @backend/* resolution). Existing tests use renderToStaticMarkup, so no
   // DOM env is needed. Coverage via @vitest/coverage-v8 (v8 provider).
   test: {
-    include: ['src/**/*.{test,test-d}.{ts,tsx}'],
+    // src unit/type tests + the E2E fixture derive-goldens. The goldens live under
+    // e2e/fixtures/*.test.ts and need this config's @backend resolver to call the
+    // real derive()/fold() in-process ("integration で先に潰す" — verify a scenario
+    // fixture derives to its expected Given numbers BEFORE asserting it in a browser).
+    // Playwright specs are *.spec.ts and are NOT matched here.
+    include: ['src/**/*.{test,test-d}.{ts,tsx}', 'e2e/**/*.test.ts'],
     passWithNoTests: true,
     environment: 'node',
     coverage: {

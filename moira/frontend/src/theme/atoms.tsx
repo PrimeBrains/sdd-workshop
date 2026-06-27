@@ -22,15 +22,18 @@ export function Pill({
   children,
   tone = 'neutral',
   title,
+  testid,
 }: {
   children: ReactNode;
   tone?: Tone;
   title?: string;
+  testid?: string;
 }) {
   const t = toneColor[tone];
   return (
     <span
       title={title}
+      data-testid={testid}
       style={{
         display: 'inline-flex',
         alignItems: 'center',
@@ -85,14 +88,18 @@ const LIFECYCLE_LABEL: Record<LifecycleState, string> = {
 };
 
 export function LifecyclePill({ state }: { state: LifecycleState }) {
-  return <Pill tone={LIFECYCLE_TONE[state]}>{LIFECYCLE_LABEL[state]}</Pill>;
+  return (
+    <Pill tone={LIFECYCLE_TONE[state]} testid="lifecycle-badge">
+      {LIFECYCLE_LABEL[state]}
+    </Pill>
+  );
 }
 
 export function EstimatePill({ state }: { state: EstimateState }) {
   return state === 'agreed' ? (
-    <Pill tone="ok">agreed</Pill>
+    <Pill tone="ok" testid="estimate-badge">agreed</Pill>
   ) : (
-    <Pill tone="na" title="未合意（EV_abs寄与0・PV不算入）">proposed*</Pill>
+    <Pill tone="na" title="未合意（EV_abs寄与0・PV不算入）" testid="estimate-badge">proposed*</Pill>
   );
 }
 
@@ -168,13 +175,16 @@ export function Card({
   children,
   style,
   pad = 14,
+  testid,
 }: {
   children: ReactNode;
   style?: CSSProperties;
   pad?: number;
+  testid?: string;
 }) {
   return (
     <div
+      data-testid={testid}
       style={{
         background: EVM.card,
         border: `1px solid ${EVM.rule}`,
@@ -203,12 +213,14 @@ export function SummaryStat({
   sub,
   tone = 'neutral',
   big = false,
+  testid,
 }: {
   label: ReactNode;
   value: ReactNode;
   sub?: ReactNode;
   tone?: Tone;
   big?: boolean;
+  testid?: string;
 }) {
   const fg = tone === 'neutral' ? EVM.ink : toneColor[tone].fg;
   return (
@@ -226,6 +238,7 @@ export function SummaryStat({
       </div>
       <div
         className="serif"
+        data-testid={testid}
         style={{
           fontSize: big ? 32 : 24,
           lineHeight: 1.05,
