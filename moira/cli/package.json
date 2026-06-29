@@ -1,0 +1,23 @@
+{
+  "name": "moira-cli",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Moira CLI — init a project event log in any repo, record append-only events, show derived EVM, and launch the dashboard.",
+  "bin": {
+    "moira": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "moira-backend": "file:../backend"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.7.3",
+    "vitest": "^2.1.9"
+  }
+}

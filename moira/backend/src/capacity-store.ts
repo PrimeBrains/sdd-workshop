@@ -5,7 +5,7 @@
 // capacity. A c change triggers re-derivation of the live forecast (R-S2
 // MODEL:283), exactly like an event append.
 
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import type { CapacityEntry, CapacityLookup, IsoDate } from './types.js';
 
 /** Unspecified days default to 1.0 MD/day — backward compatible (A4 MODEL:34). */
@@ -49,6 +49,11 @@ export class CapacityStore {
     const raw = readFileSync(path, 'utf8');
     const parsed = JSON.parse(raw) as CapacityEntry[];
     this.appendAll(parsed);
+  }
+
+  /** Persist all entries (symmetric with EventStore.saveJson; append-only on disk). */
+  saveJson(path: string): void {
+    writeFileSync(path, JSON.stringify(this.all(), null, 2), 'utf8');
   }
 }
 

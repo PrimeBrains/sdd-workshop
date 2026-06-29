@@ -1,0 +1,5 @@
+# The developer's own app code / deps land here as they build the TODO app.
+node_modules/
+
+# .moira/ is committed as an initialized (empty) seed so `moira show` works out of
+# the box; as you run the flow it fills with YOUR events (expected local changes).
