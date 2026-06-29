@@ -1,6 +1,7 @@
 // E2E regression for units/estimate-spec-agreed (計器③). Asserts the full target;
-// the activity/history surface (新規) rides as a test.fail() tripwire. Green asserts
-// are proven non-vacuous by the all-proposed before-fixture.
+// the activity/history surface (新規) is now implemented, so EARS 5 is a green lock
+// (was a test.fail tripwire). Green asserts are proven non-vacuous by the
+// all-proposed before-fixture.
 import { test, expect } from '@playwright/test';
 import { loadFixture, navTo } from '../helpers';
 import { estimateBadge, metric, specRow } from '../selectors';
@@ -31,10 +32,11 @@ test.describe(SPEC_META.scenarioUnit, () => {
     await expect(metric(page, 'estimate-coverage')).toHaveText('0%');
   });
 
-  // EARS 5: 履歴（activity・新規サーフェス）の「見積を承認 / 太郎」行。スライス未実装 →
-  // 期待失敗トリップワイヤ。activity nav が出たら予期せず pass し CI が「昇格せよ」と赤くする。
-  test.fail('EARS 5: 履歴画面（activity 新規）に「見積を承認」行が出る', async ({ page }) => {
+  // EARS 5: 履歴（activity・新規サーフェス）の「見積を承認」行。surface 実装済み →
+  // green 回帰固定（旧 test.fail トリップワイヤから昇格）。
+  test('EARS 5: 履歴画面（activity 新規）に「見積を承認」行が出る', async ({ page }) => {
     await loadFixture(page, estimateAgreed);
-    await expect(page.getByTestId('nav:activity')).toBeVisible({ timeout: 2000 });
+    const root = await navTo(page, 'activity');
+    await expect(root.getByText('見積を承認').first()).toBeVisible();
   });
 });

@@ -16,7 +16,8 @@
     "test:cov": "vitest run --coverage",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
-    "e2e:coverage": "vitest run e2e/coverage-check.test.ts"
+    "e2e:coverage": "vitest run e2e/coverage-check.test.ts",
+    "depcruise": "depcruise src --config .dependency-cruiser.cjs"
   },
   "dependencies": {
     "react": "^19.0.0",
@@ -24,12 +25,13 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",
+    "@playwright/test": "1.59.1",
     "@types/node": "^22.10.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
-    "@playwright/test": "1.59.1",
     "@vitejs/plugin-react": "^4.3.4",
     "@vitest/coverage-v8": "2.1.9",
+    "dependency-cruiser": "^17.4.3",
     "eslint": "^9.17.0",
     "eslint-plugin-react-hooks": "^5.1.0",
     "eslint-plugin-react-refresh": "^0.4.16",

@@ -11,6 +11,7 @@ import { fold } from '@backend/fold.js';
 import { tinyProjectEvents, TINY_AS_OF } from '@backend/fixtures/tiny-project.js';
 import type {
   AcRow,
+  ActivityRow,
   Actor,
   ActorKind,
   CapacityEntry,
@@ -32,6 +33,7 @@ import type {
 export { derive, fold, tinyProjectEvents, TINY_AS_OF };
 export type {
   AcRow,
+  ActivityRow,
   Actor,
   ActorKind,
   CapacityEntry,

@@ -15,6 +15,7 @@ import type { SurfaceId } from '../../app/types';
 const SURFACE_LABEL: Record<SurfaceId, string> = {
   'spec-value': 'spec-value',
   'schedule-time': 'schedule-time',
+  activity: 'activity',
   health: 'health',
   'decision-inbox': 'decision インボックス',
   capacity: 'capacity',

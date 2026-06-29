@@ -24,13 +24,24 @@ export interface LifecycleExtra {
 export interface LogBuilder {
   decompose(
     parent: string,
-    children: ReadonlyArray<{ node: string; estimate: number }>,
+    // `estimate` is OPTIONAL: a child born without one is unestimated (discovery —
+    // units/discovery-spec-initialized §5 e001/e002). A later decompose of the same
+    // child SETS/REVISES the estimate to `proposed` (fold.ts:95), which is exactly
+    // how units/estimate-spec-proposed §5 e010 proposes onto already-born phases.
+    children: ReadonlyArray<{ node: string; estimate?: number }>,
     reason: string,
     actor?: Actor,
   ): LogBuilder;
   agree(node: string, frozenBudget: number, actor?: Actor): LogBuilder;
   dep(from: string, to: string, policy: 'accepted' | 'implemented', actor?: Actor): LogBuilder;
   life(node: string, to: LifecycleTo, actor: Actor, extra?: LifecycleExtra): LogBuilder;
+  /**
+   * A `cost` event (AC, MD attention-time; A6). Used for review-work cost folding
+   * (units/requirements-spec-re-returned §5): a folded re-review adds cost to the
+   * reviewed node WITHOUT a new lifecycle transition, so EV_abs stays flat while AC
+   * grows → CPI worsens (indices.ts computeCpi = EV_abs/AC).
+   */
+  cost(node: string, amount: number, actor?: Actor): LogBuilder;
   build(): readonly Event[];
 }
 
@@ -89,6 +100,10 @@ export function makeLog(): LogBuilder {
         to,
         ...extra,
       });
+      return api;
+    },
+    cost(node, amount, actor = TARO) {
+      events.push({ kind: 'cost', ...stamp(), actor, node, amount });
       return api;
     },
     build() {

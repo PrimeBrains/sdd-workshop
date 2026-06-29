@@ -3,7 +3,13 @@
 import { type Locator, type Page } from '@playwright/test';
 import { ganttRow, inspector, navButton, surfaceRoot } from './selectors';
 
-export type SurfaceId = 'spec-value' | 'schedule-time' | 'health' | 'decision-inbox' | 'capacity';
+export type SurfaceId =
+  | 'spec-value'
+  | 'schedule-time'
+  | 'activity'
+  | 'health'
+  | 'decision-inbox'
+  | 'capacity';
 
 /** Switch to a surface (left-rail nav) and return its mounted root locator. */
 export async function navTo(page: Page, surface: SurfaceId): Promise<Locator> {

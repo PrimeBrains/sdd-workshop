@@ -6,6 +6,7 @@
 
 import { defaultCapacityLookup } from './capacity-store.js';
 import { computeAc } from './derivations/ac.js';
+import { computeActivityLog } from './derivations/activity.js';
 import {
   computeEstimateCoverage,
   computeExecutionCoverage,
@@ -79,6 +80,7 @@ export function derive(events: readonly Event[], options: DeriveOptions): Derive
   const unassignedBacklog = computeUnassignedBacklog(state, eff);
 
   const nodeStates = computeNodeStates(state);
+  const activityLog = computeActivityLog(events);
 
   return {
     asOf,
@@ -99,6 +101,7 @@ export function derive(events: readonly Event[], options: DeriveOptions): Derive
     humanReviewQueue,
     forecast,
     unassignedBacklog,
+    activityLog,
     effectiveLeaves: eff.effectiveLeaves,
     structuralErrors: state.structuralErrors,
   };

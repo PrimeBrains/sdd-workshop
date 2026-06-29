@@ -9,12 +9,14 @@ import { ScheduleTimeSurface } from '../surfaces/schedule/ScheduleTimeSurface';
 import { HealthSurface } from '../surfaces/health/HealthSurface';
 import { CapacitySurface } from '../surfaces/capacity/CapacitySurface';
 import { SpecValueSurface } from '../surfaces/spec/SpecValueSurface';
+import { ActivitySurface } from '../surfaces/activity/ActivitySurface';
 import { DecisionInboxSurface } from '../surfaces/inbox/DecisionInboxSurface';
 import type { SurfaceId } from './types';
 
 const NAV: Array<{ id: SurfaceId; label: string; axis: string }> = [
   { id: 'spec-value', label: 'spec-value', axis: '仕様・価値' },
   { id: 'schedule-time', label: 'schedule-time', axis: 'スケジュール・時間' },
+  { id: 'activity', label: 'activity', axis: '活動履歴・時系列' },
   { id: 'health', label: 'health', axis: '健全性・EVM' },
   { id: 'decision-inbox', label: 'decision インボックス', axis: '横断・行為' },
   { id: 'capacity', label: 'capacity · calendar', axis: 'config・c(i,d)' },
@@ -35,6 +37,9 @@ export function WorkbenchShell() {
       break;
     case 'spec-value':
       body = <SpecValueSurface />;
+      break;
+    case 'activity':
+      body = <ActivitySurface />;
       break;
     case 'decision-inbox':
       body = <DecisionInboxSurface onNavigate={setSurface} />;
@@ -115,7 +120,7 @@ export function WorkbenchShell() {
           </div>
           {NAV.map((item, i) => {
             const active = surface === item.id;
-            if (i === 3) {
+            if (i === 4) {
               return (
                 <div key="sep">
                   <div style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: EVM.ink4, padding: '10px 8px 6px' }}>

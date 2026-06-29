@@ -3,7 +3,7 @@ import { type SpecMeta } from '../spec-meta';
 // units/estimate-spec-agreed — §6 has 8 EARS clauses. Mostly-green structural sample.
 export const SPEC_META: SpecMeta = {
   scenarioUnit: 'units/estimate-spec-agreed',
-  surfaces: ['spec-value'],
+  surfaces: ['spec-value', 'activity'],
   clauses: [
     { ears: 1, mode: 'green' }, // 承認 → 「合意済み」として記録（estimate badge = agreed）
     {
@@ -13,11 +13,7 @@ export const SPEC_META: SpecMeta = {
     },
     { ears: 3, mode: 'green' }, // 印を「提案中」→「承認済み」（before-fixture との対比で非空虚）
     { ears: 4, mode: 'green' }, // 見積カバレッジ表示を更新（0%→100%）
-    {
-      ears: 5,
-      mode: 'xfail',
-      note: '履歴/activity サーフェス（§4「履歴画面（新規）」・frontmatter surfaces: activity(新規)）は未実装。nav:activity tripwire。',
-    },
+    { ears: 5, mode: 'green' }, // 履歴（activity 新規サーフェス）に「見積を承認」行が出る（surface 実装済み・昇格）
     { ears: 6, mode: 'green' }, // WHILE 未承認 → agreed にしない（before-fixture が proposed*）
     {
       ears: 7,

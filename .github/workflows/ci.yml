@@ -40,6 +40,7 @@ jobs:
       - run: npm ci
       - run: npm run typecheck # tsc --noEmit
       - run: npm run lint # eslint .
+      - run: npm run depcruise # 第4器 fitness: no-circular + single-backend-bridge + single-seam surfaces
       - run: npm run test:cov # vitest: src tests + 計器③ coverage gate + scenario fixture derive-goldens
       - run: npx playwright install --with-deps chromium # 計器③ browser (pinned to @playwright/test)
       - run: npm run test:e2e # 計器③ E2E scenario regression (green locks + test.fail tripwires)

@@ -157,6 +157,18 @@ export interface ForecastRow {
   frozenSlot: IsoDate | null; // frozen baseline slot — so consumers can read R-S7 divergence
 }
 
+// One human-readable history line per event (read-side projection of the log).
+// node is the event's subject (decompose → parent; relate → `to`); null only if a
+// future event kind has no single subject.
+export interface ActivityRow {
+  id: EventId;
+  ts: number;
+  actor: Actor;
+  node: NodeId | null;
+  kind: Event['kind'];
+  label: string;
+}
+
 export interface DerivedState {
   asOf: IsoDate;
   // (1) node states
@@ -185,6 +197,9 @@ export interface DerivedState {
   // (11) live forecast schedule + unassigned backlog
   forecast: ForecastRow[];
   unassignedBacklog: NodeId[]; // agreed nodes with no assignee (P0 MODEL:104)
+  // (12) activity log — human-readable history of the event log (read-side
+  // projection; same single-derivation seam as the metrics, R-S2)
+  activityLog: ActivityRow[];
   // supporting / honest gaps
   effectiveLeaves: NodeId[]; // currently-effective leaf set (R-S5)
   structuralErrors: string[];
