@@ -10,17 +10,23 @@ metadata:
 # commit-push
 
 Commit the working changes and push them to GitHub (`PrimeBrains/sdd-workshop`,
-SSH push). **Push reaches the network, so always confirm the diff first.**
+HTTPS + gh credentials as **pbnakao** — the nakawodayo SSH key/PAT is read-only).
+**Push reaches the network, so always confirm the diff first.**
 
 **This English file is the convention shell only. The full, normative procedure lives
 in [`SKILL.ja.md`](./SKILL.ja.md)** (project language). To avoid a second source of
 truth, the procedure is NOT duplicated here — follow `SKILL.ja.md`.
 
 In one line: confirm the diff (`git status` / `git diff --stat` / branch; scan for
-secrets) → decide the message (argument, or compose a Japanese Conventional Commits
-subject and confirm with the user; include `#N`) → `git add` the agreed scope →
-`git commit` with a `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>` trailer →
-`git push` over SSH (`-u origin HEAD` if upstream is unset) → report branch and commit id.
+secrets; separate changes made in THIS session from unidentified ones — parallel
+sessions may share the worktree, so unknown changes are excluded by default) →
+decide the message (argument, or compose a Japanese Conventional Commits subject and
+confirm with the user; include `#N`) → `git add` explicit paths for the agreed scope
+(`-A` only when every change is confirmed to be this session's work) → `git commit`
+with the current model's `Co-Authored-By` trailer → verify `gh auth status` shows
+pbnakao active, then `git push` (`-u origin HEAD` if upstream is unset; `workflow`
+scope needed when `.github/workflows/**` is in the commit) → report branch, commit
+id, and any changes left unstaged.
 
 ## Boundary with existing skills
 
