@@ -50,6 +50,7 @@ moira ui                                        # ブラウザでダッシュボ
 | `moira show [--asOf <date>] [--startDate <date>] [--json]` | 導出スナップショット | （読み取り） |
 | `moira log` | イベント一覧 | （読み取り） |
 | `moira ui [--asOf <date>] [--port <n>] [--no-open]` | ダッシュボード起動 | （読み取り） |
+| `moira adapter install\|status\|drift\|uninstall` | cc-sdd アダプタの設置・検査・突き合わせ（下記） | （drift/status/install は読み取り・emit なし） |
 
 - **who**: 素の id（＝human）／`agent:claude`／`human:alice`。
 - **5つの人間判断**（見積合意・割当・容量・スコープ・見積深さ）は actor=human で記録される
@@ -61,6 +62,24 @@ moira ui                                        # ブラウザでダッシュボ
 開発の節目で `moira <cmd>` を呼べば、ログが自然に溜まる。検証用 playground
 （`../examples/todo-playground/`）の `moira-track` スキルが、`kiro-*` ライフサイクル → CLI 呼び出しの
 ブリッジ実例。
+
+## アダプタ（cc-sdd 連携）— `moira adapter`
+
+任意の cc-sdd プロジェクトに「kiro を回すだけで Moira が埋まる」ブリッジ一式を設置する
+（設計は [ADR-0002](../../.kiro/adr/0002-cc-sdd-moira-adapter.md)）:
+
+| サブコマンド | 何をするか |
+|---|---|
+| `moira adapter install [--force] [--claude-md]` | `moira-track` スキル・hooks（guard=柵／fire=発火検知）・steering 発火表を設置し、`.claude/settings.json` へ hooks を**非破壊マージ**。冪等・manifest（`.claude/.moira-adapter.json`）でバージョン/改変を追跡 |
+| `moira adapter status [--json]` | インストール状態（バージョン・ファイル intact/modified/missing・settings 反映・環境）を報告 |
+| `moira adapter drift [--json] [--feature <f>] [--check]` | `.kiro`（spec.json/tasks.md）と `.moira` ログを **read-only** で突き合わせ、欠落（hard）・先行（advisory）・人間判断待ち（needs-human）と追いつきコマンド案を報告。`--check` は hard＋needs-human>0 で exit 1 |
+| `moira adapter uninstall` | manifest 記載の未改変ファイルと注入 hooks エントリだけを外科的に除去 |
+
+- 設置物の正本は本パッケージの `templates/`（npm link で配布・単一ソース）。
+- **drift は emit しない**。追いつき記録は `moira-track` スキルの `sync` フェーズが人間ゲート付きで振り付ける
+  （5 人間判断・着手ゲート・AC 実測の規律は通常フェーズと同一）。
+- ノード ID 規約（`<f>/req|design|tasks|impl-N|review-impl`）から外れた運用は
+  `.moira/adapter.json` の `ignoreFeatures`/`ignoreNodes` で drift 対象から除外できる。
 
 ## データ（`.moira/`）
 

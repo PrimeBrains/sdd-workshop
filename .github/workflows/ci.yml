@@ -24,6 +24,27 @@ jobs:
       - run: npm run test:cov # vitest run + coverage; incl. PBT + done-lock it.fails (GREEN)
       - run: npm run depcruise # 計器① fitness: no-circular + fold-no-downstream
 
+  cli:
+    name: moira-cli
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            moira/backend/package-lock.json
+            moira/cli/package-lock.json
+      - run: npm ci && npm run build # engine first — cli depends on file:../backend dist
+        working-directory: moira/backend
+      - run: npm ci
+        working-directory: moira/cli
+      - run: npm run build # tsc strict + exactOptionalPropertyTypes
+        working-directory: moira/cli
+      - run: npm test # vitest: emit/store/golden + adapter (provider/drift/settings-merge/install/hooks)
+        working-directory: moira/cli
+
   frontend:
     name: moira-frontend
     runs-on: ubuntu-latest

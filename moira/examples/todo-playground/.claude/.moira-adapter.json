@@ -1,0 +1,34 @@
+{
+  "adapterVersion": "0.2.0",
+  "installedAt": "2026-07-02T13:10:08.310Z",
+  "files": {
+    ".claude/skills/moira-track/SKILL.md": "sha256:37d0a148a2781745aaae5e2ba0d508e55175a88c0c8c8715273c1da91efb671e",
+    ".claude/skills/moira-track/reference.md": "sha256:2ddfe63714c25dbdca3d5d3e10d98ce77a7f080a26b32b74a7f557e35522832d",
+    ".claude/hooks/moira-guard.mjs": "sha256:c888c379784a35d533a656f838a2800c6bd54ba3403d8ff2cb42f21f6e79e7e9",
+    ".claude/hooks/moira-fire.mjs": "sha256:d9d3e47949625a0c09d32288b16bb81e1490d7400746f2d8caf36d3c38e8e403",
+    ".kiro/steering/moira-track.md": "sha256:64ea57900c0de275bee3a3082ee6892c8be16d7f3a8dd7b1c359abbdb276032d"
+  },
+  "settingsInjected": [
+    {
+      "event": "PreToolUse",
+      "matcher": "Bash",
+      "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/moira-guard.mjs\""
+    },
+    {
+      "event": "PostToolUse",
+      "matcher": "Bash",
+      "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/moira-guard.mjs\""
+    },
+    {
+      "event": "PostToolUse",
+      "matcher": "Edit|MultiEdit|Write|NotebookEdit",
+      "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/moira-fire.mjs\""
+    },
+    {
+      "event": "SessionStart",
+      "matcher": "startup|resume|clear",
+      "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/moira-fire.mjs\""
+    }
+  ],
+  "claudeMdBlock": false
+}

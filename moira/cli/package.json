@@ -1,7 +1,7 @@
 {
   "name": "moira-cli",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "description": "Moira CLI — init a project event log in any repo, record append-only events, show derived EVM, and launch the dashboard.",
   "bin": {

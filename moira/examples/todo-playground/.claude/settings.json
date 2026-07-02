@@ -21,6 +21,26 @@
             "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/moira-guard.mjs\""
           }
         ]
+      },
+      {
+        "matcher": "Edit|MultiEdit|Write|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/moira-fire.mjs\""
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/moira-fire.mjs\""
+          }
+        ]
       }
     ]
   }

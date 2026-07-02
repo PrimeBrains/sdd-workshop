@@ -9,6 +9,8 @@ import { parseArgs } from 'node:util';
 import { CapacityStore, derive } from 'moira-backend';
 import type { Actor, DeriveOptions, Event, LifecycleState } from 'moira-backend';
 import { parseActor } from './actors.js';
+import { runAdapter } from './adapter/index.js';
+import { CliError } from './errors.js';
 import {
   agreeEvent,
   assignEvent,
@@ -26,8 +28,6 @@ import { serveUi, type UiFixture } from './ui-server.js';
 
 const out = (s: string): void => void process.stdout.write(`${s}\n`);
 const err = (s: string): void => void process.stderr.write(`${s}\n`);
-
-class CliError extends Error {}
 
 function today(): string {
   const d = new Date();
@@ -372,6 +372,7 @@ const USAGE = `moira — record append-only project events and read derived EVM.
   moira show [--asOf <date>] [--startDate <date>] [--json]
   moira log
   moira ui [--asOf <date>] [--port <n>] [--no-open]
+  moira adapter install|status|drift|uninstall   (cc-sdd adapter; "moira adapter help")
 
 who: a plain id (= human), or "agent:claude" / "human:alice".`;
 
@@ -412,6 +413,8 @@ export async function runCli(argv: string[]): Promise<void> {
       return cmdLog(rest);
     case 'ui':
       return cmdUi(rest);
+    case 'adapter':
+      return runAdapter(rest);
     default:
       throw new CliError(`unknown command: ${cmd}\n\n${USAGE}`);
   }
