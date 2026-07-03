@@ -37,6 +37,9 @@ export interface UiFixture {
   asOf: IsoDate;
   nodeLabels: Record<string, string>;
   actorLabels: Record<string, string>;
+  /** R-T6 reference dates, latest-wins-resolved from .moira/dates.json (issue #13). */
+  deadline?: IsoDate;
+  targetDate?: IsoDate;
   /** true only when served by `moira ui` — tells the app to open the SSE bridge. */
   live?: boolean;
 }

@@ -5,6 +5,12 @@
 // read/* modules are Node-only (top-level `node:fs`).
 
 export { derive, type DeriveOptions } from './derive.js';
+export {
+  computeLandingCurve,
+  type LandingCurve,
+  type LandingOptions,
+  type LandingPoint,
+} from './derivations/landing.js';
 export { fold } from './fold.js';
 export { EventStore, sortEvents } from './event-store.js';
 export {

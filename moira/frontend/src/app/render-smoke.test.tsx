@@ -34,7 +34,9 @@ describe('surfaces render without throwing', () => {
     const html = wrap(<HealthSurface />);
     expect(html).toContain('現行進捗');
     expect(html).toContain('累積稼得');
-    expect(html).toContain('CCPM'); // fever provisional empty state
+    expect(html).toContain('着地予想'); // landing burnup (issue #13)
+    expect(html).toContain('期限未設定'); // demo data has no deadline → honest neutral verdict
+    expect(html).toContain('CCPM'); // fever itself stays disclosed as future work
   });
 
   it('capacity surface (heatmap + editor + R-U14 history)', () => {

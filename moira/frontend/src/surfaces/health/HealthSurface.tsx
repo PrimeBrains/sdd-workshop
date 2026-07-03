@@ -1,11 +1,13 @@
 // health — two zones (R-S5/R-C2): 現行進捗 vs 累積稼得. EV% is always paired with
 // estimateCoverage; SPI with scheduleCoverage (de-rated). null SPI/CPI are shown
 // "算出不能", never potted to 1.0/0. Trend is a single asOf point (valid-time c
-// blocker, §0 #3). Fever is a provisional empty state (CCPM not in canon, §0 #4).
+// blocker, §0 #3). The landing burnup (issue #13) replaced the CCPM fever
+// placeholder — fever itself stays future work (CCPM not in canon, §0 #4).
 
 import { EVM } from '../../theme/tokens';
 import { Bar, Card, Pill, SectionTitle, SummaryStat } from '../../theme/atoms';
 import { useDerived } from '../../moira/hooks';
+import { LandingChart } from './LandingChart';
 
 const pct = (v: number, d = 0) => `${(v * 100).toFixed(d)}%`;
 const idx = (v: number | null) => (v === null ? '算出不能' : v.toFixed(2));
@@ -87,24 +89,8 @@ export function HealthSurface() {
           </div>
         </Card>
 
-        {/* Fever (provisional / empty) */}
-        <Card style={{ flex: '1 1 320px', background: EVM.paperWarm }}>
-          <SectionTitle hint={<Pill tone="na">CCPM 暫定 — MODEL v14 未確定</Pill>}>CCPM フィーバー</SectionTitle>
-          <div
-            style={{
-              border: `1px dashed ${EVM.rule}`,
-              borderRadius: 8,
-              padding: '22px 14px',
-              textAlign: 'center',
-              color: EVM.ink4,
-              fontSize: 12,
-            }}
-          >
-            CCPM 導出（buffer/fever/critical chain）は正典未確定のため未供給。
-            <br />
-            ダミーは描きません。正典化後に provisional 専用ソースから供給します（§0 #4）。
-          </div>
-        </Card>
+        {/* Landing burnup (issue #13) — replaced the CCPM fever placeholder */}
+        <LandingChart />
       </div>
     </div>
   );

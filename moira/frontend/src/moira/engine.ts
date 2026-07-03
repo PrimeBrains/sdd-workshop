@@ -7,6 +7,8 @@
 // That is a projection, not a metric recomputation (UI-DESIGN-BRIEF §0 用語精密化).
 
 import { derive } from '@backend/derive.js';
+import { computeLandingCurve } from '@backend/derivations/landing.js';
+import type { LandingCurve, LandingOptions, LandingPoint } from '@backend/derivations/landing.js';
 import { fold } from '@backend/fold.js';
 import { tinyProjectEvents, TINY_AS_OF } from '@backend/fixtures/tiny-project.js';
 import type {
@@ -30,7 +32,8 @@ import type {
   SupersedeEdge,
 } from '@backend/types';
 
-export { derive, fold, tinyProjectEvents, TINY_AS_OF };
+export { computeLandingCurve, derive, fold, tinyProjectEvents, TINY_AS_OF };
+export type { LandingCurve, LandingOptions, LandingPoint };
 export type {
   AcRow,
   ActivityRow,

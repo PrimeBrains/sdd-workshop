@@ -36,6 +36,18 @@ describe('injectFixture', () => {
     expect(out).toContain('\\u003cb\\u003e');
     expect(out).toContain('"asOf":"2026-06-29"');
   });
+
+  it('carries the R-T6 reference dates when present (issue #13)', () => {
+    const out = injectFixture('<head></head>', {
+      ...fixture,
+      deadline: '2026-09-30',
+      targetDate: '2026-09-15',
+    });
+    expect(out).toContain('"deadline":"2026-09-30"');
+    expect(out).toContain('"targetDate":"2026-09-15"');
+    // absent by default — optional fields are omitted, not undefined
+    expect(injectFixture('<head></head>', fixture)).not.toContain('deadline');
+  });
 });
 
 // --- live server (issue #6) --------------------------------------------------

@@ -7,6 +7,7 @@ import type {
   DerivedState,
   Event,
   IsoDate,
+  LandingCurve,
   ProjectedState,
 } from './engine';
 
@@ -21,6 +22,11 @@ export interface MoiraState {
   derived: DerivedState;
   /** projected state for per-node DISPLAY attributes (not metrics). */
   projected: ProjectedState;
+  /** landing-forecast burnup (issue #13) — derived HERE, never in a surface. */
+  landing: LandingCurve;
+  /** R-T6 reference dates (boot-time fixture values; a reload re-resolves them). */
+  deadline: IsoDate | null;
+  targetDate: IsoDate | null;
 
   appendEvent: (event: Event) => void;
   appendCapacity: (entry: CapacityEntry) => void;

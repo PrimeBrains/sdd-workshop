@@ -21,6 +21,9 @@ interface MoiraFixture {
   asOf: IsoDate;
   nodeLabels?: Record<string, string>;
   actorLabels?: Record<string, string>;
+  /** R-T6 reference dates (issue #13) — latest-wins-resolved by the CLI. */
+  deadline?: IsoDate;
+  targetDate?: IsoDate;
   /** set only by the `moira ui` CLI server — mounts the SSE live bridge. */
   live?: boolean;
 }
@@ -28,6 +31,8 @@ const fixture = (globalThis as { __MOIRA_FIXTURE__?: MoiraFixture }).__MOIRA_FIX
 const initialEvents = fixture?.events ?? demoEvents;
 const initialCapacity = fixture?.capacity ?? demoCapacity;
 const initialAsOf = fixture?.asOf ?? DEMO_AS_OF;
+const initialDeadline = fixture?.deadline ?? null;
+const initialTargetDate = fixture?.targetDate ?? null;
 
 // Install user-supplied display labels before first render (no-op when absent).
 if (fixture?.nodeLabels !== undefined || fixture?.actorLabels !== undefined) {
@@ -39,7 +44,13 @@ if (rootEl === null) throw new Error('#root not found');
 
 createRoot(rootEl).render(
   <StrictMode>
-    <MoiraProvider initialEvents={initialEvents} initialCapacity={initialCapacity} initialAsOf={initialAsOf}>
+    <MoiraProvider
+      initialEvents={initialEvents}
+      initialCapacity={initialCapacity}
+      initialAsOf={initialAsOf}
+      initialDeadline={initialDeadline}
+      initialTargetDate={initialTargetDate}
+    >
       {fixture?.live === true && <LiveFixtureBridge initialAsOf={initialAsOf} />}
       <App />
     </MoiraProvider>

@@ -23,7 +23,13 @@ import {
 import { formatSnapshot } from './format.js';
 import { frontendDistDir } from './paths.js';
 import { realStamper } from './stamp.js';
-import { MoiraRepo, type MoiraConfig } from './store.js';
+import {
+  isIsoDate,
+  MoiraRepo,
+  resolveReferenceDates,
+  type MoiraConfig,
+  type ReferenceDateEntry,
+} from './store.js';
 import { resolveAddParent } from './tree.js';
 import { serveUi, type UiFixture } from './ui-server.js';
 
@@ -252,6 +258,47 @@ function cmdCapacity(rest: string[]): void {
   out(`c(${who}, ${date}) = ${cStr} [human commit]`);
 }
 
+function cmdDeadline(rest: string[]): void {
+  const { values, positionals } = parse(rest, {
+    target: { type: 'string' },
+    reason: { type: 'string' },
+  });
+  const repo = requireRepo();
+  const date = positionals[0];
+  const target = str(values.target);
+
+  if (date === undefined && target === undefined) {
+    // read-only: show the current latest-wins resolution
+    const cur = resolveReferenceDates(repo.loadDateEntries());
+    out(`deadline: ${cur.deadline ?? '(unset)'}   target: ${cur.targetDate ?? '(unset)'}`);
+    return;
+  }
+
+  if (date !== undefined && !isIsoDate(date)) {
+    throw new CliError(`invalid date: ${date} (expected YYYY-MM-DD)`);
+  }
+  if (target !== undefined && !isIsoDate(target)) {
+    throw new CliError(`invalid --target: ${target} (expected YYYY-MM-DD)`);
+  }
+
+  // R-T6 (MODEL:233-240): both dates are second-tier config inputs — appended
+  // to a reason-stamped history (never the event log), latest-ts wins.
+  const stamp = realStamper();
+  const reason = str(values.reason) ?? 'moira deadline';
+  const entries: ReferenceDateEntry[] = [];
+  if (date !== undefined) entries.push({ kind: 'deadline', date, reason, ts: stamp().ts });
+  if (target !== undefined) entries.push({ kind: 'target', date: target, reason, ts: stamp().ts });
+  repo.appendDateEntries(entries);
+
+  const cur = resolveReferenceDates(repo.loadDateEntries());
+  // R-T6 boundary (MODEL:238): target > deadline is a CONFIG-ERROR WARNING —
+  // the system warns, the human decides. The append is recorded either way.
+  if (cur.deadline !== undefined && cur.targetDate !== undefined && cur.targetDate > cur.deadline) {
+    err(`warning: target (${cur.targetDate}) is after deadline (${cur.deadline}) — 構成エラー（R-T6）。バッファ/判定は N/A になります。`);
+  }
+  out(`deadline: ${cur.deadline ?? '(unset)'}   target: ${cur.targetDate ?? '(unset)'} [human commit]`);
+}
+
 // --- read commands --------------------------------------------------------
 
 function cmdShow(rest: string[]): void {
@@ -310,12 +357,15 @@ async function cmdUi(rest: string[]): Promise<void> {
   const provider = (): UiFixture => {
     const cfg = repo.loadConfig();
     const labels = repo.loadLabels();
+    const dates = resolveReferenceDates(repo.loadDateEntries());
     return {
       events: repo.loadEvents(),
       capacity: repo.loadCapacity(),
       asOf: asOfFlag ?? cfg.asOf ?? today(),
       nodeLabels: labels.nodeLabels,
       actorLabels: labels.actorLabels,
+      ...(dates.deadline !== undefined ? { deadline: dates.deadline } : {}),
+      ...(dates.targetDate !== undefined ? { targetDate: dates.targetDate } : {}),
       live: true,
     };
   };
@@ -386,6 +436,7 @@ const USAGE = `moira — record append-only project events and read derived EVM.
   moira cost <id> <md> [--actor <who>]
   moira relate <from> <to> [--kind dependency|supersede] [--policy ...] [--remove]
   moira capacity <who> <YYYY-MM-DD> <c> [--reason ...]   (human commit)
+  moira deadline [<YYYY-MM-DD>] [--target <YYYY-MM-DD>] [--reason ...]   (human commit: R-T6)
   moira show [--asOf <date>] [--startDate <date>] [--json]
   moira log
   moira ui [--asOf <date>] [--port <n>] [--no-open]
@@ -424,6 +475,8 @@ export async function runCli(argv: string[]): Promise<void> {
       return cmdRelate(rest);
     case 'capacity':
       return cmdCapacity(rest);
+    case 'deadline':
+      return cmdDeadline(rest);
     case 'show':
       return cmdShow(rest);
     case 'log':

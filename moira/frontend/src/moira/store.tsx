@@ -6,12 +6,14 @@
 
 import { useCallback, useMemo, useState, type ReactNode } from 'react';
 import {
+  computeLandingCurve,
   derive,
   fold,
   type CapacityEntry,
   type DerivedState,
   type Event,
   type IsoDate,
+  type LandingCurve,
   type ProjectedState,
 } from './engine';
 import { makeCapacityLookup } from './capacity';
@@ -21,6 +23,9 @@ export interface MoiraProviderProps {
   initialEvents: readonly Event[];
   initialCapacity?: readonly CapacityEntry[];
   initialAsOf: IsoDate;
+  /** R-T6 reference dates — boot constants from the fixture (issue #13). */
+  initialDeadline?: IsoDate | null;
+  initialTargetDate?: IsoDate | null;
   children: ReactNode;
 }
 
@@ -28,6 +33,8 @@ export function MoiraProvider({
   initialEvents,
   initialCapacity = [],
   initialAsOf,
+  initialDeadline = null,
+  initialTargetDate = null,
   children,
 }: MoiraProviderProps) {
   const [events, setEvents] = useState<readonly Event[]>(initialEvents);
@@ -40,6 +47,13 @@ export function MoiraProvider({
   const derived = useMemo<DerivedState>(() => {
     const capacityOf = makeCapacityLookup(capacityEntries);
     return derive(events, { asOf, capacityOf });
+  }, [events, capacityEntries, asOf]);
+
+  // Landing-forecast burnup (issue #13) — same single-derivation discipline as
+  // derive(): computed once here, projected by surfaces (never recomputed there).
+  const landing = useMemo<LandingCurve>(() => {
+    const capacityOf = makeCapacityLookup(capacityEntries);
+    return computeLandingCurve(events, { asOf, capacityOf });
   }, [events, capacityEntries, asOf]);
 
   const appendEvent = useCallback((event: Event) => {
@@ -80,6 +94,9 @@ export function MoiraProvider({
       asOf,
       derived,
       projected,
+      landing,
+      deadline: initialDeadline,
+      targetDate: initialTargetDate,
       appendEvent,
       appendCapacity,
       replaceSnapshot,
@@ -87,7 +104,7 @@ export function MoiraProvider({
       nextStamp,
       previewCapacity,
     }),
-    [events, capacityEntries, asOf, derived, projected, appendEvent, appendCapacity, replaceSnapshot, nextStamp, previewCapacity],
+    [events, capacityEntries, asOf, derived, projected, landing, initialDeadline, initialTargetDate, appendEvent, appendCapacity, replaceSnapshot, nextStamp, previewCapacity],
   );
 
   return <MoiraContext.Provider value={value}>{children}</MoiraContext.Provider>;
