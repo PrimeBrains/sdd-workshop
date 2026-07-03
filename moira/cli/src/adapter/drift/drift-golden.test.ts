@@ -66,7 +66,8 @@ function seedMoira(): void {
 describe('computeDriftReport — golden fixture repo', () => {
   seedKiro();
   seedMoira();
-  const report = computeDriftReport(tmp);
+  // single-repo: workDir === homeRoot (the pre-ADR-0003 shape, kept byte-identical)
+  const report = computeDriftReport(tmp, tmp);
 
   it('stamps metadata and the provider', () => {
     expect(report.schemaVersion).toBe(1);
@@ -90,8 +91,8 @@ describe('computeDriftReport — golden fixture repo', () => {
   });
 
   it('--feature filter narrows and errors on unknown features', () => {
-    expect(computeDriftReport(tmp, 'task-add').features).toHaveLength(1);
-    expect(() => computeDriftReport(tmp, 'nope')).toThrow(/nope/);
+    expect(computeDriftReport(tmp, tmp, 'task-add').features).toHaveLength(1);
+    expect(() => computeDriftReport(tmp, tmp, 'nope')).toThrow(/nope/);
   });
 
   it('--check exits 1 on hard/needs-human drift (advisory-only would not)', () => {

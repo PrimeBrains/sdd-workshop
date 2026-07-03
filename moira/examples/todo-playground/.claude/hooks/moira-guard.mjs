@@ -3,9 +3,11 @@
 //
 // It catches the firing-misses that recurred across two real demo runs (see the
 // playground demo-log.take1.md). ONE behavior is a hard enforcement, the rest are advisory:
-//   - HARD DENY (PreToolUse): `moira add` without --parent — the issue #5 footgun
-//     whose duplicate decompose edge has no compensation event. Blocked so Claude
-//     self-corrects by adding --parent. This is a HEURISTIC textual guard (it also
+//   - HARD DENY (PreToolUse): `moira add` without --parent — the issue #5 footgun.
+//     Containment latest-wins (MODEL §2.8 v20) means the omission no longer mints
+//     a duplicate edge, but an unintended parent still silently moves the node;
+//     the deny stays as defense-in-depth so Claude self-corrects by adding
+//     --parent. This is a HEURISTIC textual guard (it also
 //     catches compound `a && moira add …`, quoted `bash -c "moira add …"`, and
 //     prefixed `env X=1 moira add …` forms), NOT a sandbox — a determined bypass
 //     is possible; the primary discipline is "always pass --parent".
@@ -27,8 +29,35 @@
 // the project-root name in the deny message). `decide()` is exported so the
 // adapter's test suite can drive it without a process.
 
-import { readFileSync } from 'node:fs';
+import { readFileSync, statSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
+
+/** Resolve the .moira DATA DIR for `base` (multi-repo, ADR-0003) — duplicated
+ *  in both hook files on purpose (each .mjs stays a self-contained zero-dep
+ *  script). MOIRA_DIR env → base/.moira directory → a `.moira` POINTER FILE
+ *  (`home: <path>`, one hop, relative to the pointer's directory) → null.
+ *  Fail-soft: any error → null. */
+function resolveMoiraDataDir(base) {
+  try {
+    const env = process.env.MOIRA_DIR;
+    if (typeof env === 'string' && env !== '') return join(env, '.moira');
+    const p = join(base, '.moira');
+    const st = statSync(p, { throwIfNoEntry: false });
+    if (st?.isDirectory()) return p;
+    if (st?.isFile()) {
+      const m = /^home:\s*(.+?)\s*$/m.exec(readFileSync(p, 'utf8'));
+      if (m) {
+        const t = join(resolve(base, m[1]), '.moira');
+        const ts = statSync(t, { throwIfNoEntry: false });
+        if (ts?.isDirectory()) return t;
+      }
+    }
+  } catch {
+    /* fail-soft */
+  }
+  return null;
+}
 
 // A moira invocation may sit at the start of a segment, or be prefixed by an env
 // assignment (`env X=1 moira …`), a wrapper (`time moira …`), or be embedded in a
@@ -49,11 +78,12 @@ function segments(command) {
     .filter(Boolean);
 }
 
-/** Project-root node id from .moira/config.json (display only — fail-soft). */
+/** Project-root node id from the resolved home's config.json (display only — fail-soft). */
 function projectRoot() {
   try {
     const base = process.env.CLAUDE_PROJECT_DIR ?? '.';
-    const cfg = JSON.parse(readFileSync(`${base}/.moira/config.json`, 'utf8'));
+    const dataDir = resolveMoiraDataDir(base) ?? join(base, '.moira');
+    const cfg = JSON.parse(readFileSync(join(dataDir, 'config.json'), 'utf8'));
     if (typeof cfg.projectRoot === 'string' && cfg.projectRoot !== '') return cfg.projectRoot;
   } catch {
     /* .moira not initialized yet */
@@ -73,10 +103,13 @@ export function decide(input) {
 
   // ── PreToolUse ────────────────────────────────────────────────────────────
   if (event === 'PreToolUse') {
-    // (1) HARD STOP: `moira add` without --parent falls back to the project root
-    //     and creates a duplicate decompose edge that has NO compensation event
-    //     (issue #5) — recoverable only by a full seed replay. Block and let
-    //     Claude self-correct by adding --parent.
+    // (1) HARD STOP: `moira add` without --parent. Since containment latest-wins
+    //     (MODEL §2.8 v20, issue #5 resolved) the omission no longer mints a
+    //     duplicate edge — CLI falls back to the node's existing parent (or the
+    //     project root for NEW nodes, with a stderr note) — but an unintended
+    //     parent still silently MOVES the node in the tree. Explicit --parent
+    //     stays the discipline; this deny is defense-in-depth (SKILL Critical
+    //     Constraints), not the only line.
     const badAdds = segs.filter((s) => isMoira(s, 'add') && !/--parent(\s|=)/.test(s));
     if (badAdds.length > 0) {
       const root = projectRoot();
@@ -85,9 +118,10 @@ export function decide(input) {
           hookEventName: 'PreToolUse',
           permissionDecision: 'deny',
           permissionDecisionReason:
-            `\`moira add\` は必ず --parent <正しい親> を付ける。省くと親がプロジェクト根 (${root}) に ` +
-            `フォールバックし、${root} → <node> という二重 decompose 辺が生まれてノードが有効木に二重表示される。` +
-            'この誤投入を打ち消す補償イベントは無く (issue #5)、小規模ログは seed 全再生でしか直せない。' +
+            `\`moira add\` は必ず --parent <正しい親> を付ける（明示が最も誤解が無い）。省略時は ` +
+            `既存ノード→現在の親を再利用 / 新規ノード→プロジェクト根 (${root}) にフォールバックする。` +
+            '所属は latest-wins 置換 (MODEL §2.8 v20) で二重辺は生じないが、意図しない親付けは木を黙って動かす' +
+            '（復旧は正しい親への再 add 1 発）。' +
             '例: moira add <feature>/req --parent <feature> --label "要件定義" --actor agent:claude。' +
             `該当: ${badAdds.join(' / ')}`,
         },

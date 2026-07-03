@@ -22,11 +22,38 @@
 // `decide()` is exported (with an injectable drift runner) for tests.
 
 import { spawnSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, statSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 const WRITE_TOOLS = new Set(['Edit', 'MultiEdit', 'Write', 'NotebookEdit']);
 const projectDir = () => process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
+
+/** Resolve the .moira DATA DIR for `base` (multi-repo, ADR-0003) — duplicated
+ *  in both hook files on purpose (each .mjs stays a self-contained zero-dep
+ *  script). MOIRA_DIR env → base/.moira directory → a `.moira` POINTER FILE
+ *  (`home: <path>`, one hop, relative to the pointer's directory) → null.
+ *  Fail-soft: any error → null (the hook then simply stays silent). */
+function resolveMoiraDataDir(base) {
+  try {
+    const env = process.env.MOIRA_DIR;
+    if (typeof env === 'string' && env !== '') return join(env, '.moira');
+    const p = join(base, '.moira');
+    const st = statSync(p, { throwIfNoEntry: false });
+    if (st?.isDirectory()) return p;
+    if (st?.isFile()) {
+      const m = /^home:\s*(.+?)\s*$/m.exec(readFileSync(p, 'utf8'));
+      if (m) {
+        const t = join(resolve(base, m[1]), '.moira');
+        const ts = statSync(t, { throwIfNoEntry: false });
+        if (ts?.isDirectory()) return t;
+      }
+    }
+  } catch {
+    /* fail-soft */
+  }
+  return null;
+}
 
 const ctx = (hookEventName, additionalContext) => ({
   hookSpecificOutput: { hookEventName, additionalContext },
@@ -130,7 +157,9 @@ function runDrift(dir) {
 function decideSessionStart(deps) {
   const dir = projectDir();
   // Fast preconditions — repos without the adapter's data simply stay silent.
-  if (!existsSync(`${dir}/.moira/config.json`) || !existsSync(`${dir}/.kiro/specs`)) return undefined;
+  // The log home may live OUTSIDE this repo (MOIRA_DIR / .moira pointer file).
+  const dataDir = resolveMoiraDataDir(dir);
+  if (dataDir === null || !existsSync(join(dataDir, 'config.json')) || !existsSync(`${dir}/.kiro/specs`)) return undefined;
   const report = deps.runDrift(dir);
   if (report === undefined || report === null) return undefined;
   const s = report.summary ?? {};

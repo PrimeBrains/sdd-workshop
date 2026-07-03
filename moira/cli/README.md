@@ -53,8 +53,32 @@ moira ui                                        # ブラウザでダッシュボ
 | `moira adapter install\|status\|drift\|uninstall` | cc-sdd アダプタの設置・検査・突き合わせ（下記） | （drift/status/install は読み取り・emit なし） |
 
 - **who**: 素の id（＝human）／`agent:claude`／`human:alice`。
-- **5つの人間判断**（見積合意・割当・容量・スコープ・見積深さ）は actor=human で記録される
+- **5つの人間判断**（見積合意・割当・容量・スコープ/期日・見積深さ）は actor=human で記録される
   （`agree` は agent では fold に拒否される）。`start/done/cost/add` は `--actor agent:claude` で AI 作業を表せる。
+- `moira deadline [<YYYY-MM-DD>] [--target <YYYY-MM-DD>] [--reason ...]` — プロジェクトの期日/目標日
+  （R-T6 第二層・`.moira/dates.json` に追記専用履歴・latest-wins）。引数なしで現在値表示。
+
+## ログ home の解決（multi-repo・ADR-0003）
+
+作業リポジトリが複数（設計は repo A・実装は repo B）でも、**1 プロジェクトのログは 1 箇所**
+（log home の `.moira/`）。全コマンドは home を次の優先順で解決する:
+
+1. `moira --dir <log-home> <command> …` — **グローバルフラグ**（コマンド語の前。
+   adapter サブコマンドの `--dir <work-repo>` とは別物で共存可: `moira --dir <home> adapter drift --dir <repo>`）
+2. `MOIRA_DIR` 環境変数（CI・一時利用向け。シェル常設はプロジェクト切替時の誤爆に注意 — 常用はポインタ推奨）
+3. **`.moira` ポインタファイル**: 作業リポジトリ直下の `.moira` が**ディレクトリでなく通常ファイル**のとき、
+   1 行目 `home: <path>`（相対はポインタ置き場基準・**相対推奨**）が home のルートを指す。1 ホップのみ。
+   ```
+   # work-repo/.moira （ファイル）
+   home: ../shared-project-home
+   ```
+   無ければ**上位ディレクトリを git 式に探索**。
+4. カレントディレクトリ（単一リポの従来動作 — 何も設定しなければ挙動は不変）。
+
+`moira init` は上位探索**しない**（git init と同じ入れ子意味論）: 対象 = `--dir` > `MOIRA_DIR` > カレント。
+ポインタファイルの上での init は明示エラー（home 側で init する）。
+hooks（moira-guard/moira-fire）も同じ解決（MOIRA_DIR → ローカル `.moira` → ポインタ）で home を見つける。
+なお **home はどの経路でも常に 1 つ**（複数プロジェクトの容量集計はしない — D-50）。
 
 ## 自動化・スキルからの呼び出し
 
@@ -87,5 +111,9 @@ moira ui                                        # ブラウザでダッシュボ
 |---|---|
 | `events.json` | 追記専用4イベントログ（単一真実源） |
 | `capacity.json` | c(i,d) 第二層 |
+| `dates.json` | 期日/目標日の第二層（R-T6・追記専用・理由付き・latest-wins） |
 | `labels.json` | 表示用ラベル（**MODEL 外**・イベントには載せない） |
 | `config.json` | projectRoot / me / 既定 asOf |
+
+作業リポジトリ側の `.moira` が**通常ファイル**の場合はポインタ（`home: <path>`）であり、
+データ本体は指し先の home にある（上記「ログ home の解決」）。

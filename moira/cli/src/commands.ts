@@ -3,8 +3,8 @@
 // stdout = data; stderr = warnings/progress (so the CLI is automation-friendly).
 
 import { spawn } from 'node:child_process';
-import { existsSync } from 'node:fs';
-import { join } from 'node:path';
+import { existsSync, statSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { CapacityStore, derive, fold } from 'moira-backend';
 import type { Actor, DeriveOptions, Event, LifecycleState } from 'moira-backend';
@@ -21,6 +21,7 @@ import {
   relateEvent,
 } from './emit.js';
 import { formatSnapshot } from './format.js';
+import { getGlobalDir, resolveMoiraHome, setGlobalDir } from './home.js';
 import { frontendDistDir } from './paths.js';
 import { realStamper } from './stamp.js';
 import {
@@ -57,9 +58,31 @@ function parse(args: string[], options: Opts): Parsed {
 }
 const str = (v: unknown): string | undefined => (typeof v === 'string' ? v : undefined);
 
+function statIsDir(p: string): boolean {
+  try {
+    return statSync(p).isDirectory();
+  } catch {
+    return false;
+  }
+}
+
 function requireRepo(): MoiraRepo {
-  const repo = new MoiraRepo(process.cwd());
-  if (!repo.exists()) throw new CliError('no .moira/ here — run `moira init` first');
+  // Log-home resolution (multi-repo, ADR-0003): --dir > MOIRA_DIR > pointer /
+  // upward walk > cwd. With none of those set and .moira/ in cwd this is
+  // byte-identical to the pre-Stage-1 behavior.
+  const flagDir = getGlobalDir();
+  const home = resolveMoiraHome({
+    ...(flagDir !== undefined ? { flagDir } : {}),
+    env: process.env,
+    startDir: process.cwd(),
+  });
+  const repo = new MoiraRepo(home.root);
+  if (!repo.exists()) {
+    throw new CliError(
+      'no .moira/ found — run `moira init` first ' +
+        '(探索済み: cwd と上位ディレクトリ・--dir/MOIRA_DIR・.moira ポインタファイル)',
+    );
+  }
   return repo;
 }
 
@@ -90,7 +113,16 @@ function cmdInit(rest: string[]): void {
     root: { type: 'string' },
     asOf: { type: 'string' },
   });
-  const repo = new MoiraRepo(process.cwd());
+  // init deliberately does NOT walk up (git-init nesting semantics): the target
+  // is the explicit --dir, else MOIRA_DIR, else cwd.
+  const target = resolve(getGlobalDir() ?? process.env.MOIRA_DIR ?? process.cwd());
+  if (existsSync(join(target, '.moira')) && !statIsDir(join(target, '.moira'))) {
+    throw new CliError(
+      `${join(target, '.moira')} は .moira ポインタファイル — ここは作業リポジトリ。` +
+        'ログ home 側（ポインタの指し先）で init する',
+    );
+  }
+  const repo = new MoiraRepo(target);
   if (repo.exists()) {
     err('.moira/ already exists here — nothing to do.');
     return;
@@ -428,6 +460,10 @@ function openBrowser(url: string): void {
 
 const USAGE = `moira — record append-only project events and read derived EVM.
 
+usage: moira [--dir <log-home>] <command> ...
+  log home の解決順: --dir > MOIRA_DIR 環境変数 > .moira ポインタファイル/上位探索 > カレント。
+  （複数の作業リポジトリで 1 つのログを共有する multi-repo 用。単一リポは従来どおりカレント。）
+
   moira init [--me <id>] [--label "<project>"] [--root <id>] [--asOf <date>]
   moira add <id> [--estimate <md>] [--parent <id>] [--label "..."] [--actor <who>]
   moira agree <id> [--budget <md>]                 (human commit: estimate agreement)
@@ -445,7 +481,23 @@ const USAGE = `moira — record append-only project events and read derived EVM.
 who: a plain id (= human), or "agent:claude" / "human:alice".`;
 
 export async function runCli(argv: string[]): Promise<void> {
-  const [cmd, ...rest] = argv;
+  // Strip the GLOBAL `--dir <log-home>` (before the command word only — the
+  // adapter subcommands keep their own `--dir <work-repo>`; `git -C` style).
+  const args = [...argv];
+  let flagDir: string | undefined;
+  while (args.length > 0 && (args[0] === '--dir' || args[0]!.startsWith('--dir='))) {
+    const tok = args.shift()!;
+    if (tok === '--dir') {
+      const v = args.shift();
+      if (v === undefined) throw new CliError('--dir requires a path');
+      flagDir = v;
+    } else {
+      flagDir = tok.slice('--dir='.length);
+      if (flagDir === '') throw new CliError('--dir requires a path');
+    }
+  }
+  setGlobalDir(flagDir); // reset each run (undefined when absent)
+  const [cmd, ...rest] = args;
   switch (cmd) {
     case undefined:
     case 'help':

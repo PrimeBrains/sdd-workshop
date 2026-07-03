@@ -8,6 +8,7 @@ import { join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { fold } from 'moira-backend';
 import { CliError } from '../../errors.js';
+import { getGlobalDir, resolveMoiraHome } from '../../home.js';
 import { MoiraRepo } from '../../store.js';
 import { ccSddProvider } from '../providers/cc-sdd.js';
 import { adapterVersion } from '../version.js';
@@ -24,8 +25,8 @@ interface AdapterRepoConfig {
   ignoreNodes?: string[];
 }
 
-function loadAdapterConfig(cwd: string): AdapterRepoConfig {
-  const path = join(cwd, '.moira', 'adapter.json');
+function loadAdapterConfig(homeRoot: string): AdapterRepoConfig {
+  const path = join(homeRoot, '.moira', 'adapter.json');
   if (!existsSync(path)) return {};
   try {
     return JSON.parse(readFileSync(path, 'utf8')) as AdapterRepoConfig;
@@ -34,18 +35,27 @@ function loadAdapterConfig(cwd: string): AdapterRepoConfig {
   }
 }
 
-export function computeDriftReport(cwd: string, feature?: string): DriftReport {
-  const repo = new MoiraRepo(cwd);
+/**
+ * Two directories since ADR-0003 (multi-repo): `workDir` is the .kiro side (the
+ * work repo, from adapter --dir), `homeRoot` is the .moira side (the log home,
+ * resolved via --dir global / MOIRA_DIR / pointer / walk-up from the work repo).
+ * Single-repo keeps workDir === homeRoot — byte-identical behavior.
+ */
+export function computeDriftReport(workDir: string, homeRoot: string, feature?: string): DriftReport {
+  const repo = new MoiraRepo(homeRoot);
   if (!repo.exists()) {
-    throw new CliError('no .moira/ here — run `moira init` first (drift は .moira と .kiro を突き合わせる)');
+    throw new CliError(
+      'no .moira/ found — run `moira init` first (drift は .moira ログと .kiro を突き合わせる。' +
+        'ログ home は --dir/MOIRA_DIR/.moira ポインタ/上位探索で解決)',
+    );
   }
   const provider = ccSddProvider;
-  if (!provider.detect(cwd)) {
+  if (!provider.detect(workDir)) {
     throw new CliError('no .kiro/specs/ here — cc-sdd artifacts が見つからない（突き合わせる相手が無い）');
   }
   const cfg = repo.loadConfig();
-  const adapterCfg = loadAdapterConfig(cwd);
-  const expected = provider.loadExpected(cwd, cfg.projectRoot);
+  const adapterCfg = loadAdapterConfig(homeRoot);
+  const expected = provider.loadExpected(workDir, cfg.projectRoot);
   const projected = fold(repo.loadEvents());
   const options: Parameters<typeof computeDrift>[2] = {
     projectRoot: cfg.projectRoot,
@@ -76,8 +86,14 @@ export function cmdDrift(rest: string[]): void {
     },
     allowPositionals: false,
   });
-  const cwd = resolve(typeof values.dir === 'string' ? values.dir : process.cwd());
-  const report = computeDriftReport(cwd, typeof values.feature === 'string' ? values.feature : undefined);
+  const workDir = resolve(typeof values.dir === 'string' ? values.dir : process.cwd());
+  const flagDir = getGlobalDir();
+  const home = resolveMoiraHome({
+    ...(flagDir !== undefined ? { flagDir } : {}),
+    env: process.env,
+    startDir: workDir,
+  });
+  const report = computeDriftReport(workDir, home.root, typeof values.feature === 'string' ? values.feature : undefined);
   out(values.json === true ? renderJson(report) : renderText(report));
   // --check fails on needs-human too: an un-agreed/un-assigned lag is still a
   // firing miss (the estimate phase never fired) — same trigger set as the

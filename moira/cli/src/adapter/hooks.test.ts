@@ -36,15 +36,28 @@ const bash = (event: string, command: string) => ({
 
 let tmp: string;
 let savedProjectDir: string | undefined;
+let savedMoiraDir: string | undefined;
 beforeEach(() => {
   tmp = mkdtempSync(join(tmpdir(), 'moira-hooks-'));
   savedProjectDir = process.env.CLAUDE_PROJECT_DIR;
+  savedMoiraDir = process.env.MOIRA_DIR;
+  delete process.env.MOIRA_DIR;
 });
 afterEach(() => {
   if (savedProjectDir === undefined) delete process.env.CLAUDE_PROJECT_DIR;
   else process.env.CLAUDE_PROJECT_DIR = savedProjectDir;
+  if (savedMoiraDir === undefined) delete process.env.MOIRA_DIR;
+  else process.env.MOIRA_DIR = savedMoiraDir;
   rmSync(tmp, { recursive: true, force: true });
 });
+
+/** A log home at <tmp>/<name> with config.json naming `root`. */
+function seedHome(name: string, root: string): string {
+  const home = join(tmp, name);
+  mkdirSync(join(home, '.moira'), { recursive: true });
+  writeFileSync(join(home, '.moira', 'config.json'), JSON.stringify({ projectRoot: root, me: 'me' }));
+  return home;
+}
 
 describe('moira-guard decide()', () => {
   it('denies `moira add` without --parent (plain / compound / quoted / env-prefixed)', () => {
@@ -77,6 +90,21 @@ describe('moira-guard decide()', () => {
     process.env.CLAUDE_PROJECT_DIR = join(tmp, 'nowhere');
     const withoutCfg = guard.decide(bash('PreToolUse', 'moira add x'));
     expect(withoutCfg?.hookSpecificOutput?.permissionDecisionReason).toContain('プロジェクト根');
+  });
+
+  it('resolves the home through a .moira pointer file and MOIRA_DIR (multi-repo, ADR-0003)', () => {
+    const home = seedHome('home', 'ptr-root');
+    const work = join(tmp, 'work');
+    mkdirSync(work, { recursive: true });
+    writeFileSync(join(work, '.moira'), 'home: ../home\n'); // pointer FILE, relative
+    process.env.CLAUDE_PROJECT_DIR = work;
+    const viaPointer = guard.decide(bash('PreToolUse', 'moira add x'));
+    expect(viaPointer?.hookSpecificOutput?.permissionDecisionReason).toContain('ptr-root');
+
+    process.env.CLAUDE_PROJECT_DIR = join(tmp, 'elsewhere');
+    process.env.MOIRA_DIR = home;
+    const viaEnv = guard.decide(bash('PreToolUse', 'moira add x'));
+    expect(viaEnv?.hookSpecificOutput?.permissionDecisionReason).toContain('ptr-root');
   });
 
   it('advises the start gate / assign landmine (Pre) and AC + ui restart (Post)', () => {
@@ -182,5 +210,17 @@ describe('moira-fire decide() — SessionStart drift summary', () => {
     expect(fire.decide(session, { runDrift: () => undefined })).toBeUndefined();
     process.env.CLAUDE_PROJECT_DIR = join(tmp, 'empty');
     expect(fire.decide(session, { runDrift: () => ({ summary: { hard: 9 } }) })).toBeUndefined();
+  });
+
+  it('preconditions hold when the log home is reached via a .moira pointer file (multi-repo)', () => {
+    seedHome('home', 'r');
+    const work = join(tmp, 'work');
+    mkdirSync(join(work, '.kiro', 'specs'), { recursive: true }); // .kiro lives in the WORK repo
+    writeFileSync(join(work, '.moira'), 'home: ../home\n'); // the log lives in the shared home
+    process.env.CLAUDE_PROJECT_DIR = work;
+    const d = fire.decide(session, {
+      runDrift: () => ({ summary: { hard: 1, needsHuman: 0, advisory: 0 }, features: [] }),
+    });
+    expect(d?.hookSpecificOutput?.additionalContext).toContain('hard 1');
   });
 });
