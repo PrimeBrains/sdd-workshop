@@ -11,8 +11,9 @@ const out = (s: string): void => void process.stdout.write(`${s}\n`);
 
 const ADAPTER_USAGE = `moira adapter — cc-sdd → Moira アダプタの設置と突き合わせ.
 
-  moira adapter install   [--dir <path>] [--force] [--claude-md]
-      skill (moira-track) / hooks (moira-guard, moira-fire) / steering 発火表を
+  moira adapter install   [--dir <path>] [--force] [--claude-md] [--provider <config.json>]
+      skill (moira-track) / hooks (moira-guard, moira-fire) / provider 設定
+      (.claude/moira-provider.json — 省略時は cc-sdd 既定) / steering 発火表を
       対象リポジトリへ設置し、.claude/settings.json へ hooks を非破壊マージする。冪等。
   moira adapter status    [--dir <path>] [--json]
       インストール状態（バージョン・ファイル改変・settings 反映・環境）を報告する。

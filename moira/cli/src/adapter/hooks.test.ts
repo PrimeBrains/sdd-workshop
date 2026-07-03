@@ -1,4 +1,4 @@
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -19,6 +19,7 @@ interface GuardModule {
 }
 interface FireModule {
   decide(input: unknown, deps?: { runDrift(dir: string): unknown }): HookOutput | undefined;
+  EMBEDDED_DEFAULT: unknown;
 }
 
 const guard = (await import(
@@ -174,6 +175,73 @@ describe('moira-fire decide() — PostToolUse spec/tasks detection', () => {
     const t = join(tmp, '.kiro', 'specs', 'demo', 'tasks.md');
     writeFileSync(t, 'no checkboxes here\n');
     expect(fire.decide(edit(t))).toBeUndefined();
+  });
+});
+
+describe('moira-fire — declarative provider config (ADR-0003 Stage 2)', () => {
+  it('EMBEDDED_DEFAULT stays in LOCKSTEP with templates/claude/moira-provider.json', () => {
+    const template = JSON.parse(
+      readFileSync(new URL('../../templates/claude/moira-provider.json', import.meta.url), 'utf8'),
+    ) as unknown;
+    expect(fire.EMBEDDED_DEFAULT).toEqual(template);
+  });
+
+  it('a custom .claude/moira-provider.json drives non-cc-sdd triggers', () => {
+    const cfg = {
+      schemaVersion: 1,
+      id: 'docs-flow',
+      detect: ['docs'],
+      phases: ['design'],
+      triggers: [
+        {
+          pathPattern: '(?:^|/)docs/(?<feature>[^/]+)/design\\.md$',
+          read: 'none',
+          advise: [
+            { when: 'always', phase: 'design', message: '{file} を検知。/moira-track design --feature {feature}' },
+          ],
+        },
+      ],
+      drift: { mode: 'unsupported' },
+    };
+    mkdirSync(join(tmp, '.claude'), { recursive: true });
+    writeFileSync(join(tmp, '.claude', 'moira-provider.json'), JSON.stringify(cfg));
+    mkdirSync(join(tmp, 'docs', 'alpha'), { recursive: true });
+    const artifact = join(tmp, 'docs', 'alpha', 'design.md');
+    writeFileSync(artifact, '# design');
+    process.env.CLAUDE_PROJECT_DIR = tmp;
+
+    const d = fire.decide({
+      hook_event_name: 'PostToolUse',
+      tool_name: 'Write',
+      tool_input: { file_path: artifact },
+    });
+    expect(d?.hookSpecificOutput?.additionalContext).toContain('/moira-track design --feature alpha');
+    expect(d?.hookSpecificOutput?.additionalContext).toContain('docs/alpha/design.md を検知');
+
+    // with the custom config, cc-sdd paths no longer trigger (vocabulary swapped)
+    const specDir = join(tmp, '.kiro', 'specs', 'demo');
+    mkdirSync(specDir, { recursive: true });
+    const spec = join(specDir, 'spec.json');
+    writeFileSync(spec, JSON.stringify({ phase: 'initialized', approvals: {} }));
+    expect(
+      fire.decide({ hook_event_name: 'PostToolUse', tool_name: 'Write', tool_input: { file_path: spec } }),
+    ).toBeUndefined();
+  });
+
+  it('a broken config file fails open to the embedded cc-sdd default', () => {
+    mkdirSync(join(tmp, '.claude'), { recursive: true });
+    writeFileSync(join(tmp, '.claude', 'moira-provider.json'), '{ broken');
+    const specDir = join(tmp, '.kiro', 'specs', 'demo');
+    mkdirSync(specDir, { recursive: true });
+    const spec = join(specDir, 'spec.json');
+    writeFileSync(spec, JSON.stringify({ phase: 'initialized', approvals: {} }));
+    process.env.CLAUDE_PROJECT_DIR = tmp;
+    const d = fire.decide({
+      hook_event_name: 'PostToolUse',
+      tool_name: 'Write',
+      tool_input: { file_path: spec },
+    });
+    expect(d?.hookSpecificOutput?.additionalContext).toContain('discovery');
   });
 });
 

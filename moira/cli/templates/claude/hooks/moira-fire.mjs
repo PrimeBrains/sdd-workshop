@@ -1,5 +1,5 @@
 // moira-fire.mjs — Claude Code hook: the deterministic FIRING DETECTOR of the
-// cc-sdd → Moira adapter. Distributed by `moira adapter install`
+// methodology → Moira adapter. Distributed by `moira adapter install`
 // (canonical source: sdd-workshop moira/cli/templates/).
 //
 // The playground proved that convention-only firing (a trigger table the LLM is
@@ -8,18 +8,21 @@
 // gates for the 5 decisions stay intact — the hook never runs a write verb):
 //
 //   - PostToolUse (matcher: Edit|MultiEdit|Write|NotebookEdit):
-//     a write landed in .kiro/specs/<feature>/(spec.json|tasks.md) → read that
-//     file (HOT PATH: one fs read, NO process spawn) and advise firing the
-//     matching `/moira-track <phase>`.
+//     a write matched a provider TRIGGER (declarative config, ADR-0003 Stage 2:
+//     `.claude/moira-provider.json`; absent → the embedded cc-sdd default) →
+//     read that file (HOT PATH: one fs read, NO process spawn) and advise
+//     firing the matching `/moira-track <phase>`.
 //   - SessionStart (matcher: startup|resume|clear):
-//     if the repo has .moira + .kiro/specs, run `moira adapter drift --json`
-//     ONCE (3s timeout, fail-open) and inject a summary when the log lags
-//     behind .kiro — the catch-all for misses that happened outside this
-//     session. Advice: run `/moira-track sync`.
+//     if the resolved log home has .moira and the provider's artifacts are
+//     detected, run `moira adapter drift --json` ONCE (3s timeout, fail-open)
+//     and inject a summary when the log lags behind the artifacts. Advice:
+//     run `/moira-track sync`.
 //
 // Contract: stdin = one JSON hook event; stdout = JSON-only additionalContext
 // (or nothing); always exit 0 — on ANY error we FAIL OPEN and stay silent.
-// `decide()` is exported (with an injectable drift runner) for tests.
+// `decide()` is exported (with an injectable drift runner) for tests;
+// EMBEDDED_DEFAULT is exported so the test suite can assert it stays in
+// LOCKSTEP with templates/claude/moira-provider.json (no silent divergence).
 
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, statSync } from 'node:fs';
@@ -55,35 +58,122 @@ function resolveMoiraDataDir(base) {
   return null;
 }
 
+// ---------------------------------------------------------------------------
+// Declarative provider config (ADR-0003 Stage 2)
+// ---------------------------------------------------------------------------
+
+/** The embedded cc-sdd default — MUST stay in LOCKSTEP with
+ *  templates/claude/moira-provider.json (asserted by the adapter test suite).
+ *  Used when the work repo has no `.claude/moira-provider.json` (pre-Stage-2
+ *  installs) or the file is unreadable (fail-open to the known-good default). */
+export const EMBEDDED_DEFAULT = {
+  schemaVersion: 1,
+  id: 'cc-sdd',
+  displayName: 'cc-sdd (Kiro spec-driven development)',
+  detect: ['.kiro/specs'],
+  phases: ['discovery', 'estimate', 'requirements', 'design', 'tasks', 'estimate-impl', 'impl', 'sync'],
+  nodeScheme: {
+    phaseChildren: [
+      { suffix: 'req', label: '要件定義' },
+      { suffix: 'design', label: '設計' },
+      { suffix: 'tasks', label: 'タスク分解' },
+    ],
+    implPrefix: 'impl-',
+    reviewNode: 'review-impl',
+  },
+  edges: [
+    { from: 'req', to: 'design', policy: 'accepted' },
+    { from: 'design', to: 'tasks', policy: 'accepted' },
+    { from: 'tasks', to: 'impl-*', policy: 'accepted' },
+    { from: 'impl-*', to: 'review-impl', policy: 'implemented' },
+  ],
+  scope: { claim: [] },
+  triggers: [
+    {
+      pathPattern: '(?:^|/)\\.kiro/specs/(?<feature>[^/]+)/spec\\.json$',
+      read: 'json',
+      advise: [
+        {
+          when: { anyTrue: ['approvals.tasks.approved', 'ready_for_implementation'] },
+          phase: 'tasks',
+          message:
+            '{file} が更新された（phase={phase}）。tasks 承認済み（実装ノード誕生の節目）。未反映なら /moira-track tasks --feature {feature} を発火し、実装見積が合意でき次第 /moira-track estimate-impl --feature {feature}。この編集が cc-sdd の節目なら発火を飛ばさない（規約: .kiro/steering/moira-track.md）。取りこぼしの確認は /moira-track sync。',
+        },
+        {
+          when: { anyTrue: ['approvals.tasks.generated'], phaseEquals: 'tasks-generated' },
+          phase: 'tasks',
+          message:
+            '{file} が更新された（phase={phase}）。tasks 生成済み。未反映なら /moira-track tasks --feature {feature}。この編集が cc-sdd の節目なら発火を飛ばさない（規約: .kiro/steering/moira-track.md）。取りこぼしの確認は /moira-track sync。',
+        },
+        {
+          when: { anyTrue: ['approvals.design.approved', 'approvals.design.generated'], phaseEquals: 'design-generated' },
+          phase: 'design',
+          message:
+            '{file} が更新された（phase={phase}）。design の節目。未反映なら /moira-track design --feature {feature}。この編集が cc-sdd の節目なら発火を飛ばさない（規約: .kiro/steering/moira-track.md）。取りこぼしの確認は /moira-track sync。',
+        },
+        {
+          when: { anyTrue: ['approvals.requirements.approved', 'approvals.requirements.generated'], phaseEquals: 'requirements-generated' },
+          phase: 'requirements',
+          message:
+            '{file} が更新された（phase={phase}）。requirements の節目。未反映なら /moira-track requirements --feature {feature}。この編集が cc-sdd の節目なら発火を飛ばさない（規約: .kiro/steering/moira-track.md）。取りこぼしの確認は /moira-track sync。',
+        },
+        {
+          when: 'always',
+          phase: 'discovery',
+          message:
+            '{file} が更新された（phase={phase}）。spec 初期化を検知。discovery が未反映なら /moira-track discovery --feature {feature}（見積を決めたら estimate）。この編集が cc-sdd の節目なら発火を飛ばさない（規約: .kiro/steering/moira-track.md）。取りこぼしの確認は /moira-track sync。',
+        },
+      ],
+    },
+    {
+      pathPattern: '(?:^|/)\\.kiro/specs/(?<feature>[^/]+)/tasks\\.md$',
+      read: 'checkbox',
+      advise: [
+        {
+          when: 'always',
+          phase: 'impl',
+          message:
+            '{file} が更新された（チェック {checked}/{total}）。実装の進行・完了を Moira に反映するなら /moira-track impl --feature {feature}（done 後の AC 記録を忘れない）。節目の取りこぼしが疑わしければ /moira-track sync。',
+        },
+      ],
+    },
+  ],
+  drift: { mode: 'builtin', builtin: 'cc-sdd' },
+};
+
+/** Read the work repo's provider config; absent/broken → embedded default. */
+export function loadProviderConfig(dir) {
+  try {
+    const raw = JSON.parse(readFileSync(join(dir, '.claude', 'moira-provider.json'), 'utf8'));
+    if (raw !== null && raw?.schemaVersion === 1 && Array.isArray(raw.triggers)) return raw;
+  } catch {
+    /* absent or unreadable → known-good default */
+  }
+  return EMBEDDED_DEFAULT;
+}
+
 const ctx = (hookEventName, additionalContext) => ({
   hookSpecificOutput: { hookEventName, additionalContext },
 });
 
-/** spec.json の内容から「最も進んだ節目」に対応する発火助言を組み立てる。 */
-function specAdvice(spec, feature) {
-  const a = spec?.approvals ?? {};
-  const phase = typeof spec?.phase === 'string' ? spec.phase : '';
-  const flag = (k, f) => a?.[k]?.[f] === true;
-  if (flag('tasks', 'approved') || spec?.ready_for_implementation === true) {
-    return (
-      `tasks 承認済み（実装ノード誕生の節目）。未反映なら /moira-track tasks --feature ${feature} を発火し、` +
-      `実装見積が合意でき次第 /moira-track estimate-impl --feature ${feature}`
-    );
-  }
-  if (flag('tasks', 'generated') || phase === 'tasks-generated') {
-    return `tasks 生成済み。未反映なら /moira-track tasks --feature ${feature}`;
-  }
-  if (flag('design', 'approved') || flag('design', 'generated') || phase === 'design-generated') {
-    return `design の節目。未反映なら /moira-track design --feature ${feature}`;
-  }
-  if (
-    flag('requirements', 'approved') ||
-    flag('requirements', 'generated') ||
-    phase === 'requirements-generated'
-  ) {
-    return `requirements の節目。未反映なら /moira-track requirements --feature ${feature}`;
-  }
-  return `spec 初期化を検知。discovery が未反映なら /moira-track discovery --feature ${feature}（見積を決めたら estimate）`;
+const dotted = (obj, path) =>
+  path.split('.').reduce((o, k) => (o === null || o === undefined ? undefined : o[k]), obj);
+
+function ruleMatches(rule, data) {
+  if (rule.when === 'always') return true;
+  const w = rule.when ?? {};
+  if (Array.isArray(w.anyTrue) && w.anyTrue.some((p) => dotted(data.json, p) === true)) return true;
+  if (typeof w.phaseEquals === 'string' && data.phase === w.phaseEquals) return true;
+  return false;
+}
+
+function fillMessage(message, vars) {
+  return message
+    .replaceAll('{file}', vars.file)
+    .replaceAll('{feature}', vars.feature)
+    .replaceAll('{phase}', vars.phase ?? '?')
+    .replaceAll('{checked}', String(vars.checked ?? 0))
+    .replaceAll('{total}', String(vars.total ?? 0));
 }
 
 function decidePostToolUse(input) {
@@ -91,48 +181,63 @@ function decidePostToolUse(input) {
   const fp = input.tool_input?.file_path;
   if (typeof fp !== 'string') return undefined;
   const norm = fp.replace(/\\/g, '/');
-  const m = /(?:^|\/)\.kiro\/specs\/([^/]+)\/(spec\.json|tasks\.md)$/.exec(norm);
-  if (m === null) return undefined;
-  const feature = m[1];
+  const cfg = loadProviderConfig(projectDir());
 
-  if (m[2] === 'spec.json') {
-    let spec;
+  for (const trigger of cfg.triggers) {
+    let m;
     try {
-      spec = JSON.parse(readFileSync(fp, 'utf8'));
+      m = new RegExp(trigger.pathPattern).exec(norm);
     } catch {
-      return undefined; // mid-edit / broken JSON → silent
+      continue; // invalid pattern in a user config → skip that trigger
     }
-    return ctx(
-      'PostToolUse',
-      `.kiro/specs/${feature}/spec.json が更新された（phase=${spec?.phase ?? '?'}）。` +
-        `${specAdvice(spec, feature)}。` +
-        'この編集が cc-sdd の節目なら発火を飛ばさない（規約: .kiro/steering/moira-track.md）。' +
-        '取りこぼしの確認は /moira-track sync。',
-    );
-  }
+    const feature = m?.groups?.feature;
+    if (feature === undefined) continue;
+    const file = m[0].replace(/^\//, '');
 
-  // tasks.md
-  let text;
-  try {
-    text = readFileSync(fp, 'utf8');
-  } catch {
-    return undefined;
+    const data = { json: undefined, phase: undefined, checked: undefined, total: undefined };
+    if (trigger.read === 'json') {
+      try {
+        data.json = JSON.parse(readFileSync(fp, 'utf8'));
+      } catch {
+        return undefined; // mid-edit / broken JSON → silent
+      }
+      data.phase = typeof data.json?.phase === 'string' ? data.json.phase : '?';
+    } else if (trigger.read === 'checkbox') {
+      let text;
+      try {
+        text = readFileSync(fp, 'utf8');
+      } catch {
+        return undefined;
+      }
+      let checked = 0;
+      let total = 0;
+      for (const line of text.split('\n')) {
+        const cb = /^\s*- \[( |x|X)\]/.exec(line);
+        if (cb === null) continue;
+        total += 1;
+        if (cb[1] !== ' ') checked += 1;
+      }
+      if (total === 0) return undefined; // no checkboxes yet → silent
+      data.checked = checked;
+      data.total = total;
+    }
+
+    for (const rule of trigger.advise) {
+      if (!ruleMatches(rule, data)) continue;
+      return ctx(
+        'PostToolUse',
+        fillMessage(rule.message, {
+          file,
+          feature,
+          phase: data.phase,
+          checked: data.checked,
+          total: data.total,
+        }),
+      );
+    }
+    return undefined; // trigger matched but no advise rule → silent
   }
-  let checked = 0;
-  let total = 0;
-  for (const line of text.split('\n')) {
-    const cb = /^\s*- \[( |x|X)\]/.exec(line);
-    if (cb === null) continue;
-    total += 1;
-    if (cb[1] !== ' ') checked += 1;
-  }
-  if (total === 0) return undefined;
-  return ctx(
-    'PostToolUse',
-    `.kiro/specs/${feature}/tasks.md が更新された（チェック ${checked}/${total}）。` +
-      `実装の進行・完了を Moira に反映するなら /moira-track impl --feature ${feature}` +
-      '（done 後の AC 記録を忘れない）。節目の取りこぼしが疑わしければ /moira-track sync。',
-  );
+  return undefined;
 }
 
 /** `moira adapter drift --json` を 1 回だけ実行（fail-open）。 */
@@ -157,9 +262,14 @@ function runDrift(dir) {
 function decideSessionStart(deps) {
   const dir = projectDir();
   // Fast preconditions — repos without the adapter's data simply stay silent.
-  // The log home may live OUTSIDE this repo (MOIRA_DIR / .moira pointer file).
+  // The log home may live OUTSIDE this repo (MOIRA_DIR / .moira pointer file),
+  // and the methodology artifacts are whatever the provider declares.
   const dataDir = resolveMoiraDataDir(dir);
-  if (dataDir === null || !existsSync(join(dataDir, 'config.json')) || !existsSync(`${dir}/.kiro/specs`)) return undefined;
+  if (dataDir === null || !existsSync(join(dataDir, 'config.json'))) return undefined;
+  const cfg = loadProviderConfig(dir);
+  const detected =
+    Array.isArray(cfg.detect) && cfg.detect.some((p) => existsSync(join(dir, ...p.split('/'))));
+  if (!detected) return undefined;
   const report = deps.runDrift(dir);
   if (report === undefined || report === null) return undefined;
   const s = report.summary ?? {};
@@ -179,7 +289,7 @@ function decideSessionStart(deps) {
   return ctx(
     'SessionStart',
     `Moira drift 検知: hard ${hard} / needs-human ${needsHuman} / advisory ${s.advisory ?? 0} — ` +
-      '.kiro の状態に .moira ログが追いついていない。追いつき記録は /moira-track sync' +
+      '成果物の状態に .moira ログが追いついていない。追いつき記録は /moira-track sync' +
       `（read-only 詳細は moira adapter drift）。上位: ${top.join(' / ')}`,
   );
 }

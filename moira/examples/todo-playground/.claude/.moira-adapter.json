@@ -1,11 +1,12 @@
 {
-  "adapterVersion": "0.3.0",
-  "installedAt": "2026-07-03T15:52:25.975Z",
+  "adapterVersion": "0.4.0",
+  "installedAt": "2026-07-03T16:03:57.407Z",
   "files": {
     ".claude/skills/moira-track/SKILL.md": "sha256:2bd13c6c71557affe88e8364a9fda00434e38240b049a4e324f0470286e77b7b",
     ".claude/skills/moira-track/reference.md": "sha256:1c901ced0868f2ce7ff025b22b84b5c042d29760d270bcaf945cf32eac7ad369",
     ".claude/hooks/moira-guard.mjs": "sha256:131a66fd5431aeec36569bcb3cb2224173757b8c7a4b5059dae8a3d88352c891",
-    ".claude/hooks/moira-fire.mjs": "sha256:ff348899989e4080fb0ddf77801554204e8aec7a99b6e999c074494f4b4f3a24",
+    ".claude/hooks/moira-fire.mjs": "sha256:a642988961d8e86867dc72aebd73fbaf16ab631c9a341949a64bcbeab90f306b",
+    ".claude/moira-provider.json": "sha256:b03030c0657e297252590143f242aeaa8d67edc19d1d55f159900ecb4264c1d6",
     ".kiro/steering/moira-track.md": "sha256:74afa82e2cff3596cf8b6620878cc12b791f494969b44b5ac158cdbddfec8875"
   },
   "settingsInjected": [

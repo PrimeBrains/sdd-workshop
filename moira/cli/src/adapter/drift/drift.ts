@@ -10,7 +10,10 @@ import { fold } from 'moira-backend';
 import { CliError } from '../../errors.js';
 import { getGlobalDir, resolveMoiraHome } from '../../home.js';
 import { MoiraRepo } from '../../store.js';
+import { PROVIDER_CONFIG_REL, validateProviderConfig } from '../provider-config.js';
 import { ccSddProvider } from '../providers/cc-sdd.js';
+import type { MethodologyProvider } from '../providers/provider.js';
+import { resolveProvider } from '../providers/registry.js';
 import { adapterVersion } from '../version.js';
 import { computeDrift, filterReport } from './core.js';
 import { renderJson, renderText } from './report.js';
@@ -35,6 +38,27 @@ function loadAdapterConfig(homeRoot: string): AdapterRepoConfig {
   }
 }
 
+/** The work repo's declarative provider (Stage 2, ADR-0003): read
+ *  .claude/moira-provider.json when present, else the cc-sdd code provider
+ *  (backward compat — pre-Stage-2 installs have no config file). */
+function loadWorkRepoProvider(workDir: string): MethodologyProvider {
+  const path = join(workDir, ...PROVIDER_CONFIG_REL.split('/'));
+  if (!existsSync(path)) return ccSddProvider;
+  let raw: unknown;
+  try {
+    raw = JSON.parse(readFileSync(path, 'utf8'));
+  } catch (e) {
+    throw new CliError(
+      `${PROVIDER_CONFIG_REL} を解析できない: ${e instanceof Error ? e.message : String(e)}`,
+    );
+  }
+  const { config, errors } = validateProviderConfig(raw);
+  if (config === null) {
+    throw new CliError(`${PROVIDER_CONFIG_REL} がスキーマ不正:\n  - ${errors.join('\n  - ')}`);
+  }
+  return resolveProvider(config);
+}
+
 /**
  * Two directories since ADR-0003 (multi-repo): `workDir` is the .kiro side (the
  * work repo, from adapter --dir), `homeRoot` is the .moira side (the log home,
@@ -49,9 +73,11 @@ export function computeDriftReport(workDir: string, homeRoot: string, feature?: 
         'ログ home は --dir/MOIRA_DIR/.moira ポインタ/上位探索で解決)',
     );
   }
-  const provider = ccSddProvider;
+  const provider = loadWorkRepoProvider(workDir);
   if (!provider.detect(workDir)) {
-    throw new CliError('no .kiro/specs/ here — cc-sdd artifacts が見つからない（突き合わせる相手が無い）');
+    throw new CliError(
+      `provider "${provider.id}" の成果物が見つからない（突き合わせる相手が無い — cc-sdd なら .kiro/specs/）`,
+    );
   }
   const cfg = repo.loadConfig();
   const adapterCfg = loadAdapterConfig(homeRoot);

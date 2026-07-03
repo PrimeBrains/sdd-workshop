@@ -24,6 +24,7 @@ import {
   type AdapterManifest,
 } from './manifest.js';
 import { templatesDir } from './paths.js';
+import { PROVIDER_CONFIG_REL, validateProviderConfig } from './provider-config.js';
 import { ccSddProvider } from './providers/cc-sdd.js';
 import {
   mergeSettings,
@@ -48,6 +49,9 @@ export const MANAGED_FILES: readonly ManagedFile[] = [
   { src: 'claude/skills/moira-track/reference.md', dest: '.claude/skills/moira-track/reference.md' },
   { src: 'claude/hooks/moira-guard.mjs', dest: '.claude/hooks/moira-guard.mjs' },
   { src: 'claude/hooks/moira-fire.mjs', dest: '.claude/hooks/moira-fire.mjs' },
+  // Declarative provider config (ADR-0003 Stage 2). Content is the bundled
+  // cc-sdd default, or the file given via `install --provider <path>`.
+  { src: 'claude/moira-provider.json', dest: PROVIDER_CONFIG_REL },
   { src: 'kiro/steering/moira-track.md', dest: '.kiro/steering/moira-track.md' },
 ];
 
@@ -100,13 +104,23 @@ export function cmdInstall(rest: string[]): void {
       dir: { type: 'string' },
       force: { type: 'boolean' },
       'claude-md': { type: 'boolean' },
+      provider: { type: 'string' },
     },
     allowPositionals: false,
   });
   const cwd = resolveDir(values);
   const force = values.force === true;
   if (!existsSync(cwd)) throw new CliError(`target dir not found: ${cwd}`);
-  if (!ccSddProvider.detect(cwd)) {
+
+  // Custom declarative provider (ADR-0003 Stage 2): validated BEFORE any write.
+  let providerOverride: string | null = null;
+  if (typeof values.provider === 'string') {
+    const p = resolve(values.provider);
+    if (!existsSync(p)) throw new CliError(`provider config not found: ${p}`);
+    providerOverride = readFileSync(p, 'utf8');
+  }
+
+  if (providerOverride === null && !ccSddProvider.detect(cwd)) {
     err('warning: .kiro/specs/ が見つからない — cc-sdd プロジェクトでは無さそう（インストールは続行）。');
   }
   if (!existsSync(join(cwd, '.moira'))) {
@@ -136,7 +150,21 @@ export function cmdInstall(rest: string[]): void {
   for (const file of MANAGED_FILES) {
     const templatePath = toPath(templatesDir(), file.src);
     if (!existsSync(templatePath)) throw new CliError(`bundled template missing: ${file.src}（moira-cli の再ビルド/再 link が必要）`);
-    const template = readFileSync(templatePath, 'utf8');
+    let template = readFileSync(templatePath, 'utf8');
+    if (file.dest === PROVIDER_CONFIG_REL) {
+      if (providerOverride !== null) template = providerOverride;
+      // Validate whatever will be installed (custom OR bundled) before writing.
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(template);
+      } catch (e) {
+        throw new CliError(`provider config が JSON として読めない: ${e instanceof Error ? e.message : String(e)}`);
+      }
+      const { errors } = validateProviderConfig(parsed);
+      if (errors.length > 0) {
+        throw new CliError(`provider config がスキーマ不正（何も書き込んでいない）:\n  - ${errors.join('\n  - ')}`);
+      }
+    }
     const destPath = toPath(cwd, file.dest);
     let action: FileAction;
     if (!existsSync(destPath)) {
@@ -282,12 +310,25 @@ export function cmdStatus(rest: string[]): void {
     }
   }
 
+  // Declarative provider id (Stage 2): read the installed config when present.
+  let providerId: string | null = null;
+  const providerPath = toPath(cwd, PROVIDER_CONFIG_REL);
+  if (existsSync(providerPath)) {
+    try {
+      const parsed = JSON.parse(readFileSync(providerPath, 'utf8')) as { id?: unknown };
+      if (typeof parsed.id === 'string') providerId = parsed.id;
+    } catch {
+      providerId = null;
+    }
+  }
+
   const result = {
     installed: true,
     installedVersion: manifest.adapterVersion,
     bundledVersion: bundled,
     upToDate: manifest.adapterVersion === bundled,
     installedAt: manifest.installedAt,
+    provider: providerId,
     files: fileStatuses,
     settings: settingsPresent,
     claudeMdBlock: manifest.claudeMdBlock,
@@ -301,6 +342,7 @@ export function cmdStatus(rest: string[]): void {
     return;
   }
   out(`adapter v${manifest.adapterVersion}（bundled v${bundled}${result.upToDate ? '・up-to-date' : ' → 再 install で更新可'}） installed at ${manifest.installedAt}`);
+  out(`  provider: ${providerId ?? '(config なし → cc-sdd 既定)'}`);
   for (const [rel, st] of Object.entries(fileStatuses)) {
     out(`  ${st === 'intact' ? '✓' : st === 'modified' ? '✎' : '✗'} ${st.padEnd(8)} ${rel}`);
   }

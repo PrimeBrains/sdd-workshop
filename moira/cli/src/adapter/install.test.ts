@@ -99,6 +99,46 @@ describe('cmdInstall', () => {
     expect(loadManifest(tmp)).toBeNull();
   });
 
+  it('installs the bundled cc-sdd provider config by default (Stage 2)', () => {
+    install();
+    expect(JSON.parse(read('.claude/moira-provider.json')).id).toBe('cc-sdd');
+    stdout.length = 0;
+    cmdStatus(['--dir', tmp, '--json']);
+    expect(JSON.parse(stdout.join('')).provider).toBe('cc-sdd');
+  });
+
+  it('--provider installs a validated custom config; schema-invalid aborts before any write', () => {
+    const cfg = {
+      schemaVersion: 1,
+      id: 'docs-flow',
+      detect: ['docs'],
+      phases: ['design'],
+      triggers: [
+        {
+          pathPattern: '(?:^|/)docs/(?<feature>[^/]+)/design\\.md$',
+          read: 'none',
+          advise: [{ when: 'always', phase: 'design', message: '{feature}' }],
+        },
+      ],
+      drift: { mode: 'unsupported' },
+    };
+    const cfgPath = join(tmp, 'my-provider.json');
+    writeFileSync(cfgPath, JSON.stringify(cfg, null, 2));
+    install('--provider', cfgPath);
+    expect(JSON.parse(read('.claude/moira-provider.json')).id).toBe('docs-flow');
+    stdout.length = 0;
+    cmdStatus(['--dir', tmp, '--json']);
+    expect(JSON.parse(stdout.join('')).provider).toBe('docs-flow');
+
+    // invalid config → whole install aborts before writing anything
+    const fresh = join(tmp, 'fresh');
+    mkdirSync(fresh, { recursive: true });
+    const bad = join(tmp, 'bad.json');
+    writeFileSync(bad, JSON.stringify({ schemaVersion: 2 }));
+    expect(() => cmdInstall(['--dir', fresh, '--provider', bad])).toThrow(/スキーマ不正/);
+    expect(existsSync(join(fresh, '.claude'))).toBe(false);
+  });
+
   it('--claude-md appends a marker block idempotently and uninstall removes it', () => {
     writeFileSync(join(tmp, 'CLAUDE.md'), '# My project\n');
     install('--claude-md');
