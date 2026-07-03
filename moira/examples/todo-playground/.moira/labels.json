@@ -1,8 +1,13 @@
 {
   "nodeLabels": {
-    "todo-app": "TODO アプリ（playground）"
+    "todo-app": "TODO アプリ（playground）",
+    "task-add-and-list": "タスクの追加と一覧",
+    "task-add-and-list/req": "要件定義",
+    "task-add-and-list/design": "設計",
+    "task-add-and-list/tasks": "タスク分解"
   },
   "actorLabels": {
-    "you": "you"
+    "you": "you",
+    "中尾": "中尾"
   }
 }
