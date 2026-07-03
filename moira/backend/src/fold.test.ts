@@ -94,4 +94,110 @@ describe('fold engine', () => {
     expect(state.dependencyEdges).toHaveLength(1);
     expect(state.structuralErrors.some((e) => e.includes('I2/R-D3'))).toBe(true);
   });
+
+  // Containment is latest-wins (§2.8 v20): a re-decompose REPLACES the effective
+  // parent; childrenOf is the exact inverse of the parent pointers (the tree, A3).
+  describe('containment latest-wins (§2.8 v20, issue #5)', () => {
+    it('a re-decompose under a new parent MOVES the child (no coexisting edge)', () => {
+      const state = fold(
+        new Log()
+          .decompose('A', [{ node: 'c', estimate: 2 }])
+          .decompose('B', [{ node: 'c' }])
+          .all(),
+      );
+      expect(state.nodes.get('c')?.parent).toBe('B');
+      expect(state.childrenOf.get('B')).toEqual(['c']);
+      expect(state.childrenOf.has('A')).toBe(false); // emptied entry is dropped
+      // the move touches containment only — the estimate is untouched
+      expect(state.nodes.get('c')?.latestEstimate).toBe(2);
+    });
+
+    it('a same-parent re-decompose only updates the estimate (no duplicate entry)', () => {
+      const state = fold(
+        new Log()
+          .decompose('F', [{ node: 'c', estimate: 1 }])
+          .decompose('F', [{ node: 'c', estimate: 4 }])
+          .all(),
+      );
+      expect(state.childrenOf.get('F')).toEqual(['c']);
+      expect(state.nodes.get('c')?.latestEstimate).toBe(4);
+    });
+
+    it('heals the issue-#5 double-edge log: corrective re-add restores the clean tree', () => {
+      // root→feat, feat→X, then the MISTAKE (root→X via a --parent-less add),
+      // then the compensation: re-decompose X under feat.
+      const clean = new Log()
+        .decompose('root', [{ node: 'feat' }])
+        .decompose('feat', [{ node: 'X', estimate: 0.5 }])
+        .all();
+      const repaired = fold([
+        ...new Log()
+          .decompose('root', [{ node: 'feat' }])
+          .decompose('feat', [{ node: 'X', estimate: 0.5 }])
+          .decompose('root', [{ node: 'X', estimate: 0.5 }]) // the mistake
+          .decompose('feat', [{ node: 'X', estimate: 0.5 }]) // the compensation
+          .all(),
+      ]);
+      const cleanState = fold(clean);
+      expect(repaired.nodes.get('X')?.parent).toBe('feat');
+      expect(repaired.childrenOf.get('root')).toEqual(cleanState.childrenOf.get('root'));
+      expect(repaired.childrenOf.get('feat')).toEqual(cleanState.childrenOf.get('feat'));
+    });
+
+    it('even DURING the mistake the tree stays single-parent (multi-parent unrepresentable)', () => {
+      const state = fold(
+        new Log()
+          .decompose('root', [{ node: 'feat' }])
+          .decompose('feat', [{ node: 'X' }])
+          .decompose('root', [{ node: 'X' }]) // mistake: X moves (not doubles)
+          .all(),
+      );
+      const parentsOfX = [...state.childrenOf.entries()].filter(([, kids]) => kids.includes('X'));
+      expect(parentsOfX.map(([p]) => p)).toEqual(['root']);
+      expect(state.nodes.get('X')?.parent).toBe('root');
+    });
+
+    it('rejects a self-parenting decompose (tree-ness guard, A3/§2.8)', () => {
+      const state = fold(new Log().decompose('F', [{ node: 'a' }]).decompose('a', [{ node: 'a' }]).all());
+      expect(state.nodes.get('a')?.parent).toBe('F');
+      expect(state.structuralErrors.some((e) => e.includes('A3/§2.8'))).toBe(true);
+    });
+
+    it('rejects a descendant-as-parent decompose (would cut a cycle island loose)', () => {
+      const state = fold(
+        new Log()
+          .decompose('A', [{ node: 'B' }])
+          .decompose('B', [{ node: 'C' }])
+          .decompose('C', [{ node: 'A' }]) // A's own grandchild as parent → cycle
+          .all(),
+      );
+      expect(state.nodes.get('A')?.parent).toBeNull(); // unchanged (A stays a root)
+      expect(state.childrenOf.get('C') ?? []).not.toContain('A');
+      expect(state.structuralErrors.some((e) => e.includes('containment cycle'))).toBe(true);
+    });
+
+    it('rejects a negative cost (A6/§2.8: no correction event exists)', () => {
+      const state = fold([
+        ...new Log().decompose('F', [{ node: 'a' }]).all(),
+        { kind: 'cost', id: 'c1', ts: 10, actor: human('h1'), node: 'a', amount: 5 },
+        { kind: 'cost', id: 'c2', ts: 11, actor: human('h1'), node: 'a', amount: -3 },
+      ]);
+      expect(state.nodes.get('a')?.ownCost).toBe(5); // the negative append is refused
+      expect(state.structuralErrors.some((e) => e.includes('negative cost'))).toBe(true);
+    });
+
+    it('is deterministic under (ts,id) with re-parenting in the log', () => {
+      const ordered = new Log()
+        .decompose('A', [{ node: 'c' }])
+        .decompose('B', [{ node: 'c' }])
+        .decompose('A', [{ node: 'c' }])
+        .all();
+      const shuffled = [ordered[1]!, ordered[2]!, ordered[0]!];
+      const s1 = fold(ordered);
+      const s2 = fold(shuffled);
+      expect(s1.nodes.get('c')?.parent).toBe('A');
+      expect(s2.nodes.get('c')?.parent).toBe('A');
+      expect(s2.childrenOf.has('B')).toBe(false);
+    });
+  });
 });

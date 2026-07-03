@@ -20,7 +20,7 @@
 | ノードを **start する前** | **着手ゲート**: 見積 agreed＋担当＋着手予定日(slot) を確認。未充足なら 見積合意 → `moira assign --slot` を先に | 🔔 moira-guard hook |
 | `moira assign` を打つ | assign は lifecycle を **ready へ戻す**。**完了済み(accepted 等)に assign しない**・baseline は着手前 | 🔔 moira-guard hook |
 | ノードを **done した直後** | **AC 記録**: `moira cost <node> <実工数md>`（実測・捏造しない・累積加算） | 🔔 moira-guard hook |
-| moira に **イベントを追記した後** | `moira ui` を**再起動**（起動時スナップショットのためリロードでは反映されない） | 🔔 moira-guard hook |
+| moira に **イベントを追記した後** | 稼働中の `moira ui` に**自動反映**される（見えなければブラウザをリロード・再起動不要） | 🔔 moira-guard hook |
 | **5 人間判断**に触れる（見積合意・割当・容量・スコープ・見積深さ） | emit 前に**人間へ確認**（`moira agree` は human 記録＝無断 AI 実行は人間の確約を偽装。`--actor agent:*` は fold が拒否） | — |
 
 > 🔒 = `.claude/hooks/moira-guard.mjs` が **deny で強制**（`--parent` 無し add の1件のみ）／

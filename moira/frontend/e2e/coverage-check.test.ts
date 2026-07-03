@@ -46,7 +46,9 @@ function readDocs(dir: string): DocInfo[] {
   return readdirSync(dir)
     .filter((f) => f.endsWith('.md'))
     .map((f) => {
-      const text = readFileSync(resolve(dir, f), 'utf8');
+      // Normalize CRLF: a core.autocrlf=true checkout (Windows) materializes the
+      // units with \r\n, which would break the LF-anchored frontmatter regexes.
+      const text = readFileSync(resolve(dir, f), 'utf8').replace(/\r\n/g, '\n');
       const fm = frontmatter(text);
       return {
         slug: f.replace(/\.md$/, ''),

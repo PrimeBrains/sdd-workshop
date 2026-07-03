@@ -24,6 +24,12 @@ export interface MoiraState {
 
   appendEvent: (event: Event) => void;
   appendCapacity: (entry: CapacityEntry) => void;
+  /**
+   * Replace the whole snapshot (both tiers) with a fresh read of the source —
+   * the `moira ui` live bridge pushes re-reads of .moira/ through here. The
+   * derivation chain re-runs exactly as for appends (R-S2: one derivation).
+   */
+  replaceSnapshot: (events: readonly Event[], capacity: readonly CapacityEntry[]) => void;
   setAsOf: (asOf: IsoDate) => void;
   /** next (ts, id) for a frontend-authored append — monotonic over the log. */
   nextStamp: () => { id: string; ts: number };

@@ -12,7 +12,7 @@
 //   - ADVISORY REMINDERS (additionalContext, NON-blocking — Claude may still act,
 //     so correctness stays the SKILL's responsibility, not the hook's): the start
 //     gate before `start`, the assign→ready landmine before `assign`, AC after
-//     `done`, and "restart moira ui" after any mutating command.
+//     `done`, and "moira ui auto-refreshes" after any mutating command.
 //
 // Contract (Claude Code hooks):
 //   - stdin  = one JSON object: { hook_event_name, tool_name, tool_input:{command}, ... }
@@ -124,14 +124,13 @@ export function decide(input) {
       notes.push(
         '完了時 AC 記録の義務: done したノードは実コストを moira cost <node> <実工数md> [--actor agent:claude] で ' +
           '記録すると CPI (=EV_abs/AC) が n/a から立つ。値は実測 — 手元に無ければ人間に確認し、捏造しない。' +
-          'moira cost は id 重複排除つき累積加算 (fold.ts:182-184) なので同じ工数を二重計上しない。',
+          'moira cost は id 重複排除つき累積加算 (fold の cost 分岐が seenCostIds で dedup) なので同じ工数を二重計上しない。',
       );
     }
     if (segs.some((s) => MUTATING.test(s))) {
       notes.push(
-        'moira にイベントを追記した。moira ui は起動時スナップショット (loadEvents を焼き込む・commands.ts:299) の ' +
-          'ため、ブラウザ再読込では反映されない。旧サーバを停止 (port 5180 の PID を kill) してから ' +
-          'moira ui --port 5180 --no-open で再起動すると最新化される。',
+        'moira にイベントを追記した。稼働中の moira ui は追記を自動反映する (fs.watch→SSE)。' +
+          '反映が見えない場合はブラウザをリロードすれば最新になる (/ は毎リクエスト最新を焼き込む)。再起動は不要。',
       );
     }
     if (notes.length > 0) {

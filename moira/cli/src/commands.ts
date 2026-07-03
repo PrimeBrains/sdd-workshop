@@ -6,7 +6,7 @@ import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseArgs } from 'node:util';
-import { CapacityStore, derive } from 'moira-backend';
+import { CapacityStore, derive, fold } from 'moira-backend';
 import type { Actor, DeriveOptions, Event, LifecycleState } from 'moira-backend';
 import { parseActor } from './actors.js';
 import { runAdapter } from './adapter/index.js';
@@ -24,6 +24,7 @@ import { formatSnapshot } from './format.js';
 import { frontendDistDir } from './paths.js';
 import { realStamper } from './stamp.js';
 import { MoiraRepo, type MoiraConfig } from './store.js';
+import { resolveAddParent } from './tree.js';
 import { serveUi, type UiFixture } from './ui-server.js';
 
 const out = (s: string): void => void process.stdout.write(`${s}\n`);
@@ -113,7 +114,16 @@ function cmdAdd(rest: string[]): void {
   if (node === undefined) throw new CliError('usage: moira add <id> [--estimate <md>] [--parent <id>] [--label "..."]');
   const repo = requireRepo();
   const cfg = repo.loadConfig();
-  const parent = str(values.parent) ?? cfg.projectRoot;
+  // Parent: explicit flag > the node's existing tree parent > project root
+  // (with a visible note either way — issue #5's silent root fallback minted
+  // a second decompose edge and a doubled tree).
+  const { parent, note } = resolveAddParent(
+    fold(repo.loadEvents()),
+    node,
+    str(values.parent),
+    cfg.projectRoot,
+  );
+  if (note !== undefined) err(note);
   const actor = str(values.actor) !== undefined ? parseActor(str(values.actor)!) : meActor(cfg);
   const estStr = str(values.estimate);
   const child = estStr === undefined ? { node } : { node, estimate: Number(estStr) };
@@ -292,20 +302,27 @@ async function cmdUi(rest: string[]): Promise<void> {
       `frontend dashboard is not built.\n  Build it once:  (cd ${dist.replace(/dist$/, '')} && npm install && npm run build)`,
     );
   }
-  const cfg = repo.loadConfig();
-  const labels = repo.loadLabels();
-  const asOf = str(values.asOf) ?? cfg.asOf ?? today();
   const port = Number(str(values.port) ?? '5180');
-  const events = repo.loadEvents();
-  const fixture: UiFixture = {
-    events,
-    capacity: repo.loadCapacity(),
-    asOf,
-    nodeLabels: labels.nodeLabels,
-    actorLabels: labels.actorLabels,
+  // asOf: an explicit --asOf is the user's contract and stays fixed; config.json
+  // asOf and today() are re-resolved per request so an edited config or a date
+  // rollover shows up without a restart.
+  const asOfFlag = str(values.asOf);
+  const provider = (): UiFixture => {
+    const cfg = repo.loadConfig();
+    const labels = repo.loadLabels();
+    return {
+      events: repo.loadEvents(),
+      capacity: repo.loadCapacity(),
+      asOf: asOfFlag ?? cfg.asOf ?? today(),
+      nodeLabels: labels.nodeLabels,
+      actorLabels: labels.actorLabels,
+      live: true,
+    };
   };
-  const running = await serveUi(dist, fixture, port);
-  out(`Moira dashboard → ${running.url}   (asOf=${asOf}, ${events.length} events)`);
+  const first = provider();
+  const running = await serveUi({ distDir: dist, port, fixture: provider, watchDir: repo.dir });
+  out(`Moira dashboard → ${running.url}   (asOf=${first.asOf}, ${first.events.length} events)`);
+  out('Appends to .moira/ are pushed live (fs.watch → SSE); reload also always shows the latest.');
   out('Press Ctrl+C to stop.');
   if (values['no-open'] !== true) openBrowser(running.url);
 }

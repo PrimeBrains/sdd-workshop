@@ -61,6 +61,23 @@ function wouldCycle(state: ProjectedState, from: NodeId, to: NodeId): boolean {
   return false;
 }
 
+/**
+ * Would setting `child`'s effective parent to `parent` create a containment
+ * cycle? True iff `parent` is `child` itself or currently sits in `child`'s
+ * subtree — i.e. walking parent pointers up from `parent` reaches `child`.
+ * (§2.8 v20 tree-ness guard; the containment counterpart of I2.)
+ */
+function wouldContainmentCycle(state: ProjectedState, parent: NodeId, child: NodeId): boolean {
+  let cur: NodeId | null = parent;
+  const seen = new Set<NodeId>(); // safety bound against pre-existing corruption
+  while (cur !== null && !seen.has(cur)) {
+    if (cur === child) return true;
+    seen.add(cur);
+    cur = state.nodes.get(cur)?.parent ?? null;
+  }
+  return false;
+}
+
 export function fold(events: readonly Event[]): ProjectedState {
   const state: ProjectedState = {
     nodes: new Map(),
@@ -86,16 +103,39 @@ export function fold(events: readonly Event[]): ProjectedState {
     switch (ev.kind) {
       case 'decompose': {
         ensure(ev.parent);
-        const kids = state.childrenOf.get(ev.parent) ?? [];
         for (const child of ev.children) {
+          // Tree-ness guard (§2.8 v20 / A3): naming a child's own descendant
+          // (or itself) as the new parent would create a containment cycle —
+          // single-effective-parent alone guarantees single parents, not a
+          // tree. Rejected visibly, same shape as the I2 relate rejection.
+          if (wouldContainmentCycle(state, ev.parent, child.node)) {
+            state.structuralErrors.push(
+              `A3/§2.8: containment cycle — decompose '${ev.parent}' → '${child.node}' would make the child its own ancestor — rejected`,
+            );
+            continue;
+          }
           const cn = ensure(child.node);
+          // Containment is latest-wins (§2.8, v20): a re-decompose REPLACES the
+          // effective parent — never adds a coexisting edge. childrenOf is kept
+          // as the exact inverse image of the parent pointers (the tree, A3), so
+          // the child leaves its previous parent's list here. This also heals
+          // multi-parent states in pre-v20 logs retroactively (issue #5).
+          if (cn.parent !== null && cn.parent !== ev.parent) {
+            const prev = state.childrenOf.get(cn.parent);
+            if (prev !== undefined) {
+              const idx = prev.indexOf(child.node);
+              if (idx >= 0) prev.splice(idx, 1);
+              if (prev.length === 0) state.childrenOf.delete(cn.parent);
+            }
+          }
           cn.parent = ev.parent;
+          const kids = state.childrenOf.get(ev.parent) ?? [];
           // A child born without an estimate stays null until est(impl) agrees —
           // surfaced as a coverage drop (§2.3 MODEL:96).
           if (child.estimate !== undefined) cn.latestEstimate = child.estimate;
           if (!kids.includes(child.node)) kids.push(child.node);
+          state.childrenOf.set(ev.parent, kids);
         }
-        state.childrenOf.set(ev.parent, kids);
         break;
       }
 
@@ -136,6 +176,18 @@ export function fold(events: readonly Event[]): ProjectedState {
               n.agreedActorValues.set(ev.actor.id, budget);
             }
           } else {
+            // I4/R-E3 (D-1 done-lock): a completed node's agreed estimate is
+            // locked — re-estimation applies to incomplete nodes only; a
+            // post-completion change of understanding is a supersede (§2.7).
+            // The event stays in the log (append-only); the fold refuses to
+            // apply it — same shape as the R-U4/I2 rejections.
+            const completed = n.lifecycle === 'implemented' || n.lifecycle === 'accepted';
+            if (completed && n.estimateState === 'agreed') {
+              state.structuralErrors.push(
+                `I4/R-E3: re-estimation (agreed→proposed) on completed node '${ev.node}' — rejected (D-1 done-lock)`,
+              );
+              break;
+            }
             // Re-estimation returns to proposed until re-agreed (R-E3 MODEL:272).
             n.estimateState = 'proposed';
           }
@@ -180,6 +232,14 @@ export function fold(events: readonly Event[]): ProjectedState {
       case 'cost': {
         // Accumulative, deduped by id (§2.8 MODEL:141).
         if (state.seenCostIds.has(ev.id)) break;
+        // Amounts are non-negative (§2.8 v20 / A6: negative spent attention-time
+        // does not exist; there deliberately is NO correction event — §7#19).
+        if (ev.amount < 0) {
+          state.structuralErrors.push(
+            `A6/§2.8: negative cost ${ev.amount} on '${ev.node}' — rejected (amounts are non-negative; no correction event exists)`,
+          );
+          break;
+        }
         state.seenCostIds.add(ev.id);
         ensure(ev.node).ownCost += ev.amount;
         break;

@@ -50,6 +50,14 @@ export function MoiraProvider({
     setCapacityEntries((prev) => [...prev, entry]);
   }, []);
 
+  const replaceSnapshot = useCallback(
+    (nextEvents: readonly Event[], nextCapacity: readonly CapacityEntry[]) => {
+      setEvents(nextEvents);
+      setCapacityEntries(nextCapacity);
+    },
+    [],
+  );
+
   const nextStamp = useCallback(() => {
     let maxTs = 0;
     for (const e of events) if (e.ts > maxTs) maxTs = e.ts;
@@ -74,11 +82,12 @@ export function MoiraProvider({
       projected,
       appendEvent,
       appendCapacity,
+      replaceSnapshot,
       setAsOf,
       nextStamp,
       previewCapacity,
     }),
-    [events, capacityEntries, asOf, derived, projected, appendEvent, appendCapacity, nextStamp, previewCapacity],
+    [events, capacityEntries, asOf, derived, projected, appendEvent, appendCapacity, replaceSnapshot, nextStamp, previewCapacity],
   );
 
   return <MoiraContext.Provider value={value}>{children}</MoiraContext.Provider>;

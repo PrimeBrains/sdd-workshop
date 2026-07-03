@@ -1,5 +1,5 @@
 // ============================================================================
-// PR-DONE-LOCK★ (I4·R-E3) — THE DECISIVE RED of the minimal pilot.
+// PR-DONE-LOCK★ (I4·R-E3) — GREEN regression pin (D-1 done-lock, fixed 2026-07-02).
 //
 // Oracle (moira/PROPERTIES.md, transcribed verbatim from the plain sentence):
 //   「いったん完了して出来高が確定した作業の出来高(EV_abs)は、後から何をしても
@@ -10,29 +10,21 @@
 // (I4). Re-estimating it (agreed→proposed) must NOT change EV_abs — re-estimation
 // only moves still-incomplete work (R-E3 incomplete-only).
 //
-// This oracle is written from the property sentence, NOT from the code. The
-// reference implementation is EXPECTED TO FAIL it:
-//   - fold.ts reverts estimateState to 'proposed' with NO completed-node guard
-//     (fold.ts: "Re-estimation returns to proposed", §139-141).
-//   - computeEvAbs gates on estimateState === 'agreed' (ev.ts §23), so the
-//     completed node silently drops out of EV_abs after the revert.
-// frozenBudget IS preserved, but the agreed-gate kills the contribution.
-//
-// This is the harness demonstrating its worth: a divergence the prose gates
-// (moira-model-update / doc-refine) missed, caught mechanically. The FIX is a
-// separate enforce-ownership Decision (moira-verification.md 動機節) and is NOT
-// part of this log-only pilot — we observe the red, we do not patch the SUT.
-//
-// CI handling: encoded as `it.fails(...)` so the suite stays green while
-// PERMANENTLY recording the known violation. If the implementation is later
-// fixed (EV_abs reads frozenBudget for completed nodes regardless of a later
-// re-proposal), this test will start PASSING and `it.fails` will flip the file
-// RED — a tripwire telling us to promote PR-DONE-LOCK to a normal `it()`.
+// History: this file was born as the decisive RED of the minimal pilot —
+// `it.fails(...)` permanently recording that fold.ts reverted estimateState to
+// 'proposed' with no completed-node guard, silently dropping the node from
+// EV_abs. Per the ratified Decision D-1 (DECISIONS-CATALOG), enforcement
+// ownership is the FOLD: a completed node's agreed→proposed reversion is now
+// rejected (visible in structuralErrors; the event stays in the append-only
+// log). The read-side alternative ("count completed nodes regardless") was the
+// explicitly rejected option in D-1 — the fold guard is the ratified one.
+// With the guard in place the property holds, so this is a normal `it()` again.
 // ============================================================================
 
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 import { derive, type DeriveOptions } from '../derive.js';
+import { fold } from '../fold.js';
 import { agent, human } from '../test-utils.js';
 import type { Event } from '../types.js';
 
@@ -56,8 +48,7 @@ function doneNodeThenRevert(estimate: number, completedTo: 'implemented' | 'acce
 }
 
 describe('PR-DONE-LOCK★ (I4·R-E3): completed EV_abs is frozen against re-estimation', () => {
-  // EXPECTED RED against the current reference implementation (see header).
-  it.fails('reverting a completed agreed node to proposed must NOT change EV_abs', () => {
+  it('reverting a completed agreed node to proposed must NOT change EV_abs', () => {
     fc.assert(
       fc.property(
         fc.integer({ min: 1, max: 20 }),
@@ -78,11 +69,20 @@ describe('PR-DONE-LOCK★ (I4·R-E3): completed EV_abs is frozen against re-esti
     );
   });
 
-  // Companion documenting the ACTUAL current behavior (so the red is legible and
-  // pinned): the completed node silently drops out of EV_abs after the revert.
-  it('DOCUMENTS current behavior: revert silently drops the completed EV_abs to 0', () => {
+  // Companion pinning HOW the lock is enforced (D-1: fold-owned rejection, not a
+  // read-side special case): the revert is refused visibly, never silently.
+  it('DOCUMENTS the enforcement: the revert is rejected, visible, and non-destructive', () => {
     const { before, after } = doneNodeThenRevert(8, 'implemented');
-    expect(derive(before, OPTS).evAbs).toBe(8); // earned
-    expect(derive(after, OPTS).evAbs).toBe(0); // ...then silently lost — the gap
+    expect(derive(before, OPTS).evAbs).toBe(8); // earned...
+
+    const d = derive(after, OPTS);
+    expect(d.evAbs).toBe(8); // ...and still earned after the rejected revert (I4).
+    // The rejection is honest, not silent (§2.1): one structural error names it.
+    expect(d.structuralErrors).toEqual([
+      "I4/R-E3: re-estimation (agreed→proposed) on completed node 'A' — rejected (D-1 done-lock)",
+    ]);
+    // The node's estimate agreement is untouched — no completed+proposed state
+    // exists, so R-U13 cannot mis-fire (R-E3).
+    expect(fold(after).nodes.get('A')?.estimateState).toBe('agreed');
   });
 });

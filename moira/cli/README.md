@@ -40,7 +40,7 @@ moira ui                                        # ブラウザでダッシュボ
 | コマンド | 何をするか | 発行イベント |
 |---|---|---|
 | `moira init [--me <id>] [--label "<proj>"] [--root <id>] [--asOf <date>]` | `.moira/` を初期化 | — |
-| `moira add <id> [--estimate <md>] [--parent <id>] [--label "..."] [--actor <who>]` | ノードを親の下に分解（未見積可） | `decompose` |
+| `moira add <id> [--estimate <md>] [--parent <id>] [--label "..."] [--actor <who>]` | ノードを親の下に分解（未見積可）。`--parent` 省略時は**既存ノードなら現在の親を再利用**、新規ノードのみ root へ（どちらも stderr に明示; issue #5） | `decompose` |
 | `moira agree <id> [--budget <md>]` | 見積合意（**human 限定**） | `transition`(estimate-agreement→agreed) |
 | `moira assign <id> --to <who> [--reviewer <who>] [--slot <date>]` | 担当＋レビュー担当＋着手予定 | `transition`(lifecycle→ready) |
 | `moira start\|done\|accept\|cancel <id> [--actor <who>]` | lifecycle 遷移 | `transition`(lifecycle) |
@@ -49,7 +49,7 @@ moira ui                                        # ブラウザでダッシュボ
 | `moira capacity <who> <YYYY-MM-DD> <c> [--reason ...]` | 日次容量 c(i,d) | （capacity 層） |
 | `moira show [--asOf <date>] [--startDate <date>] [--json]` | 導出スナップショット | （読み取り） |
 | `moira log` | イベント一覧 | （読み取り） |
-| `moira ui [--asOf <date>] [--port <n>] [--no-open]` | ダッシュボード起動 | （読み取り） |
+| `moira ui [--asOf <date>] [--port <n>] [--no-open]` | ダッシュボード起動。**稼働中の追記は自動反映**（fs.watch→SSE。反映が見えなければブラウザをリロード——`/` は毎リクエスト最新を焼き込む。再起動は不要） | （読み取り） |
 | `moira adapter install\|status\|drift\|uninstall` | cc-sdd アダプタの設置・検査・突き合わせ（下記） | （drift/status/install は読み取り・emit なし） |
 
 - **who**: 素の id（＝human）／`agent:claude`／`human:alice`。

@@ -55,3 +55,30 @@ describe('CLI golden — TODO app end-to-end derives to the verified EVM snapsho
     expect(d.structuralErrors).toEqual([]);
   });
 });
+
+// Issue #5 regression: a --parent-less `moira add` used to mint a SECOND
+// containment edge to the project root (doubled tree). Under containment
+// latest-wins (§2.8 v20) the mistake only MOVES the node, and ONE corrective
+// re-add under the true parent restores the exact golden snapshot above.
+describe('CLI golden — mistake → corrective re-add heals to the same snapshot', () => {
+  function buildRepairedLog(): Event[] {
+    const ev = buildTodoLog();
+    let t = 1_000;
+    const stamp = (): { id: string; ts: number } => ({ id: `z${(t += 1)}`, ts: t });
+    // benign same-parent re-add (a re-estimate without --parent): tree unchanged
+    ev.push(decomposeEvent(stamp(), me, 'todo-app', [{ node: 'list-tasks', estimate: 2 }], 'oops'));
+    // a REAL mis-parent (list-tasks moved under add-task), then the compensation
+    ev.push(decomposeEvent(stamp(), me, 'add-task', [{ node: 'list-tasks' }], 'mis-parent'));
+    ev.push(decomposeEvent(stamp(), me, 'todo-app', [{ node: 'list-tasks' }], 'repair: re-parent back'));
+    return ev;
+  }
+
+  const healed = derive(buildRepairedLog(), { asOf: '2026-06-29', startDate: '2026-06-22' });
+  const clean = derive(buildTodoLog(), { asOf: '2026-06-29', startDate: '2026-06-22' });
+
+  it('derives to the identical snapshot (metrics, coverage, queues)', () => {
+    const { activityLog: _h, ...restHealed } = healed;
+    const { activityLog: _c, ...restClean } = clean;
+    expect(restHealed).toEqual(restClean);
+  });
+});

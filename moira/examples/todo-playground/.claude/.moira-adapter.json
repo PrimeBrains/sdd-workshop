@@ -1,12 +1,12 @@
 {
-  "adapterVersion": "0.2.0",
-  "installedAt": "2026-07-02T13:10:08.310Z",
+  "adapterVersion": "0.2.1",
+  "installedAt": "2026-07-02T14:22:17.732Z",
   "files": {
-    ".claude/skills/moira-track/SKILL.md": "sha256:37d0a148a2781745aaae5e2ba0d508e55175a88c0c8c8715273c1da91efb671e",
-    ".claude/skills/moira-track/reference.md": "sha256:2ddfe63714c25dbdca3d5d3e10d98ce77a7f080a26b32b74a7f557e35522832d",
-    ".claude/hooks/moira-guard.mjs": "sha256:c888c379784a35d533a656f838a2800c6bd54ba3403d8ff2cb42f21f6e79e7e9",
+    ".claude/skills/moira-track/SKILL.md": "sha256:ef3c03f3e60123573881640df16490b3b94d7d255f0c645f4466ce9d6b642b8b",
+    ".claude/skills/moira-track/reference.md": "sha256:1c901ced0868f2ce7ff025b22b84b5c042d29760d270bcaf945cf32eac7ad369",
+    ".claude/hooks/moira-guard.mjs": "sha256:2ada62f2733fcb40850c3d5fd2a74dc327921e799a9d29a87deb6c6b461b038c",
     ".claude/hooks/moira-fire.mjs": "sha256:d9d3e47949625a0c09d32288b16bb81e1490d7400746f2d8caf36d3c38e8e403",
-    ".kiro/steering/moira-track.md": "sha256:64ea57900c0de275bee3a3082ee6892c8be16d7f3a8dd7b1c359abbdb276032d"
+    ".kiro/steering/moira-track.md": "sha256:74afa82e2cff3596cf8b6620878cc12b791f494969b44b5ac158cdbddfec8875"
   },
   "settingsInjected": [
     {

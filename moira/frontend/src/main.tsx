@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import './styles.css';
 import { App } from './App';
 import { MoiraProvider } from './moira/store';
+import { LiveFixtureBridge } from './moira/live';
 import { demoEvents, demoCapacity, DEMO_AS_OF } from './moira/demo-data';
 import { setUserLabels } from './moira/labels';
 import type { CapacityEntry, Event, IsoDate } from './moira/engine';
@@ -20,6 +21,8 @@ interface MoiraFixture {
   asOf: IsoDate;
   nodeLabels?: Record<string, string>;
   actorLabels?: Record<string, string>;
+  /** set only by the `moira ui` CLI server — mounts the SSE live bridge. */
+  live?: boolean;
 }
 const fixture = (globalThis as { __MOIRA_FIXTURE__?: MoiraFixture }).__MOIRA_FIXTURE__;
 const initialEvents = fixture?.events ?? demoEvents;
@@ -37,6 +40,7 @@ if (rootEl === null) throw new Error('#root not found');
 createRoot(rootEl).render(
   <StrictMode>
     <MoiraProvider initialEvents={initialEvents} initialCapacity={initialCapacity} initialAsOf={initialAsOf}>
+      {fixture?.live === true && <LiveFixtureBridge initialAsOf={initialAsOf} />}
       <App />
     </MoiraProvider>
   </StrictMode>,
