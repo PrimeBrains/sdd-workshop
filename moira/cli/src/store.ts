@@ -159,4 +159,15 @@ export class MoiraRepo {
     labels.actorLabels[id] = label;
     this.writeLabels(labels);
   }
+  // Bulk variants for `import wbs` — one load + one write (avoid O(n²) per-row I/O).
+  setNodeLabels(map: Record<string, string>): void {
+    const labels = this.loadLabels();
+    Object.assign(labels.nodeLabels, map);
+    this.writeLabels(labels);
+  }
+  setActorLabels(map: Record<string, string>): void {
+    const labels = this.loadLabels();
+    Object.assign(labels.actorLabels, map);
+    this.writeLabels(labels);
+  }
 }

@@ -6,9 +6,13 @@ import { spawn } from 'node:child_process';
 import { existsSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
+import ExcelJS from 'exceljs';
 import { CapacityStore, derive, fold } from 'moira-backend';
 import type { Actor, DeriveOptions, Event, LifecycleState } from 'moira-backend';
 import { parseActor } from './actors.js';
+import { writeWbsTemplate } from './xlsx/wbs-template.js';
+import { parseWbsSheet, planWbsEvents, validateWbs } from './xlsx/wbs-import.js';
+import { packSchedule } from './xlsx/wbs-pack.js';
 import { runAdapter } from './adapter/index.js';
 import { CliError } from './errors.js';
 import {
@@ -331,6 +335,97 @@ function cmdDeadline(rest: string[]): void {
   out(`deadline: ${cur.deadline ?? '(unset)'}   target: ${cur.targetDate ?? '(unset)'} [human commit]`);
 }
 
+// --- xlsx WBS commands ----------------------------------------------------
+
+async function cmdTemplate(rest: string[]): Promise<void> {
+  const { values, positionals } = parse(rest, { out: { type: 'string' } });
+  if (positionals[0] !== 'wbs') {
+    throw new CliError('usage: moira template wbs [--out <file.xlsx>]');
+  }
+  const outPath = str(values.out) ?? 'moira-wbs-template.xlsx';
+  if (existsSync(outPath)) {
+    throw new CliError(`${outPath} は既に存在します（上書きしません）。別の --out を指定してください。`);
+  }
+  await writeWbsTemplate(outPath);
+  out(`Wrote WBS template → ${outPath}`);
+  out('記入後: moira import wbs ' + outPath + '  （まず --dry-run で確認を推奨）');
+}
+
+async function cmdImport(rest: string[]): Promise<void> {
+  const { values, positionals } = parse(rest, { 'dry-run': { type: 'boolean' } });
+  if (positionals[0] !== 'wbs') {
+    throw new CliError('usage: moira import wbs <file.xlsx> [--dry-run]');
+  }
+  const file = positionals[1];
+  if (file === undefined) throw new CliError('usage: moira import wbs <file.xlsx> [--dry-run]');
+  if (!existsSync(file)) throw new CliError(`file not found: ${file}`);
+
+  const repo = requireRepo();
+  const cfg = repo.loadConfig();
+
+  const wb = new ExcelJS.Workbook();
+  await wb.xlsx.readFile(file);
+  const ws = wb.getWorksheet('WBS');
+  if (ws === undefined) throw new CliError('シート "WBS" が見つかりません（moira template wbs で雛形を生成できます）');
+
+  // parse → validate: collect ALL errors, write nothing if any.
+  const { rows, errors: parseErrors } = parseWbsSheet(ws);
+  const projected = fold(repo.loadEvents());
+  const validateErrors = validateWbs(rows, projected, cfg.projectRoot);
+  const errors = [...parseErrors, ...validateErrors];
+  if (errors.length > 0) {
+    for (const e of errors) err(`  error: ${e}`);
+    throw new CliError(`検証エラー ${errors.length} 件 — 何も書き込みませんでした。`);
+  }
+  if (rows.length === 0) {
+    err('warning: WBS シートにデータ行がありません（何もしません）。');
+    return;
+  }
+
+  // pack (fill blank dates) → plan events.
+  const capStore = new CapacityStore();
+  capStore.appendAll(repo.loadCapacity());
+  const startDate = cfg.startDate ?? today();
+  const slots = packSchedule(rows, capStore.lookup(), startDate);
+  const stamp = realStamper(); // ONE shared stamper for the whole import
+  const { events, nodeLabels, warnings } = planWbsEvents(rows, slots, cfg, meActor(cfg), stamp);
+  for (const w of warnings) err(`  warning: ${w}`);
+
+  if (values['dry-run'] === true) {
+    out(`(dry-run) ${rows.length} 行 → ${events.length} イベント。何も書き込みません。`);
+    for (const r of rows) {
+      const slot = slots.get(r.id);
+      const kinds = [
+        'decompose',
+        ...r.predecessors.map((p) => `relate←${p}`),
+        ...(r.estimate !== null ? ['agree'] : []),
+        ...(r.assignee !== null ? ['assign'] : []),
+      ];
+      out(`  ${r.id}  [${kinds.join(', ')}]  slot=${slot ?? '-'}`);
+    }
+    return;
+  }
+
+  // Commit: ONE appendEvents, then bulk label writes.
+  repo.appendEvents(events);
+  repo.setNodeLabels(nodeLabels);
+
+  const labels = repo.loadLabels();
+  const actorLabels: Record<string, string> = {};
+  for (const r of rows) {
+    if (r.assignee === null) continue;
+    const id = parseActor(r.assignee).id;
+    if (labels.actorLabels[id] === undefined && actorLabels[id] === undefined) {
+      err(`  warning: actor "${id}" は未登録 — 表示名を id と同じで登録します（表示名の登録は別途）`);
+      actorLabels[id] = id;
+    }
+  }
+  if (Object.keys(actorLabels).length > 0) repo.setActorLabels(actorLabels);
+
+  out(`Imported ${rows.length} 行 → ${events.length} イベント（1 回の追記）。`);
+  out('確認: moira show   /   moira log');
+}
+
 // --- read commands --------------------------------------------------------
 
 function cmdShow(rest: string[]): void {
@@ -473,6 +568,8 @@ usage: moira [--dir <log-home>] <command> ...
   moira relate <from> <to> [--kind dependency|supersede] [--policy ...] [--remove]
   moira capacity <who> <YYYY-MM-DD> <c> [--reason ...]   (human commit)
   moira deadline [<YYYY-MM-DD>] [--target <YYYY-MM-DD>] [--reason ...]   (human commit: R-T6)
+  moira template wbs [--out <file.xlsx>]                 (blank WBS workbook for bulk import)
+  moira import wbs <file.xlsx> [--dry-run]               (bulk-load a filled WBS in one append)
   moira show [--asOf <date>] [--startDate <date>] [--json]
   moira log
   moira ui [--asOf <date>] [--port <n>] [--no-open]
@@ -529,6 +626,10 @@ export async function runCli(argv: string[]): Promise<void> {
       return cmdCapacity(rest);
     case 'deadline':
       return cmdDeadline(rest);
+    case 'template':
+      return cmdTemplate(rest);
+    case 'import':
+      return cmdImport(rest);
     case 'show':
       return cmdShow(rest);
     case 'log':
