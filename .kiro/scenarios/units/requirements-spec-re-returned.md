@@ -1,7 +1,7 @@
 ---
 id: units/requirements-spec-re-returned
 title: 二度目のレビュー差し戻しではレビュー作業行の出来高は据え置き・行も増えず、ACだけが増えてCPIが悪化する（「繰り返し差し戻されている」がコスト効率の正直な信号として見える）
-status: agreed
+status: in-review
 language: ja
 actor: 開発者
 surfaces: [spec-value, schedule-time]
@@ -234,14 +234,17 @@ CPI：**EV_abs(1) / AC(初回作業＋初回レビュー＋再作業＋二度目
 
 <small>※ **CPI が「繰り返し差し戻されている」を映す**：EV% は初回差し戻し後と二度目の差し戻し後で同じ 8% だが、AC は二度目のほうが大きい（Claude の再作業分＋太郎の二度目のレビュー分が加算されている）。CPI = EV_abs / AC（MODEL §3）は AC が大きいほど悪化するので、**CPI の値を比較すれば「初回差し戻しなのか、繰り返し差し戻しなのか」が区別できる**。EV% だけでは区別できない——これが AC を正直に残す（A6「コストは事実」）設計の帰結。</small>
 
-### 4-4. decision インボックス（横断）— 二度目の差し戻しも出ない
+### 4-4. decision インボックス（横断）— 二度目の差し戻しも「警告」区画に信号として出る（判断項目にはならない）
 
 <table style="border-collapse:collapse;font-family:system-ui,sans-serif;font-size:13px;width:100%">
-  <tr style="background:#374151;color:#fff"><td style="padding:6px 10px">🗂 decision インボックス（横断）（After）</td></tr>
-  <tr>
-    <td style="padding:14px 10px;border:1px solid #cbd5e1;color:#64748b;text-align:center">— 二度目のレビュー差し戻しもここには出ない（初回と同様）。差し戻しは decision インボックスの集約対象外。 —</td>
-  </tr>
+  <tr style="background:#374151;color:#fff"><td colspan="2" style="padding:6px 10px">🗂 decision インボックス（横断）（After）— 判断種別の4区画（見積合意／担当割当／受入／警告）</td></tr>
+  <tr><td style="padding:6px 10px;border:1px solid #cbd5e1;width:34%">見積に合意する</td><td style="padding:6px 10px;border:1px solid #cbd5e1;color:#64748b">— なし（全葉合意済み。差し戻された要件定義も判断項目として出ない） —</td></tr>
+  <tr><td style="padding:6px 10px;border:1px solid #cbd5e1">担当を割り当てる</td><td style="padding:6px 10px;border:1px solid #cbd5e1">担当割当が必要: 設計・タスク・レビュー作業（設計／タスク）の 4 件（合意済み・未割当の可視ギャップ。本ユニットの主題外＝前提木に由来）</td></tr>
+  <tr><td style="padding:6px 10px;border:1px solid #cbd5e1">受入判断する</td><td style="padding:6px 10px;border:1px solid #cbd5e1"><b>受入判断が必要: F/review-req（完了・検収待ち）</b> — レビュー作業ノードは完了（implemented）のまま変化なし。差し戻された要件定義 F/req はここには出ない（再々作業中＝検収待ちでない）</td></tr>
+  <tr><td style="padding:6px 10px;border:1px solid #cbd5e1;font-weight:600">警告に対処する</td><td style="padding:6px 10px;border:1px solid #cbd5e1"><b>差し戻しリスク: F/req</b>（P5＝到達後の後退・二度目） — 初回と同様、差し戻しは判断項目にならずリスク信号として警告区画に出る</td></tr>
 </table>
+
+<small>※ 2026-07-04 裁定（実画面提示・ユーザー・姉妹ユニット requirements-spec-returned と同裁定）: 従来の「出ない」記述は issue #12 実装（P5 を警告区画に描画）と矛盾が顕在化し、**実装側が正**と裁定された。「差し戻しがコミット判断の区画に判断項目として出ない」ことは従来どおり。E2E は裁定後の挙動を回帰固定済み。</small>
 
 ## 5. 出力されるログ（どこに・何が）
 
@@ -286,7 +289,8 @@ CPI：**EV_abs(1) / AC(初回作業＋初回レビュー＋再作業＋二度目
 - **WHEN** 要件定義が二度目に差し戻されたとき、**システムは** すでに費やした実コスト（初回作業＋再作業＋二度目のレビュー分）を保持**しなければならない**（コストは事実）。
 - **WHEN** 出来高の達成率とコスト効率を示すとき、**システムは** 同じ達成率（EV%）でも実コストの多寡が区別できるよう、コスト効率（CPI）を別途示さ**なければならない**（初回差し戻し後と二度目の差し戻し後の EV% が同値でも CPI は異なる）。
 - **WHEN** 畳んだレビュー工数がコスト計上されたとき、**システムは** それ単独でスラッシュ（出来高が増えないのにコストが増え続ける警告）を出**してはならない**（一度きりの畳んだ工数は想定内）。
-- **WHEN** 二度目のレビューで差し戻されたとき、**システムは** それを横断の decision 一覧（インボックス）に出**してはならない**（初回と同様・レビュー差し戻しは decision 対象外）。
+- **WHEN** 二度目のレビューで差し戻されたとき、**システムは** 差し戻された作業をインボックスの**コミット判断の区画（見積合意・担当割当・受入）に判断項目として**出**してはならない**（初回と同様・差し戻しはコミット判断ではない）。
+- **WHEN** 二度目のレビューで差し戻されたとき、**システムは** 差し戻しリスクの信号（P5）をインボックスの**警告の区画**に現さ**なければならない**（初回と同様・判断項目化ではなく正直な信号として）。
 - **WHEN** 要件定義が二度目に差し戻されたとき、**システムは** 要件定義を人間レビュー待ち一覧から外し、再びエージェントが再々作業する側（玉＝AI）に現さ**なければならない**。
 
 ## 7. 決定事項
@@ -299,3 +303,4 @@ CPI：**EV_abs(1) / AC(初回作業＋初回レビュー＋再作業＋二度目
 - **【残課題 / spec-MODEL 同期】`moira-evm` Req 11.2 は畳んだ**見積活動**（R-E2b）の carve-out のみを明記し、畳んだ**レビュー作業**の carve-out（MODEL §7#18(b)(v)）が未反映。** carve-out の正典根拠は MODEL R-S3＋§7#18(b)(v) にあり本ユニットはそれに接地したが、派生 spec（moira-evm）の Req 11.2 がまだ追いついていない。トレースには Req 11.2 を残すが、Req 11.2 を畳んだレビュー作業まで拡張する spec 改訂が別タスクとして必要（MODEL 正典側の欠陥ではないため `moira-model-update` への委譲は不要）。
 - **同じ EV% 8% でも CPI で「初回差し戻し」と「繰り返し差し戻し」を区別する。** EV% は初回差し戻し後と二度目の差し戻し後でともに 8% だが、AC は二度目のほうが大きい（Claude の再作業＋二度目のレビューの畳み cost）。CPI = EV_abs/AC（MODEL §3・moira-evm Req 9.2）は AC が大きいほど悪化するため、CPI が両者を区別する。CPI は WIP 中に悲観側へ振れるが正規化せず開示する（moira-evm Req 9.5）。
 - **トレース差分（先行ユニット比）の根拠:** `moira-core: 3.4, 3.5`（cost イベントのスキーマ／実コストの単一通貨・EV へ畳み込まない）と `moira-evm: 9.2, 9.5, 11.1, 11.2` を先行ユニットに追加した。本ユニットが初めて `cost` イベント（e080）を emit し、CPI 悪化と thrashing carve-out を主題化したことに対応する。
+- **二度目の差し戻しも警告区画の信号として出る（2026-07-04 裁定・§4-4/§6 の改訂）:** 旧版の §4-4/§6 は「二度目の差し戻しもインボックスに出ない」と全面不出現を描いていたが、姉妹ユニット requirements-spec-returned と**同裁定**（E2E 同期 2026-07-04・1f53887・実画面提示のうえユーザーが実装側を正と裁定）により、P5「差し戻しリスク」は**警告区画**に信号として出る形へ改訂。「コミット判断の区画に判断項目として出ない」は不変（DECISIONS-CATALOG D-69）。本改訂で status を `agreed`→`in-review` に降格（再批准待ち）。

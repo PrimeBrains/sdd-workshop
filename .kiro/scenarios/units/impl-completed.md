@@ -1,7 +1,7 @@
 ---
 id: units/impl-completed
 title: 実装が完成して承認され、フィーチャーが完了する——kiro-impl で実装が進み、作成完了（implemented）で出来高が上がり（達成率 44%→72%→93%）玉が人間（レビュー担当）へ。レビュー作業が出来高を得て本物の100%に到達し、人間が各実装を承認、子がすべて完了したのを見てフィーチャー（F）を承認＝背骨で唯一 feature が accepted に到達する終端
-status: agreed
+status: in-review
 language: ja
 actor: 開発者
 surfaces: [spec-value, schedule-time]
@@ -334,14 +334,17 @@ And   ここまでで F（フィーチャー）の子ノードがすべて完了
 
 <small>※ **「玉」は MODEL の一級概念ではなく schedule-time のキュー（P4：agentWorkQueue／humanReviewQueue という actor フィルタ）の俗称**（MODEL v19 は「assignee を ball-holder へ再定義」案を却下済み）。玉（手番）は lifecycle から導出（`{ready, implementing}`∧assignee=agent →エージェント作業キュー〔参照実装 `derivations/queues.ts`・moira-schedule Req4／moira-surface-schedule Req13〕、`implemented` の葉→人間レビュー待ちキュー＝actor 非依存）。本ユニットの During 断面では実装が `implementing` ゆえ表示は変わらないが、述語は `ready` も含む。Mid で実装-1・実装-2 が implemented になり人間レビュー待ちキューへ（玉＝太郎）。太郎がレビューを実施する間、実装レビュー（review-impl）は assignee=太郎（人間）で implementing になるが、これは agentWorkQueue（assignee=agent 限定）には入らない人間の作業——実装成果物自体は太郎の承認判断を待って人間レビュー待ちキューに残る。承認で実装-1・実装-2・実装レビューがともに accepted になり humanReviewQueue から外れる（素の導出で 0）。**最後に人間が F を accepted へ進める**（子9葉全完了を見ての最終サインオフ）——これで背骨フローが終端に至る。一覧の画面描画はスライス未描画（現状は spec-value の状態バッジで読む）。</small>
 
-### 4-3. decision インボックス（横断）— 実装の完了・レビュー・承認・F 完了は出ない
+### 4-3. decision インボックス（横断）— 検収待ちの間だけ「受入判断する」区画に映り、承認と F 完了で空になる
 
 <table style="border-collapse:collapse;font-family:system-ui,sans-serif;font-size:13px;width:100%">
-  <tr style="background:#374151;color:#fff"><td style="padding:6px 10px">🗂 decision インボックス（横断）（全断面）</td></tr>
-  <tr>
-    <td style="padding:14px 10px;border:1px solid #cbd5e1;color:#64748b;text-align:center">— 実装の「作成完了（レビュー待ち）」「レビュー実施」「承認」「F 完了」はここには出ない。成果物の承認（`implemented→accepted`）も feature の完了サインオフも、5コミット判断のうちの4つにも判断要警告にも含まれず、フェーズ／実装進行は SDLC 既定の手番。レビュー待ちは人間レビュー待ちキューで扱う。 —</td>
-  </tr>
+  <tr style="background:#374151;color:#fff"><td colspan="2" style="padding:6px 10px">🗂 decision インボックス（横断）— 判断種別の4区画（見積合意／担当割当／受入／警告）・断面で変わる</td></tr>
+  <tr><td style="padding:6px 10px;border:1px solid #cbd5e1;width:34%">見積に合意する</td><td style="padding:6px 10px;border:1px solid #cbd5e1;color:#64748b">— 全断面なし（全9葉合意済み） —</td></tr>
+  <tr><td style="padding:6px 10px;border:1px solid #cbd5e1">担当を割り当てる</td><td style="padding:6px 10px;border:1px solid #cbd5e1;color:#64748b">— 全断面なし（全合意葉が割当済み） —</td></tr>
+  <tr><td style="padding:6px 10px;border:1px solid #cbd5e1;font-weight:600">受入判断する</td><td style="padding:6px 10px;border:1px solid #cbd5e1"><b>Mid 断面（実装-1・実装-2＝レビュー待ち）: 「受入判断が必要: 実装-1／実装-2（完了・検収待ち）」</b>（実装レビュー作業の完了後はそれも並ぶ）。**承認（受入）で条件が消滅**し、After（全葉 accepted・F 完了）では空</td></tr>
+  <tr><td style="padding:6px 10px;border:1px solid #cbd5e1">警告に対処する</td><td style="padding:6px 10px;border:1px solid #cbd5e1;color:#64748b">— 全断面なし（差し戻しなしの happy path） —</td></tr>
 </table>
+
+<small>※ 2026-07-04 裁定（姉妹ユニット requirements-spec-drafted の実画面裁定と同一構造）への同期: 検収待ち（人間レビュー待ち導出・actor 非依存）は「受入判断する」区画に**同一導出の別 read**として映り、承認で消える。実装の完了・レビュー実施・承認・F 完了サインオフの**事象そのもの**は判断項目にならず、5コミット判断は不変（承認・サインオフは品質確認。DECISIONS-CATALOG D-69）。After は全区画が空＝「すべて判断済み」の終端信号。E2E は終端断面の不出現を回帰固定済み。</small>
 
 **データ（After・素の値）**
 
@@ -437,7 +440,8 @@ And   ここまでで F（フィーチャー）の子ノードがすべて完了
 - **WHEN** 各実装が作成完了（implemented）になったとき、**システムは** 出来高（進捗）を、その実装の合意済み見積分だけ上げ**なければならない**（作成完了で出来高が上がる）。
 - **WHEN** 実装が作成完了になったとき、**システムは** 出来高を途中段階の部分的な割合では計上**してはならない**（出来高は作成完了で初めて満額算入する＝二値）。
 - **WHEN** 実装が作成完了になったとき、**システムは** 当該作業をエージェント作業キューから外し人間レビュー待ちキューへ移し、いま動くべき側が人間（レビュー担当）であることを画面で分かるように示さ**なければならない**（玉がエージェント→人間へ移ったことが分かる）。
-- **WHEN** 実装が作成完了になったとき、**システムは** それを横断の decision 一覧（インボックス）に出**してはならない**（レビュー待ちはレビュー一覧で扱う）。
+- **WHEN** 実装が作成完了になったとき、**システムは** それを横断の decision インボックスの**コミット判断の区画（見積合意・担当割当）**に出**してはならない**（承認はコミット判断ではない）。
+- **WHEN** 実装が作成完了になったとき、**システムは** それをインボックスの**「受入判断する」区画**に検収待ちとして現し、承認（受入）まで保た**なければならない**（この区画は人間レビュー待ちの映し＋受入操作の入口であり、人間のコミット判断の数を増やさない）。
 
 **（B）実装レビューは両実装の完了後に着手し、レビュー実施は出来高を得るが承認は出来高を足さない**
 
@@ -456,7 +460,8 @@ And   ここまでで F（フィーチャー）の子ノードがすべて完了
 - **WHEN** 人間が F（フィーチャー）を完了（accepted）へ進めたとき、**システムは** その lifecycle 遷移を記録し、F を「承認済み（accepted）」とし**なければならない**（フィーチャーの最終サインオフ）。
 - **WHEN** F が完了したとき、**システムは** 達成率（EV%）を F の完了それ自体では変え**てはならない**（F は中間ノードで EV_abs 葉に算入されず、子の完了で既に 100% に達している）。
 - **WHEN** 子の全完了や F の完了が起きたとき、**システムは** F の完了を**自動では行わず**、人間の手番（最終サインオフ）として扱わ**なければならない**（親の lifecycle を子から自動導出しない）。
-- **WHEN** F 完了が起きたとき、**システムは** それを横断の decision 一覧（インボックス）に出**してはならない**（フェーズ／実装進行は通常の手番）。
+- **WHEN** 実装が承認（受入）されたとき、**システムは** インボックスの「受入判断する」区画から当該項目を消さ**なければならない**（項目は条件の消滅でのみ消える——承認・差し戻しがその行為）。
+- **WHEN** F 完了が起きたとき、**システムは** その事象そのものを新たな判断項目としてインボックスに出**してはならない**（フェーズ／実装進行は通常の手番。判断項目は「いま判断が要る」条件が真の間だけ存在する）。
 
 **（共通）**
 
@@ -487,3 +492,4 @@ And   ここまでで F（フィーチャー）の子ノードがすべて完了
 - **イベント件数は断定しない。** lifecycle は `pending→ready→implementing→implemented→accepted`（MODEL §2.5）。§5 は主要遷移を示す。`pending→ready` 等の件数は実装（`moira-progress` 仮称・未実装）が決めるため確定しない。
 - **参照実装は暫定スライス・各要素は定義済み要件への目標。** 担当（作業者）列・レビュー担当列・人間レビュー待ちキューの一覧描画・reviewer フィルタのうち、参照スライスが未描画のものは「(スライス未描画)」と中立に記した。いずれも MODEL/spec に**定義済みの要件**（frontmatter トレース）への目標受け入れ基準であり、現スライスの挙動には縛られない。
 - **§6 EARS の lifecycle 状態名は平易語を主とした最小注釈（README v0.2 準拠・姉妹同型）。** §6 は「未着手」「着手中」「作成完了（レビュー待ち）」「承認済み」等の**平易語を主**とし、`(pending)`/`(implementing)`/`(implemented)`/`(accepted)` を**一語ずつの最小注釈**として括弧併記する（README v0.2 §3「どうしても要るものは一語ずつ最小注釈」）。非専門家は平易語だけで falsifiable に各条をチェックでき、内部状態名は対応確認の補助。これは姉妹 `design-spec-completed` §6 と同型の様式で、moira 専門用語・skill 実名・MODEL 記号（R-xx/I-x/P-x）は §6 本文に出さず §5/§7 へ集約している。
+- **フェーズ／実装進行の事象は判断項目にならないが、検収待ちの条件は「受入判断する」区画に映る（2026-07-04 裁定への同期・§4-3/§6 の改訂）。** 旧版は「実装の完了・レビュー・承認・F 完了はインボックスに出ない」と描いていたが、issue #12 がインボックスを判断種別の4区画（見積合意・担当割当・受入・警告）へ再構成し、検収待ち（人間レビュー待ち導出）が「受入判断する」区画に映るようになった（姉妹ユニット requirements-spec-drafted の 2026-07-04 実画面裁定＝実装が正、と同一の構造。DECISIONS-CATALOG D-69）。「承認・F 完了サインオフの事象そのものは項目にならない」「5コミット判断は不変（承認は品質確認）」は従来どおり。本改訂で status を `agreed`→`in-review` に降格（再批准待ち）。

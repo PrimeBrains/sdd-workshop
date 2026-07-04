@@ -1,6 +1,7 @@
 import { type SpecMeta } from '../spec-meta';
 
-// units/requirements-spec-returned — §6 has 12 EARS clauses. First return: review
+// units/requirements-spec-returned — §6 has 13 EARS clauses (issue #19 追いつきで旧 10 を
+// 10/11 に分割: 判断項目不出現＋P5 警告出現・2026-07-05)。First return: review
 // work earns +EV, then the requirement is sent back (implemented→implementing) and
 // loses its EV → EV% 24→32→8. Reviewer column / review-queue lists are 未描画 → xfail.
 export const SPEC_META: SpecMeta = {
@@ -35,15 +36,20 @@ export const SPEC_META: SpecMeta = {
     {
       ears: 10,
       mode: 'green',
-      note: '【裁定 2026-07-04】unit §4-4/:396 は inbox 全体への不出現を描くが、#12 実装は P5「差し戻しリスク」を warning セクションに描画（unit 自身も §4-2/§7 で P5 を正直な信号と期待）。実画面提示のうえユーザーが実装側を正と裁定。spec はコミット判断3セクションへの不出現＋P5 警告の出現を回帰固定。unit 文言改訂は kiro-scenario 所管 follow-up。',
+      note: '【裁定 2026-07-04】旧 unit §4-4/:396 は inbox 全体への不出現を描いていたが、#12 実装は P5「差し戻しリスク」を warning セクションに描画（unit 自身も §4-2/§7 で P5 を正直な信号と期待）。実画面提示のうえユーザーが実装側を正と裁定。unit §6 は issue #19 追いつき（2026-07-05）で裁定に同期済み（旧 10 を 10/11 に分割）。本節＝コミット判断3区画への判断項目としての不出現（spec がアサート済み）。',
     },
     {
       ears: 11,
+      mode: 'green',
+      note: '分割後節＝P5 差し戻しリスクを警告区画に現す。EARS 10 と同一テストで回帰固定（warning セクションに「差し戻しリスク: F/req」）。',
+    },
+    {
+      ears: 12,
       mode: 'deferred',
       note: 'Inspector は EV(0)・状態を出すが、実コスト残を併記する「正直な詳細」UI は未整備。EV/状態は別途 schedule Inspector で部分被覆。',
     },
     {
-      ears: 12,
+      ears: 13,
       mode: 'deferred',
       note: '実行カバレッジ（R-S8）と達成率（EV%）の併置表示メトリクス UI が当該スライス未描画（導出は実在）。',
     },

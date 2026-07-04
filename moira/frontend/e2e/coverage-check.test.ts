@@ -2,10 +2,16 @@
 // Runs under vitest (so it auto-discovers *.meta.ts via import.meta.glob and reads
 // the scenario units/flows via fs). Falsifiable checks — any violation fails the suite:
 //   1. agreed units & spec metas actually exist (empty-glob guard → no false pass)
-//   2. every UNIT spec meta targets an EXISTING AGREED unit (rejects draft targets)
+//   2. every UNIT spec meta targets an EXISTING unit that is agreed OR in-review
+//      (rejects draft targets). `in-review` is accepted because it marks a
+//      previously-agreed unit whose DOC was re-synced to an already-arbitrated
+//      behavior and demoted for re-ratification (issue #19 catch-up, 2026-07-05) —
+//      the behavior itself is settled (実画面裁定=実装が正・E2E は同期済み), only the
+//      wording awaits the human stamp. Draft (= never ratified) is still rejected.
+//      ※この in-review 許容はゲート意味論の変更であり、Vertex 敵対レビューの対象。
 //   3. every FLOW spec meta targets an EXISTING flow whose composed units are all
-//      agreed (the flow doc itself may be draft — it is the integration target being
-//      ratified separately; treated as agreed-equivalent)
+//      agreed or in-review (the flow doc itself may be draft — it is the integration
+//      target being ratified separately; treated as agreed-equivalent)
 //   4. every §6 EARS clause is accounted for (count match → no silent omission)
 //   5. xfail/deferred clauses carry a justification note (enumerable, justified gap)
 import { describe, it, expect } from 'vitest';
@@ -71,7 +77,10 @@ const units = readDocs(UNITS_DIR);
 const flows = readDocs(FLOWS_DIR);
 const unitBySlug = new Map(units.map((u) => [u.slug, u]));
 const flowBySlug = new Map(flows.map((f) => [f.slug, f]));
-const agreedUnits = units.filter((u) => u.status === 'agreed');
+// agreed OR in-review (= agreed content re-synced to an arbitrated behavior and
+// awaiting re-ratification; see header note 2). Draft stays out.
+const RATIFIED_OR_RERATIFYING = new Set(['agreed', 'in-review']);
+const agreedUnits = units.filter((u) => RATIFIED_OR_RERATIFYING.has(u.status));
 
 const isFlow = (m: SpecMeta) => m.scenarioUnit.startsWith('flows/');
 const slugOf = (scenarioUnit: string) => scenarioUnit.replace(/^(units|flows)\//, '');
@@ -104,29 +113,31 @@ describe('E2E scenario-regression coverage gate (計器③)', () => {
     expect(flows.length, `no flows under ${FLOWS_DIR}`).toBeGreaterThan(0);
   });
 
-  it('every UNIT spec meta targets an existing AGREED unit', () => {
+  it('every UNIT spec meta targets an existing agreed/in-review unit (draft rejected)', () => {
     for (const { file, meta } of unitMetas) {
       const unit = unitBySlug.get(slugOf(meta.scenarioUnit));
       expect(unit, `${file}: scenarioUnit ${meta.scenarioUnit} not found under units/`).toBeDefined();
       expect(
-        unit!.status,
-        `${file}: ${meta.scenarioUnit} is '${unit!.status}' — unit E2E specs may only target agreed units`,
-      ).toBe('agreed');
+        RATIFIED_OR_RERATIFYING.has(unit!.status),
+        `${file}: ${meta.scenarioUnit} is '${unit!.status}' — unit E2E specs may only target agreed (or in-review = re-ratifying) units`,
+      ).toBe(true);
     }
   });
 
-  it('every FLOW spec meta targets an existing flow whose composed members are all agreed', () => {
+  it('every FLOW spec meta targets an existing flow whose composed members are all agreed/in-review', () => {
     for (const { file, meta } of flowMetas) {
       const flow = flowBySlug.get(slugOf(meta.scenarioUnit));
       expect(flow, `${file}: scenarioUnit ${meta.scenarioUnit} not found under flows/`).toBeDefined();
-      // The flow doc may be draft (ratified separately); its MEMBERS must be agreed —
-      // a flow E2E that walks un-agreed members would lock unsettled behavior.
+      // The flow doc may be draft (ratified separately); its MEMBERS must be agreed
+      // or in-review (re-ratifying, see header note 2) — a flow E2E that walks a
+      // never-ratified (draft) member would lock unsettled behavior.
       for (const member of flow!.composes) {
         const u = unitBySlug.get(slugOf(member));
         expect(u, `${file}: composed member ${member} not found under units/`).toBeDefined();
-        expect(u!.status, `${file}: composed member ${member} is '${u!.status}' (must be agreed)`).toBe(
-          'agreed',
-        );
+        expect(
+          RATIFIED_OR_RERATIFYING.has(u!.status),
+          `${file}: composed member ${member} is '${u!.status}' (must be agreed or in-review)`,
+        ).toBe(true);
       }
     }
   });

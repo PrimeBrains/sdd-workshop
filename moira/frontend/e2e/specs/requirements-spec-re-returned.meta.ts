@@ -1,6 +1,7 @@
 import { type SpecMeta } from '../spec-meta';
 
-// units/requirements-spec-re-returned — §6 has 11 EARS clauses. Second return is
+// units/requirements-spec-re-returned — §6 has 12 EARS clauses (issue #19 追いつきで
+// 旧 10 を 10/11 に分割・2026-07-05)。Second return is
 // FOLDED: no new review node, review-work EV/lifecycle unchanged, the re-review cost
 // lands as AC only (CPI worsens) and the requirement reverts again (EV% 32→8).
 export const SPEC_META: SpecMeta = {
@@ -35,10 +36,15 @@ export const SPEC_META: SpecMeta = {
     {
       ears: 10,
       mode: 'green',
-      note: '【裁定 2026-07-04】requirements-spec-returned EARS 10 と同裁定（実装が正）。コミット判断3セクションへの不出現＋P5「差し戻しリスク」警告の出現を回帰固定。unit 文言改訂は kiro-scenario 所管 follow-up。',
+      note: '【裁定 2026-07-04】requirements-spec-returned EARS 10 と同裁定（実装が正）。unit §6 は issue #19 追いつき（2026-07-05）で裁定に同期済み（旧 10 を 10/11 に分割）。本節＝コミット判断3区画への判断項目としての不出現。',
     },
     {
       ears: 11,
+      mode: 'green',
+      note: '分割後節＝P5 差し戻しリスクを警告区画に現す（初回と同様）。EARS 10 と同一テストで回帰固定。',
+    },
+    {
+      ears: 12,
       mode: 'xfail',
       note: '人間レビュー待ち一覧からの除外・玉=AI 表示が未描画（queue:human-review tripwire）。',
     },
