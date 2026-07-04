@@ -1,7 +1,7 @@
-# Roadmap — Moira 正典化（MODEL v16 → 読 spec ×10 ／ 書 skill ×14 ／ Phase 0）
+# Roadmap — Moira 正典化（MODEL v16 起点 → 読 spec ×10 ／ 書 skill ×14 ／ Phase 0）
 
 > 由来: `/kiro-discovery moira`（Path D 多 spec 分解）＋ `doc-refine` 独立敵対ゲート確定版。
-> 一次資料: `moira/MODEL.md`(v16)・`moira/UI-ARCHITECTURE.md`・`moira/validation-scenarios.md`・`moira/backend/src`・`.kiro/steering`・`.claude/skills`/`agents`（ユーザー確定済）。
+> 一次資料: `moira/MODEL.md`(分解当時 v16・現行正典は v20)・`moira/UI-ARCHITECTURE.md`・`moira/validation-scenarios.md`・`moira/backend/src`・`.kiro/steering`・`.claude/skills`/`agents`（ユーザー確定済）。
 
 ## Overview
 凍結された正典モデル `moira/MODEL.md`(v16) を、本番アーキテクチャへ落とすための SDD 分解ロードマップ。

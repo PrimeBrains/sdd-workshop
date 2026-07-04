@@ -28,9 +28,10 @@
 - **単一希少資源は人間** — 各人間の日次容量 `c(i,d) ∈ [0, 1.0] MD/日` の上で平準化し、
   EV/PV/SPI/CPI と「生きた予測スケジュール」を導出する。
 
-正典モデルは [`MODEL.md`](./MODEL.md) を**単一の真実源(SSOT)**とする。現在の版は **v19**
-(指名レビューア `reviewer` を `transition` の付帯属性として追加した版)で、独立した敵対者による
-falsifiable な確定ゲート(独立採点者の残存 Critical/Important = 0)を通って確定している。
+正典モデルは [`MODEL.md`](./MODEL.md) を**単一の真実源(SSOT)**とする。現在の版は **v20**
+(所属〔どの親の子か〕を latest-wins の置き換えとして確定し、木性ガード・cost 非負を正典化した版。
+issue #5 起点)で、独立した敵対者による falsifiable な確定ゲート(独立採点者の残存
+Critical/Important = 0)を通って確定している。
 
 ---
 
