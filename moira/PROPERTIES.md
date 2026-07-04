@@ -1,6 +1,6 @@
-# Moira プロパティ目録（不変条件カタログ）v0.3
+# Moira プロパティ目録（不変条件カタログ）v0.4
 
-状態: **全52プロパティ agreed（人間批准済み・v0.3）——A節 PBT/メタモルフィック・B節 MC・C節 DENY の全件**。方針は [.kiro/steering/moira-verification.md](../.kiro/steering/moira-verification.md)、正典は [MODEL.md](MODEL.md)。
+状態: **54プロパティ＝51 agreed＋3 proposed（要批准）**。要批准 3 件＝ PR-REPARENT-HEAL・PM-TREE-INV（v20 所属の latest-wins 由来・bb81ff2 で収載済み）・PR-THRASH（R-S3 の畳んだレビュー carve-out 追随のため `agreed` から再降格）。v0.3 時点の52件は全件人間批准済み。方針は [.kiro/steering/moira-verification.md](../.kiro/steering/moira-verification.md)、正典は [MODEL.md](MODEL.md)。
 
 本目録は、MODEL の不変条件（オラクル）を**人間がレビューできる平易な一文**に落とし、実行可能なテスト（PBT・境界モデル検査・否定）の**一次仕様**とするもの。実行テストはこの一文の形式化した射影を目指す。
 
@@ -16,7 +16,7 @@
 - 各行は「**固定する量**」と「**意図的に FREE な量**」を必ず持つ（何を縛り何を開けるかを人間が見える化）。
 - **レビュー**列: `proposed`（AI 起案・人間未批准）/ `agreed`（人間批准済み）。
 - 計器: **PBT**=参照実装に対する性質テスト／**MC**=MODEL を仕様とする境界モデル検査／**DENY**=書かない・否定プロパティ。
-- **★impl-pending** 印: 参照実装 `moira/backend` に当該導出がまだ無いため、実行テスト化は実装到達後（仕様＝MODEL に対しては今すぐレビュー可）。
+- **★impl-pending** 印: 参照実装（`moira/backend`、または表示側 `moira/frontend` の**純導出モジュール**）に当該導出がまだ無いため、実行テスト化は実装到達後（仕様＝MODEL に対しては今すぐレビュー可）。
 
 ---
 
@@ -46,9 +46,9 @@
 | **PR-ASSIGNEE-REVIEWER** | R-T5・§2.4・§7#18(b) | 一つの作業の担当者(assignee)は**常に一人**で、新しく名指すと前の担当を置き換える。レビュー担当(reviewer)の**指名そのもの**は担当者とは別枠・人間限定で、名指しても容量平準化・出来高(EV)・予定価値(PV)・各カバレッジは**一切動かない**。ただし『動かない』のは*指名*の話であって、レビュー*作業そのもの*を（重ければ）通常の作業ノードとして立てた場合は、それは普通の作業ノードとして——その作業ノードの担当(assignee)を通じて——出来高・平準化に参加する（reviewer 指名の非干渉とは別物；軽ければ畳んで被レビューノードに cost 計上） | 担当(assignee)単一・latest-wins／reviewer *指名属性* は人間限定・別軸・会計非干渉（leveler/EV/PV/coverage を動かさない）／レビュー*作業ノード*化時の会計参加は当該作業ノードの assignee によるもので reviewer 属性とは別 | 担当・reviewer の具体人物・レビュー作業のノード化/畳み(P0) | agreed |
 | **PR-FROZEN-REASON** | R-U7 | 見積は「**最新値**」と「**理由付きの凍結値**」を別々に持ち、凍結値を書き換えるときは必ず理由を要する | 最新値と凍結値を別保持・凍結改訂は理由必須 | 具体値・理由文言 | agreed |
 | **PR-SUPERSEDE-SHAPE** | R-D7・§2.7・I2 | 完了済みを作り直すときは、古いノードを巻き戻さず、**新しいノードを立てて「新→旧」の置換辺**を張る。古いノードはそのまま不変で、その出来高は累積に残る。置換辺が循環を作ることはない | 置換=新ノード＋新→旧辺・旧不変・非循環 | ノード数・辺の数 | agreed |
-| **PR-EVENTS-ONLY** | R-U2・A2・R-U1 | 状態の変化は **4 種類の追記イベントだけ**で起こり、保存済みの状態を直接書き換えることはできない（同じイベント列を再生すれば同じ状態になる） | 状態変化=4 イベントのみ・直接変更拒否・再生決定的 | イベント内容 | agreed |
+| **PR-EVENTS-ONLY** | R-U2・A2・R-U1・§2.8 | 状態の変化は **4 種類の追記イベントだけ**で起こり、保存済みの状態を直接書き換えることはできない（同じイベント列を再生すれば同じ状態になる） | 状態変化=4 イベントのみ・直接変更拒否・再生決定的 | イベント内容 | agreed |
 | **PR-REPARENT-HEAL** | §2.8(所属の latest-wins)・A2 | 間違った親に付けてしまった作業は、**正しい親の下へもう一度 decompose するだけ**で元に戻る（歴史は消さず追記で補償）。戻したあとの導出は、間違いが一度も無かった場合と一致する（履歴表示を除く） | 誤親付け＋補償再 decompose ≡ クリーンログ（activityLog 除く全導出の深い等価）・非空虚 witness（誤りが実際に木を動かしたこと） | 木の形・どの葉を誤親付けするか | proposed |
-| **PR-THRASH** | R-S3 | 出来高(EV_abs)が増えないのに実コスト(AC)が**一定期間ずっと増え続ける**ときは空回りとして警告する。一方、畳んだ見積作業のコストが一度だけ載るのは正常で、それ単独では警告しない | 持続的 AC 増＋EV_abs 不増→警告／単発の畳みコストは非警告 | 閾値・期間長 | agreed |
+| **PR-THRASH** | R-S3 | 出来高(EV_abs)が増えないのに実コスト(AC)が**一定期間ずっと増え続ける**ときは空回りとして警告する。一方、**畳んだ見積作業または畳んだレビュー作業**のコストが一度だけ載るのは正常で、それ単独では警告しない | 持続的 AC 増＋EV_abs 不増→警告／単発の畳みコスト（見積・レビューとも）は非警告 | 閾値・期間長 | proposed |
 | **PR-BUFFER-CLAMP ★** | R-T6・§3・R-T4 | バッファ残量は「**期日 − 見通し完了日**」で、マイナスにはせず 0 で止める（超過分は期日超過の警告側が持つ）。期日が無ければバッファは未定義、目標日が無ければ消費率は出さず残量のみ、目標日が期日より後なら構成エラーとして警告する | 残量=max(0,期日−D_pred)・消費率 clamp[0,1]・境界条件（期日/目標日の有無で N/A） | 具体日付・D_pred 絶対値 | agreed |
 
 ### メタモルフィック（PBT）
@@ -79,10 +79,10 @@
 | **MC-AGREE-HUMAN** | I6・R-U4・R-U3 | 見積を「合意済み」にできるのは**人間だけ**で、エージェントが合意しようとしても拒否される（出来高に算入されない） | agreed の行為者=human・エージェント合意拒否 | ノード1・actor2 | agreed |
 | **MC-READY-THRESHOLD** | R-D1・R-D2・R-D4 | あるノードが着手可能(ready)になるのは、その先行群が辺の閾値（**配下の全葉が条件を満たす**という述語）を満たしたときだけ。分解しても辺は増殖させず述語で評価する | ready⇔先行が閾値充足（葉述語）・辺非増殖 | ノード≤4・辺≤4 | agreed |
 | **MC-CANCEL-TERMINAL** | R-C1・§2.5 | キャンセルは**どの非終端状態からも到達できる終端遷移**として記録し、イベントは消さない（取り下げは削除でなく追記） | cancelled=終端・全非終端から到達可・削除なし | ノード1・遷移列≤6 | agreed |
-| **MC-CANCEL-ORPHAN ★** | R-C3・R-D1・I2 | 先行をキャンセルして、その辺の条件が**永久に満たせなくなった**とき、システムは取り残された後続を警告するだけで、勝手にキャンセルはしない（判断は人間）。評価は有限で終わる | 永久充足不能→孤児警告・自動キャンセルなし・有限終了 | ノード≤3・辺≤4 | agreed |
+| **MC-CANCEL-ORPHAN** | R-C3・R-D1・I2 | 先行をキャンセルして、その辺の条件が**永久に満たせなくなった**とき、システムは取り残された後続を警告するだけで、勝手にキャンセルはしない（判断は人間）。評価は有限で終わる | 永久充足不能→孤児警告・自動キャンセルなし・有限終了 | ノード≤3・辺≤4 | agreed |
 | **MC-UNAGREED-DONE** | R-U13・R-U8・I4 | 見積が**未合意のまま完了**に達したノードは「未合意完了」として警告され、その出来高(EV_abs)は算入されず、ベースライン予算も未確定のまま | 未合意完了→警告・EV_abs 非算入・予算未確定 | ノード1・遷移列≤4 | agreed |
 | **MC-OVERLOAD ★** | R-T3・A4 | 与えた割当が誰かの容量に収まらない（**容量 0 の日に実コストが付いた場合を含む**）と過負荷を警告する。割当変更や容量変更で条件が消えれば警告も消え、容量 0 日の単発実コストは一定期間で窓から外れて消える | 容量超過→過負荷警告・偽化入力で消滅・点事象は窓外で aging out | 人1・期間小スコープ | agreed |
-| **MC-DEADLINE-ALERT ★** | R-T4・R-T6・§2.1 | 見通しスケジュールが期日を超えると、**超過量を添えて警告するだけ**で、要員追加やスコープ削減を勝手にはしない。受容して何もしないだけでは消えず、コミット（スコープ削減・要員追加・期日変更）で期日内に収まったときだけ消える | 期日超過→警告のみ・超過量付き・コミットで消滅 | ノード≤3・遷移列≤4 | agreed |
+| **MC-DEADLINE-ALERT** | R-T4・R-T6・§2.1 | 見通しスケジュールが期日を超えると、**超過量を添えて警告するだけ**で、要員追加やスコープ削減を勝手にはしない。受容して何もしないだけでは消えず、コミット（スコープ削減・要員追加・期日変更）で期日内に収まったときだけ消える | 期日超過→警告のみ・超過量付き・コミットで消滅 | ノード≤3・遷移列≤4 | agreed |
 
 ---
 
@@ -146,7 +146,7 @@
 |---|---|---|
 | I1 | PR-I1-ROLLUP・PR-COVERAGE-LEAF | ロールアップ整合・葉基底カバレッジ |
 | I2 | MC-CYCLE-REJECT・PR-SUPERSEDE-SHAPE | 非循環（全辺種別） |
-| I3 | PM-ORDER-INV・MC-CONFLICT・MC-IDUNIQ・PM-REDERIVE-CONSISTENT | (ts,id) 決定的順序 |
+| I3 | PM-ORDER-INV・MC-CONFLICT・MC-IDUNIQ・PM-REDERIVE-CONSISTENT・PM-TREE-INV | (ts,id) 決定的順序 |
 | I4 | PR-DONE-LOCK・MC-UNAGREED-DONE | 完了施錠・未合意完了の空虚成立 |
 | I5 | MC-MACHINE-NAMED | 遷移の被指示性 |
 | I6 | MC-AGREE-HUMAN | 合意権限（人間のみ） |
@@ -215,9 +215,9 @@
 | R-T1 | PR-AGENT-UNLEVELED・PM-REDERIVE-CONSISTENT | c 平準化スケジュール導出・増分再計算 |
 | R-T2 | PR-CRITPATH-AGENT | エージェント作業のスパン・パス長算入 |
 | R-T3 | MC-OVERLOAD ★ | 過負荷検知（impl-pending） |
-| R-T4 | MC-DEADLINE-ALERT ★ | 期日超過検知（impl-pending） |
+| R-T4 | MC-DEADLINE-ALERT | 期日超過検知（実装到達 2026-07-04・issue #13＝着地導出＋期日判定。MC テスト化は後続） |
 | R-T5 | PR-ASSIGNEE-REVIEWER | 単一担当・指名レビュー担当（会計非干渉） |
-| R-T6 | PR-BUFFER-CLAMP ★・PM-BUFFER-DEADLINE-MONO ★ | バッファ導出（impl-pending） |
+| R-T6 | PR-BUFFER-CLAMP ★・PM-BUFFER-DEADLINE-MONO ★ | バッファ**数値**導出（残量・消費率）が impl-pending。着地日・期日判定の read は実装済（issue #13） |
 
 ### R-C系（キャンセル要件 3 本）
 
@@ -225,7 +225,7 @@
 |---|---|---|
 | R-C1 | MC-CANCEL-TERMINAL | cancelled 発行（terminal・削除なし） |
 | R-C2 | PR-CANCEL-EXCL・PR-CANCEL-SUNK・PR-CANCEL-INVISIBLE・MC-SUP-CANCEL | active basis 除外・サンク EV_abs |
-| R-C3 | MC-CANCEL-ORPHAN ★ | キャンセル孤児警告（impl-pending） |
+| R-C3 | MC-CANCEL-ORPHAN | キャンセル孤児警告（基本形＝中止先行の直接後続への警告は実装到達・issue #12。辺閾値の葉述語まで含む「永久充足不能」の完全意味論は未実装。MC テスト化は後続） |
 
 ### R-D系（依存・整合要件 7 本）
 
@@ -245,7 +245,7 @@
 |---|---|---|
 | §2.5 | MC-LIFECYCLE・MC-CANCEL-TERMINAL | 状態語彙・lifecycle 状態機械 |
 | §2.7 | MC-SUP-CANCEL・PR-SUPERSEDE-SHAPE | supersede 力学 |
-| §2.8 | PR-COST-DEDUP・PR-EVENTS-ONLY | 4 イベント（コスト dedup・追記専用） |
+| §2.8 | PR-COST-DEDUP・PR-EVENTS-ONLY・PR-REPARENT-HEAL・PM-TREE-INV | 4 イベント（コスト dedup・追記専用）＋所属の latest-wins（v20） |
 | §3 | PR-PV-EXCL・PM-CAP-MONO・PR-EXECCOV・PR-BUFFER-CLAMP | EVM 原理・導出定義 |
 | §7 | DN-CAL-SILENT・DN-DRIFT-SILENT・DN-MATURITY-BLIND・DN-IMPL-DATES・DN-CPI-MODELING | 未解決・開放項目 |
 
@@ -279,7 +279,7 @@ bound＝falsifiable プロパティ（PBT/MC/DENY）が根拠として引く cla
 | R-D | 7 | 5 | 2 | 0 | 71% |
 | **合計** | **65** | **53** | **12** | **0** | **82%** |
 
-未 bound（可視ギャップ）は v0.3 で **0** になった——全 clause が「falsifiable プロパティで bound」か「D 節で構造・メタとして明示分類」のいずれかに割り当てられた。**ただし bound のうち ★impl-pending（R-T3 過負荷・R-T4 期日アラート・R-T6 バッファ・R-S7 の標識発火）は参照実装に当該導出が未実装**であり、実行テスト化は実装到達後（仕様＝MODEL に対しては今すぐレビュー可）。クリティカルパス（PR-CRITPATH-AGENT）は leveler が cp／予測完了を既に算出済みで今すぐ PBT 可——未実現は「導出完了 D_pred の集約 read とバッファ可視化」の側。**批准の進捗**: 新規29プロパティは**全件人間批准済み＝`agreed`**（A 節 PBT/メタモルフィック16・B 節 MC 9・C 節 DENY 4）。これで v0.3 全52プロパティが `agreed`。
+未 bound（可視ギャップ）は v0.3 で **0** になった——全 clause が「falsifiable プロパティで bound」か「D 節で構造・メタとして明示分類」のいずれかに割り当てられた。**ただし bound のうち ★impl-pending（R-T3 過負荷・R-T6 バッファの数値導出〔残量・消費率〕・R-S7 の標識発火）は参照実装に当該導出が未実装**であり、実行テスト化は実装到達後（仕様＝MODEL に対しては今すぐレビュー可）。**R-T4 期日アラートは実装到達済み（issue #13・2026-07-04）**——着地曲線の導出（backend）＋期日判定（frontend の純導出モジュール・超過量付き・コミットで消滅）が実在し、★ を外した（MC テスト化は後続）。**R-C3 キャンセル孤児も基本形が実装到達済み（issue #12）**——中止先行の直接後続への警告（frontend 純導出・コミットで消滅）が実在し ★ を外した。ただし辺閾値の葉述語まで含む「永久充足不能」の完全意味論は未実装（正直な限定・MC テスト化は後続）。**D_pred の集約 read は着地導出（issue #13）で、クリティカルパスの read はガント強調（issue #16・公開導出）で実現済み**——v0.3 時点の「未実現は D_pred 集約 read とバッファ可視化の側」のうち残るのは**バッファ残量・消費率の数値導出のみ**。**批准の進捗**: v0.3 の52プロパティは全件 `agreed`。v0.4 時点は **54 プロパティ＝51 agreed＋3 proposed**（v20 追加の PR-REPARENT-HEAL・PM-TREE-INV、R-S3 追随で再降格の PR-THRASH——要批准）。
 
 ---
 
@@ -299,8 +299,20 @@ bound＝falsifiable プロパティ（PBT/MC/DENY）が根拠として引く cla
 10. **★impl-pending の明示**: R-T3/R-T4/R-T6・R-S7 標識発火は参照実装に導出が未実装で、PBT/MC 実行は実装到達後。仕様（MODEL）に対するレビューは今すぐ可。クリティカルパス（PR-CRITPATH-AGENT）は leveler が cp／予測完了を既に算出済みで PBT 可（未実現は D_pred 集約 read とバッファ可視化）。
 11. **被覆サマリーに「構造・メタ」列を新設**——「未 bound（穴）」と「設計上テスト対象にしない」を分離し、被覆率の誤読を防止。
 
+## v0.3→v0.4 変更点（2026-07-04・issue #19 追いつき）
+
+実装先行期間（issue #5〜#16・2026-07-02〜07-04）への追いつき。プロパティの新規追加はなし（v20 由来の2件は bb81ff2 で収載済み）。clause の bound/未bound 分類は不変（被覆サマリーの数値は据え置き）。
+
+1. **ヘッダ・件数の是正**: v20（bb81ff2・2026-07-03）で PR-REPARENT-HEAL（PBT）・PM-TREE-INV（メタモルフィック）が `proposed` で収載され実質54件になっていたが、状態行が「全52 agreed」のまま取り残されていた。**54＝51 agreed＋3 proposed** に同期し、要批准3件を明示。
+2. **PR-THRASH の R-S3 追随（同期漏れの是正）**: MODEL v19 編集（レビュー工数の作業ノード化・2026-06-26 e7b197a）で R-S3 の carve-out は「畳んだ見積活動**または畳んだレビュー作業**」に拡張されていたが、同日45分後の v0.3 全件批准（0f668dd）は旧文言のまま取りこぼした。一文を R-S3 本文に一致させ、`agreed`→`proposed` に再降格（改訂＝再批准の自己規律）。
+3. **★impl-pending の見直し（issue #12/#13/#16 実装到達）**: MC-DEADLINE-ALERT の ★ を除去——着地曲線の導出（backend）＋期日判定（frontend の純導出モジュール・超過量付き・コミットで消滅）が実装に到達した。MC-CANCEL-ORPHAN の ★ も除去——中止先行の直接後続への孤児警告（frontend 純導出・自動キャンセルなし・コミットで消滅）が実装に到達した（辺閾値の葉述語まで含む「永久充足不能」の完全意味論は未実装＝正直な限定注記を R-C3 行に付す）。あわせて ★ の定義を「backend または frontend の純導出モジュール」に精緻化。残る ★ は R-T3 過負荷・R-T6 バッファ数値導出（期日判定ラベルは実装済みだが**残量・消費率の数値**が未実装）・R-S7 標識発火（乖離データの供給は実装済み・標識の発火が未実装）。
+4. **binding 表の取りこぼし同期**: PR-REPARENT-HEAL・PM-TREE-INV が根拠として引く §2.8、PM-TREE-INV が引く I3 の行に両プロパティを追記。あわせて §2.8 行に従来から載っていた PR-EVENTS-ONLY の根拠列へ §2.8 を追記し、根拠列⇔被覆表の非対称を解消（一文は不変・bound 状態も不変）。
+5. **陳腐化した次手の書き換え**: 「PR-DONE-LOCK が赤になることを確認する」等の v0.3 時点の計画記述を、実績（2026-07-02 fold ガード実装・GREEN 昇格）に置換。
+
+版の規律: 件数・批准状態・★ の意味に触れる変更のため v0.4 に上げる（binding 不変でも版据え置きにしない）。**v0.4 の批准は上記 3 件の一文レビュー**（下記「次手」）。
+
 ## 次手（批准）
 
-1. **一文レビューは完了**——v0.3 全52プロパティが人間批准済み（`agreed`）。以後、MODEL の制約・語彙・既定に触れる変更があれば、その bound プロパティを同一 run で再批准する（`moira-model-update`／`doc-refine`）。
-2. **最小パイロット（ログのみ・実装変更ゼロ）**: 既 agreed の **PR-EVPCT-RANGE / PR-I1-ROLLUP / PR-CANCEL-EXCL / PR-AC-ROLLUP / PM-ORDER-INV** ＋ 決定打 **PR-DONE-LOCK★**（現実装が赤になることを実走で確認）。生成器2つ（イベントログ＋容量 c）を敵対的構成・一級レビュー対象として用意する（[moira-verification.md](../.kiro/steering/moira-verification.md)）。
-3. **★impl-pending プロパティ**は参照実装に当該導出（孤児警告・過負荷/期日アラート・バッファ・R-S7 標識）が実装された時点で PBT/MC 化する。
+1. **v0.4 の要批准 3 件**: PR-REPARENT-HEAL・PM-TREE-INV（v20 所属の latest-wins 由来）・PR-THRASH（R-S3 の畳んだレビュー carve-out 追随・`agreed` からの再降格）。一文レビューで `agreed` へ。
+2. 既往: v0.3 の52プロパティは人間批准済み。最小パイロット（PBT）は稼働済み——PR-DONE-LOCK は実装是正（2026-07-02・fold 完了ガード）で GREEN 回帰固定に昇格済み。以後、MODEL の制約・語彙・既定に触れる変更があれば、その bound プロパティを同一 run で再批准する（`moira-model-update`／`doc-refine`）。
+3. **★impl-pending プロパティ**（R-T3 過負荷・R-T6 バッファ数値導出・R-S7 標識発火）は参照実装に当該導出が実装された時点で PBT/MC 化する。★ を外した MC-DEADLINE-ALERT・MC-CANCEL-ORPHAN の MC テスト化も後続。
