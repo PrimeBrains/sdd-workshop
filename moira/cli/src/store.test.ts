@@ -54,4 +54,20 @@ describe('MoiraRepo — .moira/ persistence round-trips', () => {
     expect(cfg.projectRoot).toBe('todo-app');
     expect(cfg.me).toBe('taro');
   });
+
+  it('members: init seeds [] and save/load round-trips (defaultCapacity key omitted when absent)', () => {
+    const repo = new MoiraRepo(dir);
+    repo.init({ projectRoot: 'root', me: 'me' });
+    expect(repo.loadMembers()).toEqual([]);
+
+    repo.saveMembers([
+      { id: 'nakao', kind: 'human', label: '中尾' },
+      { id: 'agent:claude', kind: 'agent', label: 'Claude', defaultCapacity: 0.5 },
+    ]);
+    const members = repo.loadMembers();
+    expect(members).toHaveLength(2);
+    expect(members[0]).toEqual({ id: 'nakao', kind: 'human', label: '中尾' });
+    expect('defaultCapacity' in members[0]!).toBe(false); // omitted, not undefined
+    expect(members[1]!.defaultCapacity).toBe(0.5);
+  });
 });

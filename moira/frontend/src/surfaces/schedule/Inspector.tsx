@@ -7,10 +7,9 @@
 import { useState } from 'react';
 import { EVM } from '../../theme/tokens';
 import { Card, EstimatePill, LifecyclePill, Pill, Avatar } from '../../theme/atoms';
-import { useMoira } from '../../moira/hooks';
+import { useMoira, useRoster } from '../../moira/hooks';
 import { actorLabel, labelOf } from '../../moira/labels';
 import { LIFECYCLE_JA } from '../../moira/glossary';
-import { DEMO_ACTORS } from '../../moira/demo-data';
 import type { Actor, Event, LifecycleState, NodeId } from '../../moira/engine';
 
 const FORWARD: LifecycleState[] = ['ready', 'implementing', 'implemented', 'accepted'];
@@ -26,6 +25,7 @@ function Field({ k, v, tone, testid }: { k: string; v: React.ReactNode; tone?: s
 
 export function Inspector({ node }: { node: NodeId | null }) {
   const { projected, derived, appendEvent, nextStamp, asOf } = useMoira();
+  const { all: roster, me } = useRoster();
   const [pending, setPending] = useState<{ ev: Event; desc: string } | null>(null);
 
   if (node === null) {
@@ -73,9 +73,12 @@ export function Inspector({ node }: { node: NodeId | null }) {
     }
   };
 
+  // `me` is the viewpoint human (fixture-derived; demo → 田中). preferHuman forces
+  // it (estimate agreement is human-only, R-U4); otherwise the node's own assignee
+  // acts, falling back to me.
   const actorFor = (preferHuman: boolean): Actor => {
-    if (preferHuman) return DEMO_ACTORS.alice!.actor;
-    return n.assignee ?? DEMO_ACTORS.alice!.actor;
+    if (preferHuman) return me;
+    return n.assignee ?? me;
   };
 
   const lifecycleDraft = (to: LifecycleState) => {
@@ -192,9 +195,13 @@ export function Inspector({ node }: { node: NodeId | null }) {
         </div>
         <div style={{ fontSize: 11, color: EVM.ink3, margin: '8px 0 4px' }}>担当付替</div>
         <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-          {Object.values(DEMO_ACTORS).map((a) => (
-            <ActBtn key={a.actor.id} onClick={() => reassignDraft(a.actor)}>{a.label}</ActBtn>
-          ))}
+          {roster.length === 0 ? (
+            <span style={{ fontSize: 11, color: EVM.ink3 }}>要員が未登録です（moira member add）。</span>
+          ) : (
+            roster.map((a) => (
+              <ActBtn key={`${a.kind}:${a.id}`} onClick={() => reassignDraft(a)}>{actorLabel(a)}</ActBtn>
+            ))
+          )}
         </div>
       </div>
 

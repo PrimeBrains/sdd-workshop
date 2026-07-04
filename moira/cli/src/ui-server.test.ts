@@ -18,6 +18,7 @@ const fixture: UiFixture = {
   asOf: '2026-06-29',
   nodeLabels: { F: '<b>feature</b>' },
   actorLabels: {},
+  members: [],
 };
 
 describe('injectFixture', () => {

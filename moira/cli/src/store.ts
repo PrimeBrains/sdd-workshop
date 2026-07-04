@@ -5,6 +5,10 @@
 //                 append-only, reason-stamped, timestamped — R-U14-isomorphic,
 //                 project-level single via latest-ts resolution)
 //   labels.json   presentation-only display labels (NOT model data)
+//   members.json  the ROSTER — who exists to be assigned/scheduled (issue #11).
+//                 A separate storage tier, NOT events and NOT a calendar concept:
+//                 the engine still sees only c(i,d) (D-16/D-30). Used to seed the
+//                 UI roster so no name the user never supplied leaks into a view.
 //   config.json   projectRoot / me / default asOf
 // Uses the engine's EventStore/CapacityStore for load+save (deterministic order).
 
@@ -23,6 +27,23 @@ export interface MoiraConfig {
 export interface Labels {
   nodeLabels: Record<string, string>;
   actorLabels: Record<string, string>;
+}
+
+/**
+ * A roster member — a person or agent that exists to be assigned/scheduled.
+ * This is deliberately NOT an event and NOT a calendar concept: the engine reads
+ * only c(i,d) (D-16), and membership lives in its own storage tier (D-30). It
+ * exists so the UI can show ONLY the names the user actually supplied — never the
+ * demo roster — even before any capacity/assignment data exists.
+ *   defaultCapacity is retained for display/future use; v1 does NOT materialize it
+ *   into c-entries (the engine default stays 1.0). Omit the key when absent
+ *   (exactOptionalPropertyTypes).
+ */
+export interface Member {
+  id: string;
+  kind: 'human' | 'agent';
+  label: string;
+  defaultCapacity?: number;
 }
 
 /**
@@ -75,6 +96,7 @@ export class MoiraRepo {
   readonly capacityPath: string;
   readonly datesPath: string;
   readonly labelsPath: string;
+  readonly membersPath: string;
   readonly configPath: string;
 
   constructor(cwd: string) {
@@ -83,6 +105,7 @@ export class MoiraRepo {
     this.capacityPath = join(this.dir, 'capacity.json');
     this.datesPath = join(this.dir, 'dates.json');
     this.labelsPath = join(this.dir, 'labels.json');
+    this.membersPath = join(this.dir, 'members.json');
     this.configPath = join(this.dir, 'config.json');
   }
 
@@ -96,6 +119,7 @@ export class MoiraRepo {
     if (!existsSync(this.capacityPath)) writeFileSync(this.capacityPath, '[]\n', 'utf8');
     if (!existsSync(this.datesPath)) writeFileSync(this.datesPath, '[]\n', 'utf8');
     if (!existsSync(this.labelsPath)) this.writeLabels({ nodeLabels: {}, actorLabels: {} });
+    if (!existsSync(this.membersPath)) writeFileSync(this.membersPath, '[]\n', 'utf8');
     this.writeConfig(config);
   }
 
@@ -169,5 +193,14 @@ export class MoiraRepo {
     const labels = this.loadLabels();
     Object.assign(labels.actorLabels, map);
     this.writeLabels(labels);
+  }
+
+  // --- members (the roster; separate tier, NOT events — D-16/D-30) ---
+  loadMembers(): Member[] {
+    if (!existsSync(this.membersPath)) return [];
+    return JSON.parse(readFileSync(this.membersPath, 'utf8')) as Member[];
+  }
+  saveMembers(members: readonly Member[]): void {
+    writeFileSync(this.membersPath, `${JSON.stringify(members, null, 2)}\n`, 'utf8');
   }
 }

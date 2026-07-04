@@ -10,6 +10,7 @@ import { useEffect, useRef } from 'react';
 import type { CapacityEntry, Event, IsoDate } from './engine';
 import { useMoira } from './hooks';
 import { setUserLabels } from './labels';
+import { setRoster, type RosterMember } from './roster';
 
 export interface LiveFixture {
   events: readonly Event[];
@@ -17,6 +18,8 @@ export interface LiveFixture {
   asOf: IsoDate;
   nodeLabels?: Record<string, string>;
   actorLabels?: Record<string, string>;
+  members?: readonly RosterMember[];
+  me?: string;
 }
 
 /** The bridge's side-effect ports — injected so the refetch logic is testable
@@ -25,6 +28,7 @@ export interface LiveBridgeIo {
   /** resolve null on any failure — the next ping/reconnect retries. */
   fetchFixture: () => Promise<LiveFixture | null>;
   applyLabels: (nodeLabels?: Record<string, string>, actorLabels?: Record<string, string>) => void;
+  applyRoster: (members?: readonly RosterMember[], me?: string) => void;
   replaceSnapshot: (events: readonly Event[], capacity: readonly CapacityEntry[]) => void;
   getAsOf: () => IsoDate;
   setAsOf: (asOf: IsoDate) => void;
@@ -44,7 +48,10 @@ export function createLiveRefetcher(io: LiveBridgeIo, initialServerAsOf: IsoDate
     const mySeq = ++seq;
     const fx = await io.fetchFixture();
     if (fx === null || mySeq !== seq) return; // failed, or superseded by a newer refetch
+    // Registry updates (labels, roster) BEFORE the state swap — the #6 pattern:
+    // the derivation that re-runs on replaceSnapshot must see the fresh labels/roster.
     io.applyLabels(fx.nodeLabels, fx.actorLabels);
+    io.applyRoster(fx.members, fx.me);
     io.replaceSnapshot(fx.events, fx.capacity ?? []);
     if (io.getAsOf() === lastServerAsOf) io.setAsOf(fx.asOf);
     lastServerAsOf = fx.asOf;
@@ -71,6 +78,7 @@ export function LiveFixtureBridge({ initialAsOf }: { initialAsOf: IsoDate }) {
           }
         },
         applyLabels: setUserLabels,
+        applyRoster: setRoster,
         replaceSnapshot,
         getAsOf: () => asOfRef.current,
         setAsOf,

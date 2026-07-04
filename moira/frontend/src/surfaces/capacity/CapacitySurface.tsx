@@ -8,9 +8,8 @@
 import { useMemo, useState } from 'react';
 import { EVM } from '../../theme/tokens';
 import { Card, Pill, SectionTitle } from '../../theme/atoms';
-import { useMoira } from '../../moira/hooks';
+import { useMoira, useRoster } from '../../moira/hooks';
 import { actorLabel } from '../../moira/labels';
-import { DEMO_ACTORS } from '../../moira/demo-data';
 import {
   alphaOf,
   hasCapacityEntry,
@@ -18,12 +17,9 @@ import {
   makeCapacityLookup,
   nextCapacityTs,
 } from '../../moira/capacity';
-import { addDaysIso } from '../schedule/gantt-geometry';
-import type { CapacityEntry, IsoDate } from '../../moira/engine';
+import { addDaysIso, daysBetween } from '../schedule/gantt-geometry';
+import type { Actor, CapacityEntry, IsoDate } from '../../moira/engine';
 
-const HUMANS = Object.values(DEMO_ACTORS).filter((a) => a.actor.kind === 'human');
-const WINDOW_START: IsoDate = '2026-06-15';
-const WINDOW_DAYS = 12;
 const REASONS = ['contract', 'holiday', 'leave', 'temporary-reduction'] as const;
 type ReasonKind = (typeof REASONS)[number];
 
@@ -39,7 +35,6 @@ function kindOf(reason: string): ReasonKind | null {
   return (REASONS as readonly string[]).includes(head) ? (head as ReasonKind) : null;
 }
 
-const dates: IsoDate[] = Array.from({ length: WINDOW_DAYS }, (_, i) => addDaysIso(WINDOW_START, i));
 const isWeekend = (d: IsoDate) => {
   const w = new Date(`${d}T00:00:00Z`).getUTCDay();
   return w === 0 || w === 6;
@@ -51,7 +46,28 @@ const dayLabel = (d: IsoDate) => {
 
 export function CapacitySurface() {
   const { capacityEntries, appendCapacity, previewCapacity, derived, asOf } = useMoira();
+  const { humans } = useRoster();
   const lookup = useMemo(() => makeCapacityLookup(capacityEntries), [capacityEntries]);
+
+  // The date window is DERIVED (no hard-coded sprint): candidate days = asOf ∪
+  // every capacity entry date ∪ every forecast frozenSlot/predicted. Then clamp
+  // to at least 12 and at most 31 days so the heatmap is always legible. (ISO
+  // date strings compare chronologically, so min/max are string extremes.)
+  const dates: IsoDate[] = useMemo(() => {
+    const cand: IsoDate[] = [asOf];
+    for (const e of capacityEntries) cand.push(e.date);
+    for (const f of derived.forecast) {
+      if (f.frozenSlot !== null) cand.push(f.frozenSlot);
+      if (f.predictedCompletion !== null) cand.push(f.predictedCompletion);
+    }
+    const start = cand.reduce((a, b) => (a <= b ? a : b));
+    let end = cand.reduce((a, b) => (a >= b ? a : b));
+    const span = daysBetween(start, end);
+    if (span < 11) end = addDaysIso(start, 11);
+    else if (span > 30) end = addDaysIso(start, 30);
+    const n = daysBetween(start, end) + 1;
+    return Array.from({ length: n }, (_, i) => addDaysIso(start, i));
+  }, [asOf, capacityEntries, derived.forecast]);
 
   const [sel, setSel] = useState<{ humanId: string; date: IsoDate } | null>(null);
   const [value, setValue] = useState(1.0);
@@ -158,8 +174,15 @@ export function CapacitySurface() {
                 </tr>
               </thead>
               <tbody>
-                {HUMANS.map((h) => (
-                  <tr key={h.actor.id}>
+                {humans.length === 0 && (
+                  <tr>
+                    <td colSpan={dates.length + 2} style={{ fontSize: 11, color: EVM.ink3, padding: '8px 4px' }}>
+                      要員が未登録です（moira member add / moira import members で登録してください）。
+                    </td>
+                  </tr>
+                )}
+                {humans.map((h) => (
+                  <tr key={h.id}>
                     <td
                       style={{
                         position: 'sticky',
@@ -171,17 +194,17 @@ export function CapacitySurface() {
                         whiteSpace: 'nowrap',
                       }}
                     >
-                      {h.label}
+                      {actorLabel(h)}
                     </td>
                     {dates.map((d) => {
-                      const c = lookup(h.actor.id, d);
-                      const st = cellStyle(h.actor.id, d);
-                      const selected = sel?.humanId === h.actor.id && sel?.date === d;
+                      const c = lookup(h.id, d);
+                      const st = cellStyle(h.id, d);
+                      const selected = sel?.humanId === h.id && sel?.date === d;
                       return (
                         <td key={d} style={{ padding: 0 }}>
                           <button
-                            onClick={() => selectCell(h.actor.id, d)}
-                            title={`${h.label} ${d}: c=${c}${hasCapacityEntry(capacityEntries, h.actor.id, d) ? '（明示）' : '（未指定=1.0仮定）'}`}
+                            onClick={() => selectCell(h.id, d)}
+                            title={`${actorLabel(h)} ${d}: c=${c}${hasCapacityEntry(capacityEntries, h.id, d) ? '（明示）' : '（未指定=1.0仮定）'}`}
                             className="mono"
                             style={{
                               width: '100%',
@@ -200,7 +223,7 @@ export function CapacitySurface() {
                       );
                     })}
                     <td className="mono" style={{ fontSize: 10, color: EVM.ink3, padding: '0 6px', textAlign: 'center' }}>
-                      {alphaOf(capacityEntries, h.actor.id, asOf).toFixed(1)}
+                      {alphaOf(capacityEntries, h.id, asOf).toFixed(1)}
                     </td>
                   </tr>
                 ))}
@@ -227,7 +250,7 @@ export function CapacitySurface() {
                 .sort((a, b) => b.ts - a.ts)
                 .map((e, i) => (
                   <div key={i}>
-                    ts{e.ts} / {actorLabel(DEMO_ACTORS[e.humanId]?.actor ?? { kind: 'human', id: e.humanId })} / {e.date} / c={e.capacity} / {e.reason}
+                    ts{e.ts} / {actorLabel({ kind: 'human', id: e.humanId } as Actor)} / {e.date} / c={e.capacity} / {e.reason}
                   </div>
                 ))}
             </div>
@@ -243,7 +266,7 @@ export function CapacitySurface() {
         ) : (
           <>
             <div style={{ fontSize: 12, color: EVM.ink2 }}>
-              対象: <b>{DEMO_ACTORS[sel.humanId]?.label}</b> × <span className="mono">{sel.date}</span>
+              対象: <b>{actorLabel({ kind: 'human', id: sel.humanId } as Actor)}</b> × <span className="mono">{sel.date}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12, color: EVM.ink3, background: EVM.ruleSoft, borderRadius: 6, padding: '6px 8px', cursor: 'not-allowed' }}>
               <span title="α_i">契約稼働率（契約成分・読取専用）</span>

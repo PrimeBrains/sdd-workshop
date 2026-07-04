@@ -13,6 +13,14 @@ import { parseActor } from './actors.js';
 import { writeWbsTemplate } from './xlsx/wbs-template.js';
 import { parseWbsSheet, planWbsEvents, validateWbs } from './xlsx/wbs-import.js';
 import { packSchedule } from './xlsx/wbs-pack.js';
+import { writeMembersTemplate } from './xlsx/members-template.js';
+import {
+  parseCalendarSheet,
+  parseHolidaySheet,
+  parseMembersSheet,
+  planMembersImport,
+  validateMembersImport,
+} from './xlsx/members-import.js';
 import { runAdapter } from './adapter/index.js';
 import { CliError } from './errors.js';
 import {
@@ -30,6 +38,7 @@ import { frontendDistDir } from './paths.js';
 import { realStamper } from './stamp.js';
 import {
   isIsoDate,
+  type Member,
   MoiraRepo,
   resolveReferenceDates,
   type MoiraConfig,
@@ -335,27 +344,105 @@ function cmdDeadline(rest: string[]): void {
   out(`deadline: ${cur.deadline ?? '(unset)'}   target: ${cur.targetDate ?? '(unset)'} [human commit]`);
 }
 
-// --- xlsx WBS commands ----------------------------------------------------
+// --- roster (members) commands --------------------------------------------
+
+function cmdMember(rest: string[]): void {
+  const sub = rest[0];
+  const args = rest.slice(1);
+  if (sub === 'add') return cmdMemberAdd(args);
+  if (sub === 'list') return cmdMemberList(args);
+  throw new CliError('usage: moira member add <id> --label <name> [--capacity <0..1>] [--kind human|agent]\n       moira member list');
+}
+
+function cmdMemberAdd(rest: string[]): void {
+  const { values, positionals } = parse(rest, {
+    label: { type: 'string' },
+    capacity: { type: 'string' },
+    kind: { type: 'string' },
+  });
+  const id = positionals[0];
+  if (id === undefined) {
+    throw new CliError('usage: moira member add <id> --label <name> [--capacity <0..1>] [--kind human|agent]');
+  }
+  const label = str(values.label);
+  if (label === undefined) throw new CliError('member add requires --label <name>');
+  const kindArg = str(values.kind);
+  if (kindArg !== undefined && kindArg !== 'human' && kindArg !== 'agent') {
+    throw new CliError('--kind must be human or agent');
+  }
+  // id/kind: accept the actor-spec form ('agent:claude'), store the BARE Actor.id
+  // (parseActor) so the roster entry matches assignee/label/capacity ids. --kind
+  // overrides the prefix-inferred kind.
+  const actor = parseActor(id);
+  const kind: Member['kind'] = kindArg ?? actor.kind;
+  const capStr = str(values.capacity);
+  let defaultCapacity: number | undefined;
+  if (capStr !== undefined) {
+    const c = Number(capStr);
+    if (!Number.isFinite(c) || c < 0 || c > 1) throw new CliError('--capacity must be a number in [0,1]');
+    defaultCapacity = c;
+  }
+
+  const repo = requireRepo();
+  const members = repo.loadMembers();
+  const member: Member = { id: actor.id, kind, label };
+  if (defaultCapacity !== undefined) member.defaultCapacity = defaultCapacity;
+  const idx = members.findIndex((m) => m.id === actor.id);
+  if (idx >= 0) members[idx] = member;
+  else members.push(member);
+  repo.saveMembers(members);
+  repo.setActorLabel(actor.id, label); // roster id → display name
+  out(`${idx >= 0 ? '~' : '+'} member ${kind}:${actor.id} "${label}"${defaultCapacity === undefined ? '' : ` (既定稼働率 ${defaultCapacity})`}`);
+}
+
+function cmdMemberList(rest: string[]): void {
+  parse(rest, {});
+  const repo = requireRepo();
+  const members = repo.loadMembers();
+  if (members.length === 0) {
+    out('(no members yet — moira member add / moira import members)');
+    return;
+  }
+  for (const m of members) {
+    out(`  ${m.kind}:${m.id}  ${m.label}${m.defaultCapacity === undefined ? '' : `  (既定稼働率 ${m.defaultCapacity})`}`);
+  }
+}
+
+// --- xlsx template / import commands --------------------------------------
 
 async function cmdTemplate(rest: string[]): Promise<void> {
   const { values, positionals } = parse(rest, { out: { type: 'string' } });
-  if (positionals[0] !== 'wbs') {
-    throw new CliError('usage: moira template wbs [--out <file.xlsx>]');
+  const kind = positionals[0];
+  if (kind !== 'wbs' && kind !== 'members') {
+    throw new CliError('usage: moira template wbs|members [--out <file.xlsx>]');
   }
-  const outPath = str(values.out) ?? 'moira-wbs-template.xlsx';
+  const outPath = str(values.out) ?? (kind === 'wbs' ? 'moira-wbs-template.xlsx' : 'moira-members-template.xlsx');
   if (existsSync(outPath)) {
     throw new CliError(`${outPath} は既に存在します（上書きしません）。別の --out を指定してください。`);
   }
-  await writeWbsTemplate(outPath);
-  out(`Wrote WBS template → ${outPath}`);
-  out('記入後: moira import wbs ' + outPath + '  （まず --dry-run で確認を推奨）');
+  if (kind === 'wbs') {
+    await writeWbsTemplate(outPath);
+    out(`Wrote WBS template → ${outPath}`);
+    out('記入後: moira import wbs ' + outPath + '  （まず --dry-run で確認を推奨）');
+  } else {
+    await writeMembersTemplate(outPath);
+    out(`Wrote members template → ${outPath}`);
+    out('記入後: moira import members ' + outPath + '  （まず --dry-run で確認を推奨）');
+  }
 }
 
 async function cmdImport(rest: string[]): Promise<void> {
-  const { values, positionals } = parse(rest, { 'dry-run': { type: 'boolean' } });
-  if (positionals[0] !== 'wbs') {
-    throw new CliError('usage: moira import wbs <file.xlsx> [--dry-run]');
+  const { positionals } = parse(rest, { 'dry-run': { type: 'boolean' } });
+  const kind = positionals[0];
+  if (kind === 'members') return cmdImportMembers(rest);
+  if (kind !== 'wbs') {
+    throw new CliError('usage: moira import wbs|members <file.xlsx> [--dry-run]');
   }
+  return cmdImportWbs(rest);
+}
+
+async function cmdImportWbs(rest: string[]): Promise<void> {
+  const { values, positionals } = parse(rest, { 'dry-run': { type: 'boolean' } });
   const file = positionals[1];
   if (file === undefined) throw new CliError('usage: moira import wbs <file.xlsx> [--dry-run]');
   if (!existsSync(file)) throw new CliError(`file not found: ${file}`);
@@ -426,6 +513,64 @@ async function cmdImport(rest: string[]): Promise<void> {
   out('確認: moira show   /   moira log');
 }
 
+async function cmdImportMembers(rest: string[]): Promise<void> {
+  const { values, positionals } = parse(rest, { 'dry-run': { type: 'boolean' } });
+  const file = positionals[1];
+  if (file === undefined) throw new CliError('usage: moira import members <file.xlsx> [--dry-run]');
+  if (!existsSync(file)) throw new CliError(`file not found: ${file}`);
+
+  const repo = requireRepo();
+
+  const wb = new ExcelJS.Workbook();
+  await wb.xlsx.readFile(file);
+  const wsM = wb.getWorksheet('要員');
+  if (wsM === undefined) {
+    throw new CliError('シート "要員" が見つかりません（moira template members で雛形を生成できます）');
+  }
+  const wsC = wb.getWorksheet('個人カレンダー');
+  const wsH = wb.getWorksheet('祝日');
+
+  // parse → validate: collect ALL errors, write nothing if any.
+  const { rows: memberRows, errors: mErr } = parseMembersSheet(wsM);
+  const { rows: calRows, errors: cErr } = wsC ? parseCalendarSheet(wsC) : { rows: [], errors: [] };
+  const { rows: holRows, errors: hErr } = wsH ? parseHolidaySheet(wsH) : { rows: [], errors: [] };
+  const existing = repo.loadMembers();
+  const validateErrors = validateMembersImport(memberRows, calRows, holRows, existing);
+  const errors = [...mErr, ...cErr, ...hErr, ...validateErrors];
+  if (errors.length > 0) {
+    for (const e of errors) err(`  error: ${e}`);
+    throw new CliError(`検証エラー ${errors.length} 件 — 何も書き込みませんでした。`);
+  }
+  if (memberRows.length === 0 && calRows.length === 0 && holRows.length === 0) {
+    err('warning: シートにデータ行がありません（何もしません）。');
+    return;
+  }
+
+  const stamp = realStamper(); // ONE shared stamper for the whole import
+  const plan = planMembersImport(memberRows, calRows, holRows, existing, stamp);
+  for (const w of plan.warnings) err(`  warning: ${w}`);
+
+  if (values['dry-run'] === true) {
+    out(
+      `(dry-run) 要員 ${memberRows.length} 名（名簿計 ${plan.members.length}）` +
+        ` / 個人カレンダー ${calRows.length} 行 / 祝日 ${holRows.length} 行` +
+        ` → capacity ${plan.capacityEntries.length} 件。何も書き込みません。`,
+    );
+    return;
+  }
+
+  // Commit: roster upsert, then bulk actorLabels, then ONE appendCapacity.
+  repo.saveMembers(plan.members);
+  if (Object.keys(plan.actorLabels).length > 0) repo.setActorLabels(plan.actorLabels);
+  if (plan.capacityEntries.length > 0) repo.appendCapacity(plan.capacityEntries);
+
+  out(
+    `Imported roster: 要員 ${memberRows.length} 名 / capacity ${plan.capacityEntries.length} 件` +
+      `（祝日は現名簿の human ${plan.members.filter((m) => m.kind === 'human').length} 名に展開）。`,
+  );
+  out('確認: moira member list   /   moira ui');
+}
+
 // --- read commands --------------------------------------------------------
 
 function cmdShow(rest: string[]): void {
@@ -491,6 +636,7 @@ async function cmdUi(rest: string[]): Promise<void> {
       asOf: asOfFlag ?? cfg.asOf ?? today(),
       nodeLabels: labels.nodeLabels,
       actorLabels: labels.actorLabels,
+      members: repo.loadMembers(),
       me: cfg.me,
       ...(dates.deadline !== undefined ? { deadline: dates.deadline } : {}),
       ...(dates.targetDate !== undefined ? { targetDate: dates.targetDate } : {}),
@@ -569,8 +715,11 @@ usage: moira [--dir <log-home>] <command> ...
   moira relate <from> <to> [--kind dependency|supersede] [--policy ...] [--remove]
   moira capacity <who> <YYYY-MM-DD> <c> [--reason ...]   (human commit)
   moira deadline [<YYYY-MM-DD>] [--target <YYYY-MM-DD>] [--reason ...]   (human commit: R-T6)
-  moira template wbs [--out <file.xlsx>]                 (blank WBS workbook for bulk import)
+  moira member add <id> --label <name> [--capacity <0..1>] [--kind human|agent]   (roster upsert)
+  moira member list                                     (show the roster)
+  moira template wbs|members [--out <file.xlsx>]         (blank workbook for bulk import)
   moira import wbs <file.xlsx> [--dry-run]               (bulk-load a filled WBS in one append)
+  moira import members <file.xlsx> [--dry-run]           (bulk-load roster + 個人休 + 祝日)
   moira show [--asOf <date>] [--startDate <date>] [--json]
   moira log
   moira ui [--asOf <date>] [--port <n>] [--no-open]
@@ -627,6 +776,8 @@ export async function runCli(argv: string[]): Promise<void> {
       return cmdCapacity(rest);
     case 'deadline':
       return cmdDeadline(rest);
+    case 'member':
+      return cmdMember(rest);
     case 'template':
       return cmdTemplate(rest);
     case 'import':
