@@ -6,10 +6,12 @@
 
 import { useCallback, useMemo, useState, type ReactNode } from 'react';
 import {
+  computeCriticalPath,
   computeLandingCurve,
   derive,
   fold,
   type CapacityEntry,
+  type CriticalPath,
   type DerivedState,
   type Event,
   type IsoDate,
@@ -59,6 +61,10 @@ export function MoiraProvider({
     return computeLandingCurve(events, { asOf, capacityOf });
   }, [events, capacityEntries, asOf]);
 
+  // P7 dependency longest chain (issue #16) — same single-derivation discipline:
+  // computed once here, projected by surfaces (never recomputed there).
+  const criticalPath = useMemo<CriticalPath>(() => computeCriticalPath(events), [events]);
+
   const appendEvent = useCallback((event: Event) => {
     setEvents((prev) => [...prev, event]);
   }, []);
@@ -98,6 +104,7 @@ export function MoiraProvider({
       derived,
       projected,
       landing,
+      criticalPath,
       deadline: initialDeadline,
       targetDate: initialTargetDate,
       me: initialMe,
@@ -108,7 +115,7 @@ export function MoiraProvider({
       nextStamp,
       previewCapacity,
     }),
-    [events, capacityEntries, asOf, derived, projected, landing, initialDeadline, initialTargetDate, initialMe, appendEvent, appendCapacity, replaceSnapshot, nextStamp, previewCapacity],
+    [events, capacityEntries, asOf, derived, projected, landing, criticalPath, initialDeadline, initialTargetDate, initialMe, appendEvent, appendCapacity, replaceSnapshot, nextStamp, previewCapacity],
   );
 
   return <MoiraContext.Provider value={value}>{children}</MoiraContext.Provider>;

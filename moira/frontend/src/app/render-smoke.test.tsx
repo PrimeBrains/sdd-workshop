@@ -30,6 +30,12 @@ describe('surfaces render without throwing', () => {
     expect(html).toContain('PV不算入'); // state C (hotfix) is drawn
   });
 
+  it('schedule-time gantt highlights the P7 critical path (issue #16)', () => {
+    const html = wrap(<App />);
+    expect(html).toContain('data-critical-path="true"'); // some row is on the chain
+    expect(html).toContain('クリティカルパス（依存のつながりで最長の経路）'); // legend appears only when a chain exists
+  });
+
   it('health surface (two zones, de-rate, honest null/empty)', () => {
     const html = wrap(<HealthSurface />);
     expect(html).toContain('現行進捗');

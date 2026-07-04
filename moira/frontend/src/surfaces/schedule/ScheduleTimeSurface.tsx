@@ -17,12 +17,20 @@ import type { NodeId } from '../../moira/engine';
 type Kind = 'all' | 'human' | 'agent';
 
 export function ScheduleTimeSurface() {
-  const { projected, derived, asOf } = useMoira();
+  const { projected, derived, asOf, criticalPath } = useMoira();
   const [filter, setFilter] = useState<RowFilter>(DEFAULT_ROW_FILTER);
   const [selected, setSelected] = useState<NodeId | null>(null);
 
   const model = useMemo(() => buildGanttModel(projected, derived, filter), [projected, derived, filter]);
   const options = useMemo(() => assigneeOptions(projected), [projected]);
+
+  // P7 dependency longest chain (issue #16) — a read-only projection of the
+  // store's criticalPath. A single node is not a chain: highlight only when the
+  // path actually crosses a dependency edge (≥ 2 nodes).
+  const cpSet = useMemo<ReadonlySet<NodeId>>(
+    () => (criticalPath.path.length >= 2 ? new Set(criticalPath.path) : new Set()),
+    [criticalPath],
+  );
 
   const spi = derived.spi;
   const cov = derived.scheduleCoverage;
@@ -113,7 +121,7 @@ export function ScheduleTimeSurface() {
               条件に合う行がありません。
             </div>
           ) : (
-            <ScheduleGantt model={model} asOf={asOf} selected={selected} onSelect={setSelected} />
+            <ScheduleGantt model={model} asOf={asOf} selected={selected} onSelect={setSelected} cpSet={cpSet} />
           )}
         </Card>
       </div>

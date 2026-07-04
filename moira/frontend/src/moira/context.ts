@@ -4,6 +4,7 @@
 import { createContext } from 'react';
 import type {
   CapacityEntry,
+  CriticalPath,
   DerivedState,
   Event,
   IsoDate,
@@ -24,6 +25,8 @@ export interface MoiraState {
   projected: ProjectedState;
   /** landing-forecast burnup (issue #13) — derived HERE, never in a surface. */
   landing: LandingCurve;
+  /** P7 dependency longest chain (issue #16) — derived HERE, never in a surface. */
+  criticalPath: CriticalPath;
   /** R-T6 reference dates (boot-time fixture values; a reload re-resolves them). */
   deadline: IsoDate | null;
   targetDate: IsoDate | null;
