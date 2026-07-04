@@ -1,14 +1,14 @@
 {
-  "adapterVersion": "0.5.0",
-  "installedAt": "2026-07-04T02:08:08.423Z",
+  "adapterVersion": "0.6.0",
+  "installedAt": "2026-07-04T23:07:27.302Z",
   "files": {
-    ".claude/skills/moira-track/SKILL.md": "sha256:14efbdc145b753e94f42dcdc796a48a112050b31fb9c73fef0277c2725f4f297",
+    ".claude/skills/moira-track/SKILL.md": "sha256:52b018dd6ad22dbb5d279ec8fb512a04cb8856ef57c70d847887237ea545f2a7",
     ".claude/skills/moira-track/reference.md": "sha256:f4884c0ac6804c42f0813498ff7c319821147cd18f967a423ad438a4653372eb",
-    ".claude/skills/moira-track/provider-reference.md": "sha256:a75ea70d4d80a638cbe0aa3396b2f8483e0ceaafdf4d8fa10f05906328172266",
+    ".claude/skills/moira-track/provider-reference.md": "sha256:3fe56cbec80aa0f30d649bb904ccd1baabe041b405641510e7f42c807be0c497",
     ".claude/hooks/moira-guard.mjs": "sha256:1e6ddc0cf37e09bd5750149395991f62554d411796e10fde73e4b335f95d845e",
-    ".claude/hooks/moira-fire.mjs": "sha256:a642988961d8e86867dc72aebd73fbaf16ab631c9a341949a64bcbeab90f306b",
+    ".claude/hooks/moira-fire.mjs": "sha256:ad2b568d6d84ba0e4c13b5d952f5fc6871020361d133794503a63316e0547418",
     ".claude/moira-provider.json": "sha256:b03030c0657e297252590143f242aeaa8d67edc19d1d55f159900ecb4264c1d6",
-    ".kiro/steering/moira-track.md": "sha256:6ae25479d91856429e18f201792b82a506c3c905c8a71028062728e44b40ab61"
+    ".kiro/steering/moira-track.md": "sha256:fd43c81057d9672baff1a1e7b8809790833b78949ce728453320f7ba47d35d6b"
   },
   "settingsInjected": [
     {
@@ -29,6 +29,10 @@
     {
       "event": "SessionStart",
       "matcher": "startup|resume|clear",
+      "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/moira-fire.mjs\""
+    },
+    {
+      "event": "UserPromptSubmit",
       "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/moira-fire.mjs\""
     }
   ],

@@ -77,4 +77,10 @@ describe('renderSteering', () => {
     const md = renderSteering({ ...cfg, triggers: [] });
     expect(md).toContain('triggers 未宣言');
   });
+
+  it('both renders carry the engine-generic ticket-driven entry (ADR-0004)', () => {
+    expect(renderSteering(cfg)).toContain('/moira-track ticket');
+    expect(renderSteering(cfg)).toContain('UserPromptSubmit');
+    expect(renderProviderReference(cfg)).toContain('/moira-track ticket');
+  });
 });

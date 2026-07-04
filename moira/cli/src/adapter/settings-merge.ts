@@ -10,8 +10,8 @@
 //   - zero additions ⇒ the original text is returned byte-identical (no reformat).
 
 export interface HookInjection {
-  event: string; // 'PreToolUse' | 'PostToolUse' | 'SessionStart' | ...
-  matcher: string;
+  event: string; // 'PreToolUse' | 'PostToolUse' | 'SessionStart' | 'UserPromptSubmit' | ...
+  matcher?: string; // absent for matcher-less events (e.g. UserPromptSubmit)
   command: string;
 }
 
@@ -81,7 +81,8 @@ export function mergeSettings(
     if (sameMatcher !== undefined) {
       (sameMatcher.hooks ??= []).push(entry);
     } else {
-      groups.push({ matcher: inj.matcher, hooks: [entry] });
+      // matcher-less events (e.g. UserPromptSubmit) get a group WITHOUT a matcher key
+      groups.push(inj.matcher === undefined ? { hooks: [entry] } : { matcher: inj.matcher, hooks: [entry] });
     }
     hooks[inj.event] = groups;
     added.push(inj);

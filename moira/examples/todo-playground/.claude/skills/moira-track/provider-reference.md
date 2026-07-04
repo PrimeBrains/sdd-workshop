@@ -29,6 +29,9 @@ AC 記録・地雷カタログ・復旧手順・接地表）は [`reference.md`]
      どの feature を track するか `[人間確認]`（AskUserQuestion）で確定する。
 - ラベル（`--label`）は表示専用で `.moira/labels.json` に入り、**イベントには載らない**（MODEL 外）。
   日本語ラベル（「要件定義」等）を付けると `moira show`/`ui` が読みやすい。
+- **チケット由来ノード**（チケット駆動の入口 — [SKILL.md](SKILL.md) 参照・エンジン汎用）: 外部チケットを
+  起点に誕生するノードは `gh-<repo>-<N>` 等のチケット由来 ID 規約に従い、`--label` にチケット URL を含める。
+  cc-sdd のパイプラインに合流する場合は本 §P1 の feature ノード規約が優先（URL はラベルで保持）。
 
 ---
 
@@ -41,6 +44,8 @@ happy path は差し戻し無し）で示す。背骨弧との対応は §P5。
 
 ### `discovery`（`/kiro-discovery` 完了・brief.md ができた）
 - 前提: `.moira/` 初期化済み（未なら `moira init --me <あなた> --root <root>`。`<root>` は `[人間確認]` で決めた ID）。
+- 外部チケット起点（チケット駆動の入口 A・[SKILL.md](SKILL.md)）で合流する場合も手順は同一 —
+  feature ノードの `--label` にチケット URL を含める（例: `--label "<要約> (<url>)"`）。ticket 入口側で先回り emit しない（二重誕生禁止）。
 - 発行（**すべて `--actor agent:claude`・すべて `--parent` 必須**）:
   1. `moira add <feature> --parent <root> --label "<日本語>" --actor agent:claude`
   2. `moira add <feature>/req --parent <feature> --label "要件定義" --actor agent:claude`
@@ -126,6 +131,8 @@ happy path は差し戻し無し）で示す。背骨弧との対応は §P5。
 | `.kiro/specs/<feature>/tasks.md` への書き込み（read: checkbox — 進捗を集計） | `/moira-track impl` |
 
 セッション開始時は `moira adapter drift --json` を 1 回実行（fail-open）し、hard/needs-human があれば `/moira-track sync` を促す。
+プロンプト中のチケット参照（issue URL / 意図キーワード同伴の `#N`）は UserPromptSubmit で検知され
+`/moira-track ticket <ref>` が助言される（**エンジン汎用** — provider 設定の triggers ではなく hook 内蔵。ADR-0004）。
 
 ---
 

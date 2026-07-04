@@ -35,6 +35,10 @@ metadata:
   着手ゲート・AC 実測は provider に依らず不変（エンジン汎用 — 配布される SKILL.md/reference.md が担保）。
 - **drift は捏造しない**: 成果物→ノード状態の対応を宣言できないなら `drift.mode: "unsupported"` を選ぶ
   （明示エラーになる — 存在しない突き合わせを提供しない）。
+- **チケット駆動の入口はエンジン汎用**（ADR-0004）: 外部チケット（GitHub/GitLab/Backlog/Jira）の検知
+  （moira-fire の UserPromptSubmit）と `/moira-track ticket` の振り付けは配布される SKILL.md が担保する —
+  provider 設定・インタビュー項目は**不要**。§P2 執筆時（手順 5）に「チケットはどのフェーズに合流するか
+  （既定 = 最初のフェーズ）」だけ確認して一行足すとよい。
 - 設定は**必ず** `moira adapter validate-provider` で機械検証してから設置する。
 
 ## 手順

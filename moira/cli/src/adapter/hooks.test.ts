@@ -249,6 +249,62 @@ describe('moira-fire — declarative provider config (ADR-0003 Stage 2)', () => 
   });
 });
 
+describe('moira-fire decide() — UserPromptSubmit ticket detection (ADR-0004)', () => {
+  const prompt = (p: unknown) => ({ hook_event_name: 'UserPromptSubmit', prompt: p });
+  const ctxOf = (p: unknown) => fire.decide(prompt(p))?.hookSpecificOutput;
+
+  it('fires on full issue URLs of all four ticket systems (no keyword needed)', () => {
+    const cases: Array<[string, string]> = [
+      [
+        'https://github.com/PrimeBrains/sdd-workshop/issues/20 に対応して',
+        'https://github.com/PrimeBrains/sdd-workshop/issues/20',
+      ],
+      ['https://gitlab.example.co.jp/team/app/-/issues/7 やって', 'https://gitlab.example.co.jp/team/app/-/issues/7'],
+      ['https://acme.atlassian.net/browse/PROJ-123 を見て', 'https://acme.atlassian.net/browse/PROJ-123'],
+      ['https://acme.backlog.com/view/APP-42 の対応お願い', 'https://acme.backlog.com/view/APP-42'],
+    ];
+    for (const [p, ref] of cases) {
+      const out = ctxOf(p);
+      expect(out?.hookEventName, p).toBe('UserPromptSubmit');
+      expect(out?.additionalContext, p).toContain('/moira-track ticket');
+      expect(out?.additionalContext, p).toContain(ref);
+    }
+  });
+
+  it('fires on bare refs (#N / KEY-N) only alongside an intent keyword', () => {
+    expect(ctxOf('issue #20 に対応して')?.additionalContext).toContain('#20');
+    expect(ctxOf('バグ PROJ-123 を直して')?.additionalContext).toContain('PROJ-123');
+    // no keyword → silent (bare #N collides with PR refs / hex colors etc.)
+    expect(fire.decide(prompt('#20 を見て'))).toBeUndefined();
+    expect(fire.decide(prompt('PROJ-123 やって'))).toBeUndefined();
+  });
+
+  it('does not fire on lookalike tokens, PR URLs, or markdown headings', () => {
+    expect(fire.decide(prompt('チケットの文字コードは UTF-8 で保存して'))).toBeUndefined();
+    expect(fire.decide(prompt('issue の日付は ISO-8601、ハッシュは SHA-256 で'))).toBeUndefined();
+    expect(fire.decide(prompt('https://github.com/o/r/pull/20 をレビューして'))).toBeUndefined();
+    // markdown heading hashes are not #N refs, even with a keyword present
+    expect(fire.decide(prompt('チケット一覧を整理して\n## 20 件の概要\n本文'))).toBeUndefined();
+  });
+
+  it('fails open on missing/non-string prompt and stays silent while /moira-track is firing', () => {
+    expect(fire.decide({ hook_event_name: 'UserPromptSubmit' })).toBeUndefined();
+    expect(fire.decide(prompt(42))).toBeUndefined();
+    expect(fire.decide(prompt(''))).toBeUndefined();
+    expect(fire.decide(prompt('/moira-track ticket https://github.com/o/r/issues/1'))).toBeUndefined();
+  });
+
+  it('dedupes repeated refs and shows at most 3', () => {
+    const many =
+      'https://github.com/o/r/issues/1 https://github.com/o/r/issues/1 ' +
+      'https://github.com/o/r/issues/2 https://github.com/o/r/issues/3 https://github.com/o/r/issues/4';
+    const ctx = ctxOf(many)?.additionalContext ?? '';
+    expect(ctx.split('github.com').length - 1).toBe(3); // deduped, then capped at 3
+    expect(ctx).toContain('issues/1');
+    expect(ctx).not.toContain('issues/4');
+  });
+});
+
 describe('moira-fire decide() — SessionStart drift summary', () => {
   const seedRepo = (): void => {
     mkdirSync(join(tmp, '.moira'), { recursive: true });

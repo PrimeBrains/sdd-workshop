@@ -6,8 +6,10 @@ description: >
   記録」「moira-track」「フェーズ完了を track して」「moira と突き合わせて」などで起動。背骨フロー
   new-feature-happy-path の moira-progress 継ぎ目の実体。sync フェーズで成果物との突き合わせ（drift）と
   追いつき記録も行う。どの節目がどのフェーズかは .claude/moira-provider.json と provider-reference.md が定める。
+  外部チケット（GitHub/GitLab/Backlog/Jira の issue）を渡されて作業が始まるときは ticket 入口
+  （チケット駆動フロー・エンジン汎用）で起動する。
 allowed-tools: Bash, Read, Glob, AskUserQuestion
-argument-hint: <phase> [--feature <id>]  (phase = provider の phases。cc-sdd 既定 = discovery|estimate|requirements|design|tasks|estimate-impl|impl|sync)
+argument-hint: <phase>|ticket <ref> [--feature <id>]  (phase = provider の phases。cc-sdd 既定 = discovery|estimate|requirements|design|tasks|estimate-impl|impl|sync。ticket はエンジン汎用のチケット駆動入口)
 metadata:
   origin: "custom"
 ---
@@ -46,7 +48,7 @@ metadata:
 | 層 | 置き場所 | 役割 |
 |---|---|---|
 | **いつ発火するか（規約）** | `.kiro/steering/moira-track.md` の発火トリガー表（steering として常時ロード） | 節目の取りこぼし防止の規約 |
-| **いつ発火するか（検知）** | `.claude/hooks/moira-fire.mjs`（Claude Code hook） | provider 設定の triggers に基づき成果物への書き込みを決定的に検知して発火を助言・セッション開始時に drift サマリを注入 |
+| **いつ発火するか（検知）** | `.claude/hooks/moira-fire.mjs`（Claude Code hook） | provider 設定の triggers に基づき成果物への書き込みを決定的に検知して発火を助言・セッション開始時に drift サマリを注入・プロンプト中のチケット参照を検知して ticket 入口を助言 |
 | **何を emit するか（正しさ）** | 本スキル `SKILL.md` ＋ [`provider-reference.md`](provider-reference.md) ＋ [`reference.md`](reference.md) | 正しいイベント列・5 判断の人間確認・着手ゲート・AC |
 | **柵（deny＋助言）** | `.claude/hooks/moira-guard.mjs`（Claude Code hook） | 1 件を deny で強制・残りを additionalContext で助言（下記） |
 | **突き合わせ（安全網）** | `moira adapter drift`（read-only）＋ 本スキル `sync` フェーズ | 発火ミスの事後検知と人間ゲート付き追いつき（[provider-reference §P4](provider-reference.md)。drift 非対応（`unsupported`）provider では使えず、発火規約＋hooks のみが防衛線） |
@@ -58,6 +60,7 @@ metadata:
 **hooks（`.claude/hooks/moira-fire.mjs`）が押さえること**:
 - **発火検知（PostToolUse・非ブロッキング）**: provider 設定（`.claude/moira-provider.json`）の triggers が定める成果物への書き込みを検知し、含意される `/moira-track <phase>` の発火を助言する（emit はしない — emit は本スキルの責務・5 判断の人間ゲートは不変。設定が不在/破損のときは内蔵の cc-sdd 既定へ fail-open）。
 - **drift 注入（SessionStart・非ブロッキング）**: セッション開始時に `moira adapter drift --json` を 1 回だけ実行（fail-open）し、hard/needs-human があれば `/moira-track sync` を促す。
+- **チケット検知（UserPromptSubmit・非ブロッキング）**: プロンプト中の外部チケット参照（GitHub/GitLab/Backlog/Jira の issue URL、または意図キーワード同伴の `#N`/`KEY-N`）を決定的に検知し、`/moira-track ticket <ref>` の発火を助言する（エンジン汎用 — provider 設定は参照しない・emit はしない。ADR-0004）。
 
 ## 前提
 
@@ -81,6 +84,60 @@ metadata:
 - 各フェーズで **何を emit するか**（イベント列・人間ゲート・`moira show` の期待差分）は
   [provider-reference §P2](provider-reference.md)（フェーズ → moira CLI マッピング）に従う。**すべての `moira add` に `--parent` 必須**
   （省略は hook が deny／理由は [reference §E-1](reference.md)）。
+
+## チケット駆動の入口（`/moira-track ticket <ref>` — エンジン汎用）
+
+外部チケット（GitHub / GitLab / Backlog / Jira …）に書かれた障害・新規要件を起点に作業が始まるフロー
+（ADR-0004）。チケットは**ノードの読み出し専用射影**（MODEL A1・D-19）— イベント 4 種・lifecycle・
+5 判断はそのままに、どの実行パターンでも**節目のイベントが漏れなく残る**よう振り付ける。
+チケットシステムへの**書き戻しは一切しない**（状態同期・コメント投稿は本スキルの射程外）。
+この入口は provider に依存しない（`ticket` は provider の phase ではない — custom provider でもそのまま使える）。
+
+チケット参照（moira-fire hook の UserPromptSubmit 検知、または人間の明示発火）を受けたら、emit の前に:
+
+1. **チケット内容を read-only で取得**（`gh issue view` 等の読み取りコマンド。読めなければ人間に要約を確認）。
+2. **ノード ID を提案**（チケット由来 ID 規約 — multi-repo での番号衝突を避けるため repo 名を含める）:
+   - GitHub `github.com/<owner>/<repo>/issues/<N>` → `gh-<repo小文字>-<N>`
+   - GitLab `…/<repo>/-/issues/<N>` → `gl-<repo小文字>-<N>`
+   - Jira `…/browse/<KEY>-<N>`・Backlog `…/view/<KEY>-<N>` → キーを小文字化した `<key>-<N>`（キー自体がプロジェクトスコープ）
+   - 裸 `#N` → repo 名は git remote から補完（ローカル設定・ネットワーク不要）。取れなければ `[人間確認]`。
+   - 既存 feature の改修・不具合なら**新ノードでなく合流先**を提案する（複数候補は `[人間確認]`）。
+3. **進め方を `[人間確認]`**（AskUserQuestion・1 回）: **A** 既存パイプラインに合流 / **B** plan→実行 / **C** 直接実行。
+   どのパターンでも**誕生は一度だけ** — emit 前に `moira log` で既存ノードの有無を確認する。
+
+### A. 既存パイプラインに合流（provider の振り付けが定義済みのとき）
+
+チケットは provider の**最初のフェーズへの入力**（cc-sdd なら discovery の素材）。
+[provider-reference §P2](provider-reference.md) の振り付けをそのまま実行し、feature ノードの
+`--label` にチケット URL を含める（例: `--label "<要約> (<url>)"`）。以降は通常フローと同一 —
+ticket 入口で**先回り emit しない**（二重誕生禁止）。
+
+### B. plan→実行（パイプライン未定義・計画は立てる）
+
+単一ノードの lifecycle で完結してよい（フェーズ子展開の省略は分解の深さ＝人間判断④・A1 射程）:
+
+1. 誕生＋見積提案: `moira add <ticket-id> --parent <root> --estimate <n> --label "<要約> (<url>)" --actor agent:claude`（proposed）。
+   見積がまだ立たないなら `--estimate` 無しで誕生し、計画後に再 add で提案する（**再 add でも `--parent` 必須**）。
+   分解が要るなら子ノード `moira add <ticket-id>/impl-N --parent <ticket-id> …`（深さは人間判断④）。
+2. `[人間確認]` → `moira agree <ticket-id>`（human 限定）→ `moira assign <ticket-id> --to <who> --slot <YYYY-MM-DD>`。
+3. 着手ゲート充足を確認 → `moira start <ticket-id> --actor agent:claude` → 作業 →
+   `moira done <ticket-id> --actor agent:claude` → **`moira cost <ticket-id> <実測md> --actor agent:claude`** →
+   人間レビュー通過で `moira accept <ticket-id>`。
+
+### C. 直接実行（最小儀式）
+
+**イベント列は B と同一**。`[人間確認]` を 1 回に束ねるだけ
+（「見積 <n>md 合意・担当 <who>・slot <date> でよいか」→ 承認後に `agree`＋`assign` を連続 emit → 即 `start`）。
+**省略されるのは儀式であってゲートではない** — 着手ゲート・AC 記録・5 判断の人間確認は B と同一。
+
+### 事後・注意
+
+- emit 後は通常どおり `moira show` を要約（EV%・カバレッジの変化）。
+- provider の drift（cc-sdd builtin 等）はチケット由来ノードを `unknown-node`（**報告のみ**）と分類する —
+  A1 射程では正当（[provider-reference §P4](provider-reference.md)）。恒常運用なら `.moira/adapter.json` の
+  `ignoreFeatures`/`ignoreNodes` への登録を案内する。
+- チケットの状態変化（クローズ等）は moira に自動反映**されない**し、moira の完了もチケットへ書き戻さ**ない**
+  （read-only 射影・D-19）。チケットのクローズ等は人間の指示によるプロセス側の操作であり、moira の記録とは独立。
 
 ## 着手ゲート（`start` の不変条件）
 

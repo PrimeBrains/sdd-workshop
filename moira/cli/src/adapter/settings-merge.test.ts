@@ -71,6 +71,21 @@ describe('mergeSettings', () => {
     const twice = mergeSettings(once, INJECTIONS).text;
     expect(twice).toBe(once);
   });
+
+  it('a matcher-less injection (UserPromptSubmit) creates a group WITHOUT a matcher key', () => {
+    const ups: HookInjection = { event: 'UserPromptSubmit', command: FIRE };
+    const r = mergeSettings(null, [ups]);
+    const obj = JSON.parse(r.text);
+    expect(obj.hooks.UserPromptSubmit).toEqual([{ hooks: [{ type: 'command', command: FIRE }] }]);
+    expect(Object.keys(obj.hooks.UserPromptSubmit[0])).toEqual(['hooks']); // no "matcher" key at all
+    // re-merge adopts (byte-identical), remove strips it back out
+    const again = mergeSettings(r.text, [ups]);
+    expect(again.changed).toBe(false);
+    expect(again.adopted).toHaveLength(1);
+    const removed = removeSettings(r.text, [ups]);
+    expect(removed.removed).toHaveLength(1);
+    expect(JSON.parse(removed.text).hooks).toBeUndefined();
+  });
 });
 
 describe('removeSettings', () => {

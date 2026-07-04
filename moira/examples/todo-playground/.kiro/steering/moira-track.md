@@ -15,6 +15,7 @@
 | きっかけ（トリガー） | 必ず発火するもの | 柵 |
 |---|---|---|
 | cc-sdd の節目に到達（下の対応表の各行） | 対応する `/moira-track <phase>` | 🔔 moira-fire hook が `.kiro/specs/**` の編集を検知して助言 |
+| ユーザーが**外部チケット参照**（issue URL / 番号）を渡して作業が始まる | `/moira-track ticket <ref>`（チケット駆動の入口 — 合流 / plan→実行 / 直接実行は `[人間確認]`） | 🔔 moira-fire hook（UserPromptSubmit） |
 | セッション開始時に **Moira drift 検知**が注入された | `/moira-track sync`（.kiro との突き合わせ・追いつき） | 🔔 moira-fire hook（SessionStart） |
 | `moira add` を打つ | **必ず `--parent <正しい親>`**（明示が最も誤解が無い。所属は latest-wins 置換＝issue #5 解消済みだが、意図しない親付けは木を黙って動かす） | 🔒 moira-guard hook が deny |
 | ノードを **start する前** | **着手ゲート**: 見積 agreed＋担当＋着手予定日(slot) を確認。未充足なら 見積合意 → `moira assign --slot` を先に | 🔔 moira-guard hook |
@@ -38,6 +39,7 @@
 | `/kiro-spec-tasks` 着手／承認（実装ノード誕生） | `/moira-track tasks --feature <name>` |
 | 実装の見積合意 | `/moira-track estimate-impl --feature <name>` |
 | `/kiro-impl` 実装→レビュー→承認 | `/moira-track impl --feature <name>` |
+| 外部チケット（GitHub/GitLab/Backlog/Jira）を渡された | `/moira-track ticket <ref>`（cc-sdd に乗せるなら discovery に合流） |
 | 発火の取りこぼしが疑わしい／drift 警告を見た | `/moira-track sync` |
 
 - **5 つの人間判断**（見積合意・割当・容量・スコープ・見積深さ）は、`moira-track` が**確認を取ってから** emit する。

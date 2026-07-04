@@ -37,6 +37,9 @@ describe('cmdInstall', () => {
     expect(settings.hooks.PreToolUse).toHaveLength(1);
     expect(settings.hooks.PostToolUse).toHaveLength(2);
     expect(settings.hooks.SessionStart).toHaveLength(1);
+    expect(settings.hooks.UserPromptSubmit).toHaveLength(1);
+    // matcher-less event → the group carries NO matcher key
+    expect(Object.keys(settings.hooks.UserPromptSubmit[0])).toEqual(['hooks']);
     const manifest = loadManifest(tmp)!;
     expect(Object.keys(manifest.files)).toHaveLength(MANAGED_FILES.length);
     expect(manifest.settingsInjected).toEqual(HOOK_INJECTIONS);
@@ -88,7 +91,30 @@ describe('cmdInstall', () => {
     const settingsText = read('.claude/settings.json');
     // guard command appears exactly twice (PreToolUse + PostToolUse) — no duplicates added
     expect(settingsText.split('moira-guard.mjs').length - 1).toBe(2);
-    expect(settingsText.split('moira-fire.mjs').length - 1).toBe(2);
+    // fire: PostToolUse(Edit…) + SessionStart + UserPromptSubmit
+    expect(settingsText.split('moira-fire.mjs').length - 1).toBe(3);
+  });
+
+  it('re-install upgrades an older (pre-0.6) install: adds the UserPromptSubmit hook, no duplicates', () => {
+    install();
+    // simulate a pre-0.6 install: strip the UserPromptSubmit group + manifest entry
+    const settingsPath = join(tmp, '.claude', 'settings.json');
+    const settings = JSON.parse(readFileSync(settingsPath, 'utf8'));
+    delete settings.hooks.UserPromptSubmit;
+    writeFileSync(settingsPath, `${JSON.stringify(settings, null, 2)}\n`);
+    const mfPath = join(tmp, '.claude', '.moira-adapter.json');
+    const mf = JSON.parse(readFileSync(mfPath, 'utf8'));
+    mf.settingsInjected = mf.settingsInjected.filter((i: { event: string }) => i.event !== 'UserPromptSubmit');
+    mf.adapterVersion = '0.5.0';
+    writeFileSync(mfPath, `${JSON.stringify(mf, null, 2)}\n`);
+
+    install();
+    const upgraded = JSON.parse(read('.claude/settings.json'));
+    expect(upgraded.hooks.UserPromptSubmit).toEqual([
+      { hooks: [{ type: 'command', command: HOOK_INJECTIONS[4]!.command }] },
+    ]);
+    expect(upgraded.hooks.PostToolUse).toHaveLength(2); // others not duplicated
+    expect(loadManifest(tmp)!.settingsInjected).toEqual(HOOK_INJECTIONS);
   });
 
   it('aborts whole install when settings.json is unparseable — nothing written', () => {
@@ -192,7 +218,7 @@ describe('cmdStatus', () => {
     expect(st.files['.claude/skills/moira-track/SKILL.md']).toBe('intact');
     expect(st.files['.claude/hooks/moira-fire.mjs']).toBe('modified');
     expect(st.files['.kiro/steering/moira-track.md']).toBe('missing');
-    expect(Object.values(st.settings)).toEqual([true, true, true, true]);
+    expect(Object.values(st.settings)).toEqual([true, true, true, true, true]);
     expect(st.environment).toEqual({ kiroDetected: true, moiraInitialized: false });
   });
 });
@@ -219,6 +245,7 @@ describe('cmdUninstall', () => {
     const settings = JSON.parse(read('.claude/settings.json'));
     expect(settings.hooks.PreToolUse[0].hooks).toEqual([{ type: 'command', command: 'echo mine' }]);
     expect(settings.hooks.PostToolUse).toBeUndefined();
+    expect(settings.hooks.UserPromptSubmit).toBeUndefined();
     expect(loadManifest(tmp)).toBeNull();
   });
 

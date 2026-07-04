@@ -17,6 +17,12 @@
 //     detected, run `moira adapter drift --json` ONCE (3s timeout, fail-open)
 //     and inject a summary when the log lags behind the artifacts. Advice:
 //     run `/moira-track sync`.
+//   - UserPromptSubmit (matcher-less):
+//     the prompt carries an external ticket reference (GitHub/GitLab/Backlog/
+//     Jira issue URL — or a bare #N / KEY-N alongside an intent keyword) →
+//     advise firing `/moira-track ticket <ref>` (ticket-driven flow, ADR-0004).
+//     Engine-generic: ticket-driven entry is orthogonal to the methodology
+//     (MODEL A1), so the provider config is NOT consulted — zero file IO.
 //
 // Contract: stdin = one JSON hook event; stdout = JSON-only additionalContext
 // (or nothing); always exit 0 — on ANY error we FAIL OPEN and stay silent.
@@ -294,10 +300,58 @@ function decideSessionStart(deps) {
   );
 }
 
+// ---------------------------------------------------------------------------
+// Ticket-driven flow detection (UserPromptSubmit — engine-generic, ADR-0004)
+// ---------------------------------------------------------------------------
+
+// Tier 1 — full ticket URLs fire unconditionally. The ticket system is
+// identified by its PATH SHAPE, host-agnostic where self-hosting is common
+// (GitLab `/-/issues/`, Jira `/browse/KEY-N`, Backlog `/view/KEY-N`).
+const TICKET_URL_PATTERNS = [
+  /https?:\/\/github\.com\/[\w.-]+\/[\w.-]+\/issues\/\d+/g,
+  /https?:\/\/[^\s"'<>]+\/-\/issues\/\d+/g,
+  /https?:\/\/[^\s"'<>]+\/browse\/[A-Z][A-Z0-9_]+-\d+/g,
+  /https?:\/\/[^\s"'<>]+\/view\/[A-Z][A-Z0-9_]+-\d+/g,
+];
+// Tier 2 — bare refs (#123 / PROJ-123) fire ONLY alongside an intent keyword:
+// a bare #N alone collides with PR refs / markdown headings, a bare KEY-N with
+// UTF-8 / SHA-256 style tokens (the worst offenders are blocklisted too).
+// Residual false positives are accepted — the advice is non-blocking (ADR-0004).
+const TICKET_KEYWORD = /issue|イシュー|チケット|ticket|バグ|不具合|障害|incident/i;
+const BARE_REF_PATTERNS = [/(?:^|[\s(（「『])(#\d+)(?=$|[^\w#])/g, /(?:^|[^\w/.-])([A-Z][A-Z0-9_]+-\d+)(?=$|[^\w-])/g];
+const NOT_A_TICKET_KEY = /^(?:UTF|SHA|ISO|RFC|CVE)-/;
+
+function decideUserPromptSubmit(input) {
+  const prompt = input.prompt;
+  if (typeof prompt !== 'string' || prompt === '') return undefined;
+  if (/^\s*\/moira-track\b/.test(prompt)) return undefined; // already firing — stay out of the way
+  const refs = [];
+  for (const re of TICKET_URL_PATTERNS) {
+    for (const m of prompt.matchAll(re)) refs.push(m[0]);
+  }
+  if (refs.length === 0 && TICKET_KEYWORD.test(prompt)) {
+    for (const re of BARE_REF_PATTERNS) {
+      for (const m of prompt.matchAll(re)) {
+        if (!NOT_A_TICKET_KEY.test(m[1])) refs.push(m[1]);
+      }
+    }
+  }
+  if (refs.length === 0) return undefined;
+  const shown = [...new Set(refs)].slice(0, 3).join(' / ');
+  return ctx(
+    'UserPromptSubmit',
+    `チケット参照を検知: ${shown} — この作業を Moira で追跡するなら /moira-track ticket <ref> を発火する` +
+      '（振り付けは moira-track スキルの「チケット駆動の入口」節: 既存パイプラインがあればその最初のフェーズに合流・' +
+      '無ければ plan→実行 または 直接実行の最小儀式）。emit はスキルの責務・5 判断の人間ゲートは不変。' +
+      '既にノード化済みのチケット（moira log で確認）なら再発火は不要。',
+  );
+}
+
 /** Decision core (exported for tests; deps.runDrift is injectable). */
 export function decide(input, deps = { runDrift }) {
   const event = input.hook_event_name;
   if (event === 'PostToolUse') return decidePostToolUse(input);
+  if (event === 'UserPromptSubmit') return decideUserPromptSubmit(input);
   if (event === 'SessionStart') return decideSessionStart(deps);
   return undefined;
 }

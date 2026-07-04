@@ -105,6 +105,11 @@ export function renderProviderReference(cfg: ProviderConfig): string {
   lines.push('|---|---|');
   lines.push(triggerRows(cfg));
   lines.push('');
+  lines.push(
+    'プロンプト中のチケット参照（issue URL / 意図キーワード同伴の `#N`）は UserPromptSubmit で検知され ' +
+      '`/moira-track ticket <ref>` が助言される（**エンジン汎用** — provider 設定の triggers ではなく hook 内蔵。ADR-0004）。',
+  );
+  lines.push('');
   lines.push('---');
   lines.push('');
   lines.push('## §P4 drift 突き合わせ契約');
@@ -156,6 +161,7 @@ export function renderSteering(cfg: ProviderConfig): string {
   lines.push('| きっかけ（トリガー） | 必ず発火するもの | 柵 |');
   lines.push('|---|---|---|');
   lines.push('| 方法論の節目に到達（下の対応表の各行） | 対応する `/moira-track <phase>` | 🔔 moira-fire hook が provider 設定の triggers で検知して助言 |');
+  lines.push('| ユーザーが**外部チケット参照**（issue URL / 番号）を渡して作業が始まる | `/moira-track ticket <ref>`（チケット駆動の入口 — 合流 / plan→実行 / 直接実行は `[人間確認]`） | 🔔 moira-fire hook（UserPromptSubmit・エンジン汎用） |');
   lines.push('| セッション開始時に **Moira drift 検知**が注入された | `/moira-track sync`（成果物との突き合わせ・追いつき） | 🔔 moira-fire hook（SessionStart） |');
   lines.push('| `moira add` を打つ | **必ず `--parent <正しい親>`**（明示が最も誤解が無い） | 🔒 moira-guard hook が deny |');
   lines.push('| ノードを **start する前** | **着手ゲート**: 見積 agreed＋担当＋着手予定日(slot) を確認。未充足なら 見積合意 → `moira assign --slot` を先に | 🔔 moira-guard hook |');

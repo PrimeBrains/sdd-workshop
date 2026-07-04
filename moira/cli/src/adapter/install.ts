@@ -67,6 +67,8 @@ export const HOOK_INJECTIONS: readonly HookInjection[] = [
   { event: 'PostToolUse', matcher: 'Bash', command: GUARD_CMD },
   { event: 'PostToolUse', matcher: 'Edit|MultiEdit|Write|NotebookEdit', command: FIRE_CMD },
   { event: 'SessionStart', matcher: 'startup|resume|clear', command: FIRE_CMD },
+  // matcher-less event — ticket-driven flow detection (ADR-0004)
+  { event: 'UserPromptSubmit', command: FIRE_CMD },
 ];
 
 const CLAUDE_MD_BEGIN = '<!-- moira-adapter:begin -->';
