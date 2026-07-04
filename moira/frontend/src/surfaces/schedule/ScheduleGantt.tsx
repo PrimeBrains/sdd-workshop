@@ -19,11 +19,19 @@ const ROW_H = 26;
 const HEAD_H = 30;
 const LABEL_W = 250;
 
+const EMPTY_SET: ReadonlySet<NodeId> = new Set();
+
 interface Props {
   model: GanttModel;
   asOf: IsoDate;
   selected: NodeId | null;
   onSelect: (node: NodeId) => void;
+  /**
+   * Nodes on the P7 dependency longest chain (critical path, issue #16) —
+   * derived in the store, projected here read-only. Empty when the chain does
+   * not cross a dependency edge (a single node is not a chain).
+   */
+  cpSet?: ReadonlySet<NodeId>;
   dayW?: number;
 }
 
@@ -33,7 +41,7 @@ const divColor: Record<DivTone, string> = {
   none: EVM.ink3,
 };
 
-export function ScheduleGantt({ model, asOf, selected, onSelect, dayW = 18 }: Props) {
+export function ScheduleGantt({ model, asOf, selected, onSelect, cpSet = EMPTY_SET, dayW = 18 }: Props) {
   const { rows, start, totalDays } = model;
   const trackW = totalDays * dayW;
   const xOf = (d: IsoDate) => daysBetween(start, d) * dayW;
@@ -122,11 +130,13 @@ export function ScheduleGantt({ model, asOf, selected, onSelect, dayW = 18 }: Pr
             const isAgent = r.kind === 'agent';
             // dim done rows always; dim ancestor-scaffolding rows harder (issue #8)
             const opacity = r.contextOnly ? 0.5 : r.completed ? 0.55 : 1;
+            const onCp = cpSet.has(r.node);
             return (
               <div
                 key={r.node}
                 data-testid={`gantt-row:${r.node}`}
                 data-context-only={r.contextOnly ? 'true' : undefined}
+                data-critical-path={onCp ? 'true' : undefined}
                 className="evm-row"
                 onClick={() => onSelect(r.node)}
                 title={r.contextOnly ? '絞り込みの文脈として表示（祖先）' : undefined}
@@ -213,10 +223,14 @@ export function ScheduleGantt({ model, asOf, selected, onSelect, dayW = 18 }: Pr
                     />
                   )}
 
-                  {/* live EAC bar (solid) */}
+                  {/* live EAC bar (solid); critical-path nodes get an outline (issue #16) */}
                   {r.isLeaf && r.predicted !== null && (
                     <div
-                      title={`生きた予測 完了 ${r.predicted}`}
+                      title={
+                        onCp
+                          ? `生きた予測 完了 ${r.predicted} ／ クリティカルパス上（critical path = dependency longest chain・依存のつながりで最長の経路。同一担当者の詰まりによる律速は含みません）`
+                          : `生きた予測 完了 ${r.predicted}`
+                      }
                       style={{
                         position: 'absolute',
                         left: xOf(r.predicted) - nominalDays(r) * dayW,
@@ -224,6 +238,8 @@ export function ScheduleGantt({ model, asOf, selected, onSelect, dayW = 18 }: Pr
                         top: 6,
                         height: ROW_H - 12,
                         borderRadius: 3,
+                        outline: onCp ? `2px solid ${EVM.crit}` : 'none',
+                        outlineOffset: 1.5,
                         border: `1.5px solid ${isAgent ? EVM.agent : EVM.brandDeep}`,
                         background: r.completed
                           ? isAgent
@@ -300,6 +316,14 @@ export function ScheduleGantt({ model, asOf, selected, onSelect, dayW = 18 }: Pr
         <span style={{ color: EVM.ahead }}>● 先行（予測 &lt; 凍結）</span>
         <span>○ 未完=基準日上 / ●塗り=完了は凍結slot位置</span>
         <span style={{ color: EVM.crit }}>▨ PV不算入（完了・未スケジュール）</span>
+        {cpSet.size > 0 && (
+          <span
+            style={{ color: EVM.crit }}
+            title="critical path = dependency longest chain（P7）。依存関係で結ばれた作業のうち所要日数の合計が最長の経路。同一担当者の詰まり（資源起因の遅れ）は含みません"
+          >
+            ▣ クリティカルパス（依存のつながりで最長の経路）
+          </span>
+        )}
         <span>点は完了/未完了の事実のみ（進捗%の按分はしません）</span>
       </div>
     </div>

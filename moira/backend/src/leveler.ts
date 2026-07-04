@@ -36,15 +36,13 @@ export interface LevelResult {
 const MAX_DAYS = 3650; // guard against an all-zero-capacity run
 const EPSILON = 1e-9;
 
-export function level(
-  state: ProjectedState,
-  eff: EffectiveSet,
-  capacityOf: CapacityLookup,
-  startDate: IsoDate,
-): LevelResult {
-  // Schedulable = effective leaves that are agreed, assigned, and estimated.
-  // (Need an assignee to consume capacity and an estimate for a duration.)
-  const schedulable = eff.effectiveLeaves.filter((id) => {
+/**
+ * Schedulable = effective leaves that are agreed, assigned, and estimated.
+ * (Need an assignee to consume capacity and an estimate for a duration.)
+ * Shared with derivations/critical-path.ts so the two never drift (issue #16).
+ */
+export function schedulableLeaves(state: ProjectedState, eff: EffectiveSet): NodeId[] {
+  return eff.effectiveLeaves.filter((id) => {
     const n = state.nodes.get(id);
     return (
       n !== undefined &&
@@ -53,6 +51,26 @@ export function level(
       n.latestEstimate !== null
     );
   });
+}
+
+/**
+ * Human nominal duration at full capacity = ceil(est / 1.0); agent lead
+ * time = ceil(est) (P6/R-T2). Used for critical-path ranking only.
+ * Shared with derivations/critical-path.ts (issue #16).
+ */
+export function nominalDurationDays(state: ProjectedState, id: NodeId): number {
+  const n = state.nodes.get(id);
+  const est = n?.latestEstimate ?? 0;
+  return Math.max(1, Math.ceil(est));
+}
+
+export function level(
+  state: ProjectedState,
+  eff: EffectiveSet,
+  capacityOf: CapacityLookup,
+  startDate: IsoDate,
+): LevelResult {
+  const schedulable = schedulableLeaves(state, eff);
   const schedSet = new Set(schedulable);
 
   // Dependency edges among the schedulable set only (minimal slice: a
@@ -61,13 +79,7 @@ export function level(
     (e) => schedSet.has(e.from) && schedSet.has(e.to),
   );
 
-  const durationDays = (id: NodeId): number => {
-    const n = state.nodes.get(id);
-    const est = n?.latestEstimate ?? 0;
-    // Human nominal duration at full capacity = ceil(est / 1.0); agent lead
-    // time = ceil(est) (P6/R-T2). Used for critical-path ranking only.
-    return Math.max(1, Math.ceil(est));
-  };
+  const durationDays = (id: NodeId): number => nominalDurationDays(state, id);
 
   // Adjacency + in-degree over schedulable nodes.
   const succ = new Map<NodeId, NodeId[]>();

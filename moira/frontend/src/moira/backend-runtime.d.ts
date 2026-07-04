@@ -53,6 +53,17 @@ declare module '@backend/derivations/landing.js' {
   ): LandingCurve;
 }
 
+declare module '@backend/derivations/critical-path.js' {
+  import type { Event, NodeId } from '@backend/types';
+  export interface CriticalPath {
+    /** One deterministic maximal dependency chain, upstream → downstream. */
+    path: NodeId[];
+    /** Σ nominal duration days along the chain (0 when nothing is schedulable). */
+    lengthDays: number;
+  }
+  export function computeCriticalPath(events: readonly Event[]): CriticalPath;
+}
+
 declare module '@backend/fixtures/tiny-project.js' {
   import type { Event } from '@backend/types';
   export const tinyProjectEvents: readonly Event[];
