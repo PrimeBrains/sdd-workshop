@@ -202,7 +202,7 @@ export function ScheduleGantt({ model, asOf, selected, onSelect, dayW = 18 }: Pr
                   {/* frozen PMB band (dashed) */}
                   {r.isLeaf && r.frozenSlot !== null && (
                     <div
-                      title={`凍結PV slot 完了 ${r.frozenSlot}`}
+                      title={`基準完了日（ベースライン） ${r.frozenSlot}`}
                       style={{
                         position: 'absolute',
                         left: xOf(r.frozenSlot) - nominalDays(r) * dayW,
@@ -242,7 +242,7 @@ export function ScheduleGantt({ model, asOf, selected, onSelect, dayW = 18 }: Pr
                   {/* state C: completed but frozenSlot = null → PV-excluded gap */}
                   {r.isLeaf && r.slotState === 'complete-unscheduled' && (
                     <div
-                      title="完了・未スケジュール（PVに載らない可視ギャップ R-S6）"
+                      title="完了・未スケジュール（PVに算入されません）"
                       style={{
                         position: 'absolute',
                         left: Math.max(0, baseX - nominalDays(r) * dayW),
@@ -297,13 +297,13 @@ export function ScheduleGantt({ model, asOf, selected, onSelect, dayW = 18 }: Pr
 
       {/* legend */}
       <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', padding: '8px 4px 2px', fontSize: 10.5, color: EVM.ink3 }}>
-        <span>破線帯=凍結PV slot（PMB）</span>
+        <span>破線帯=計画（PMB・基準完了日）</span>
         <span>実線バー=生きた予測（EAC）</span>
         <span style={{ color: EVM.behind }}>● 遅れ（予測 &gt; 凍結）</span>
         <span style={{ color: EVM.ahead }}>● 先行（予測 &lt; 凍結）</span>
         <span>○ 未完=基準日上 / ●塗り=完了は凍結slot位置</span>
         <span style={{ color: EVM.crit }}>▨ PV不算入（完了・未スケジュール）</span>
-        <span>稲妻線の点は導出のみ・部分クレジット無し（P1）</span>
+        <span>点は完了/未完了の事実のみ（進捗%の按分はしません）</span>
       </div>
     </div>
   );

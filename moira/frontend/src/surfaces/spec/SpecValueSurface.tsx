@@ -10,6 +10,7 @@ import { EVM } from '../../theme/tokens';
 import { Bar, Card, EstimatePill, LifecyclePill, Pill, SectionTitle } from '../../theme/atoms';
 import { useMoira } from '../../moira/hooks';
 import { labelOf } from '../../moira/labels';
+import { ESTIMATE_JA, EDGE_POLICY_JA } from '../../moira/glossary';
 import { buildGanttModel } from '../schedule/gantt-geometry';
 
 const pct = (v: number, d = 0) => `${(v * 100).toFixed(d)}%`;
@@ -35,14 +36,14 @@ export function SpecValueSurface() {
               <span data-testid="metric:estimate-coverage" className="mono">{pct(derived.estimateCoverage)}</span>
             </div>
             <Bar value={derived.estimateCoverage} tone="brand" derate={covLow} />
-            {covLow && <span style={{ fontSize: 10.5, color: EVM.ink3 }}>霧の中の既知部分の達成度（低カバレッジ de-rate・R-S4）</span>}
+            {covLow && <span style={{ fontSize: 10.5, color: EVM.ink3 }}>見積合意済みの範囲内での達成度（未合意分は含みません）</span>}
           </div>
         </div>
       </Card>
 
       {/* node tree */}
       <Card>
-        <SectionTitle hint="feature ─ req/design/tasks/impl ／ 有効木（supersede/cancel 除外）">ノード木 ＋ 状態</SectionTitle>
+        <SectionTitle hint="feature ─ req/design/tasks/impl ／ 現行の木（置き換え/中止済みを除外）">ノード木 ＋ 状態</SectionTitle>
         <div style={{ display: 'flex', flexDirection: 'column' }}>
           {model.rows.map((r) => {
             const ev = r.completed && r.estimateState === 'agreed' ? r.frozenBudget ?? 0 : 0;
@@ -68,7 +69,7 @@ export function SpecValueSurface() {
 
       {/* coverage table */}
       <Card>
-        <SectionTitle hint="数値は backend coverage.ts 定義（二truth 回避）">被覆マトリクス（有効葉）</SectionTitle>
+        <SectionTitle hint="数値は単一の導出計算に基づく（画面側での再計算なし）">被覆マトリクス（有効葉）</SectionTitle>
         <div style={{ display: 'flex', gap: 20, marginBottom: 10, flexWrap: 'wrap' }}>
           <CovStat label="見積カバレッジ" v={derived.estimateCoverage} tone="brand" />
           <CovStat label="スケジュールカバレッジ" v={derived.scheduleCoverage} tone="ok" />
@@ -91,8 +92,8 @@ export function SpecValueSurface() {
               return (
                 <tr key={r.node} data-testid={`cov-row:${r.node}`} style={{ background: agreed ? 'transparent' : 'rgba(184,72,46,0.06)' }}>
                   <td style={{ padding: '4px 6px' }}>{r.label}</td>
-                  <td style={{ padding: '4px 6px' }}>{agreed ? <Pill tone="ok">agreed</Pill> : <Pill tone="crit">proposed</Pill>}</td>
-                  <td style={{ padding: '4px 6px' }}>{scheduled ? <Pill tone="brand">slot</Pill> : <Pill tone="warn">未</Pill>}</td>
+                  <td style={{ padding: '4px 6px' }}>{agreed ? <Pill tone="ok" title="agreed">{ESTIMATE_JA.agreed}</Pill> : <Pill tone="crit" title="proposed">{ESTIMATE_JA.proposed}</Pill>}</td>
+                  <td style={{ padding: '4px 6px' }}>{scheduled ? <Pill tone="brand">予定日あり</Pill> : <Pill tone="warn">未</Pill>}</td>
                   <td style={{ padding: '4px 6px' }}>{r.completed ? <Pill tone="ok">完了</Pill> : <span style={{ color: EVM.ink4 }}>—</span>}</td>
                   <td className="mono" style={{ padding: '4px 6px', textAlign: 'right', color: ev > 0 ? EVM.ok : EVM.ink4 }}>{ev}</td>
                 </tr>
@@ -104,20 +105,20 @@ export function SpecValueSurface() {
 
       {/* traceability */}
       <Card>
-        <SectionTitle hint="dependency と supersede を別種で描き分け">トレーサビリティ（relate DAG）</SectionTitle>
+        <SectionTitle hint="依存と置き換えを別種で描き分け">トレーサビリティ（依存関係）</SectionTitle>
         <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
           <div style={{ flex: '1 1 280px' }}>
             <div style={{ fontSize: 11, color: EVM.ink3, marginBottom: 4 }}>依存（dependency）</div>
             <div className="mono" style={{ fontSize: 11.5, display: 'flex', flexDirection: 'column', gap: 2 }}>
               {projected.dependencyEdges.map((e, i) => (
                 <div key={i} style={{ color: EVM.ink2 }}>
-                  {labelOf(e.from)} <span style={{ color: EVM.brandDeep }}>──{e.policy}──▸</span> {labelOf(e.to)}
+                  {labelOf(e.from)} <span style={{ color: EVM.brandDeep }}>──{EDGE_POLICY_JA[e.policy]}──▸</span> {labelOf(e.to)}
                 </div>
               ))}
             </div>
           </div>
           <div style={{ flex: '1 1 280px' }}>
-            <div style={{ fontSize: 11, color: EVM.ink3, marginBottom: 4 }}>supersede（新 → 旧・現行有効集合から旧を除外）</div>
+            <div style={{ fontSize: 11, color: EVM.ink3, marginBottom: 4 }}>置き換え（新 → 旧・旧は現行集計から除外）</div>
             <div className="mono" style={{ fontSize: 11.5, display: 'flex', flexDirection: 'column', gap: 2 }}>
               {projected.supersedeEdges.length === 0 ? (
                 <span style={{ color: EVM.ink4 }}>なし</span>

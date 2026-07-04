@@ -10,6 +10,7 @@ import { EVM } from '../../theme/tokens';
 import { Card, Pill, SectionTitle } from '../../theme/atoms';
 import { useMoira } from '../../moira/hooks';
 import { computeInbox } from '../../moira/warnings';
+import { DECISION_JA } from '../../moira/glossary';
 import type { SurfaceId } from '../../app/types';
 
 const SURFACE_LABEL: Record<SurfaceId, string> = {
@@ -33,7 +34,7 @@ export function DecisionInboxSurface({ onNavigate }: { onNavigate: (s: SurfaceId
         <div style={{ fontSize: 12.5, color: EVM.ink2 }}>
           コミット判断と<b>判断を要する警告</b>を集約し、文脈ビューの write へ deep-link。
           <b>自前状態なし</b>（dismiss/既読ボタンはありません）。行為を追記→導出再評価で条件が偽化した項目は自動消滅します。
-          de-rate 型（R-S4/R-S6）は health/spec-value の常時メトリクス修飾ゆえ非集約。
+          カバレッジ低下の注意表示は health / 仕様・価値ビューに常時表示のため、ここには集約しません。
         </div>
         <div style={{ display: 'flex', gap: 10, marginTop: 10, alignItems: 'center' }}>
           <Pill tone={warnings.length > 0 ? 'warn' : 'ok'}>判断要 {items.length} 件</Pill>
@@ -80,7 +81,7 @@ function Item({
   return (
     <div style={{ border: `1px solid ${EVM.rule}`, borderRadius: 8, padding: '8px 10px', background: EVM.paperWarm }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <Pill tone={it.kind === 'warning' ? 'warn' : 'brand'}>{it.rid}</Pill>
+        <Pill tone={it.kind === 'warning' ? 'warn' : 'brand'} title={it.rid}>{DECISION_JA[it.rid] ?? it.rid}</Pill>
         <span style={{ fontSize: 12.5, color: EVM.ink }}>{it.title}</span>
         <button
           onClick={() => onNavigate(it.surface)}

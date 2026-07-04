@@ -5,6 +5,7 @@ import type { CSSProperties, ReactNode } from 'react';
 import { EVM } from './tokens';
 import type { LifecycleState, EstimateState, Actor } from '../moira/engine';
 import { actorLabel } from '../moira/labels';
+import { LIFECYCLE_JA, ESTIMATE_JA } from '../moira/glossary';
 
 export type Tone = 'neutral' | 'brand' | 'ok' | 'warn' | 'crit' | 'na' | 'agent';
 
@@ -78,28 +79,19 @@ const LIFECYCLE_TONE: Record<LifecycleState, Tone> = {
   accepted: 'ok',
   cancelled: 'crit',
 };
-const LIFECYCLE_LABEL: Record<LifecycleState, string> = {
-  pending: 'pending',
-  ready: 'ready',
-  implementing: 'implementing',
-  implemented: 'implemented',
-  accepted: 'accepted',
-  cancelled: 'cancelled',
-};
-
 export function LifecyclePill({ state }: { state: LifecycleState }) {
   return (
-    <Pill tone={LIFECYCLE_TONE[state]} testid="lifecycle-badge">
-      {LIFECYCLE_LABEL[state]}
+    <Pill tone={LIFECYCLE_TONE[state]} title={state} testid="lifecycle-badge">
+      {LIFECYCLE_JA[state]}
     </Pill>
   );
 }
 
 export function EstimatePill({ state }: { state: EstimateState }) {
   return state === 'agreed' ? (
-    <Pill tone="ok" testid="estimate-badge">agreed</Pill>
+    <Pill tone="ok" title="agreed" testid="estimate-badge">{ESTIMATE_JA.agreed}</Pill>
   ) : (
-    <Pill tone="na" title="未合意（EV_abs寄与0・PV不算入）" testid="estimate-badge">proposed*</Pill>
+    <Pill tone="na" title="proposed — 未合意のため出来高(EV)0・計画価値(PV)不算入" testid="estimate-badge">{ESTIMATE_JA.proposed}*</Pill>
   );
 }
 

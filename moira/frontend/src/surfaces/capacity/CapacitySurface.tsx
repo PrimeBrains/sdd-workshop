@@ -131,7 +131,7 @@ export function CapacitySurface() {
     <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start', padding: 16 }}>
       <div style={{ flex: '1 1 auto', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
         <Card pad={12}>
-          <SectionTitle hint="セル=最新値の射影／クリックで右パネルに改定起票（追記専用 R-U14）">
+          <SectionTitle hint="セル=最新値の射影／クリックで右パネルに改定起票（追記専用・上書きなし）">
             capacity ヒートマップ（人 × 日）
           </SectionTitle>
           <div style={{ overflowX: 'auto' }}>
@@ -154,7 +154,7 @@ export function CapacitySurface() {
                       {d === asOf && <div style={{ fontSize: 8 }}>基準日</div>}
                     </th>
                   ))}
-                  <th style={{ fontSize: 10, color: EVM.ink3, padding: '2px 6px' }}>α_i</th>
+                  <th title="α_i" style={{ fontSize: 10, color: EVM.ink3, padding: '2px 6px' }}>契約稼働率</th>
                 </tr>
               </thead>
               <tbody>
@@ -212,12 +212,12 @@ export function CapacitySurface() {
             <span style={{ color: '#3c6b22' }}>■ 契約</span>
             <span style={{ color: '#8a6c1a' }}>▨ 一時減 / 祝日</span>
             <span style={{ color: EVM.crit }}>■ c=0（休暇/祝日）</span>
-            <span>α_i は c の契約成分の導出値（読取専用）</span>
+            <span title="α_i">契約稼働率 は c の契約成分の導出値（読取専用）</span>
           </div>
         </Card>
 
         <Card pad={12}>
-          <SectionTitle hint="R-U14 追記専用・理由付き・ts（編集/削除なし）">改定履歴</SectionTitle>
+          <SectionTitle hint="追記専用・理由付き（編集/削除なし）">改定履歴</SectionTitle>
           {capacityEntries.length === 0 ? (
             <div style={{ fontSize: 12, color: EVM.ink3 }}>改定はまだありません。</div>
           ) : (
@@ -246,7 +246,7 @@ export function CapacitySurface() {
               対象: <b>{DEMO_ACTORS[sel.humanId]?.label}</b> × <span className="mono">{sel.date}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12, color: EVM.ink3, background: EVM.ruleSoft, borderRadius: 6, padding: '6px 8px', cursor: 'not-allowed' }}>
-              <span>α_i（契約成分・読取専用）</span>
+              <span title="α_i">契約稼働率（契約成分・読取専用）</span>
               <span className="mono">{alphaOf(capacityEntries, sel.humanId, sel.date).toFixed(1)}</span>
             </div>
 
@@ -292,7 +292,7 @@ export function CapacitySurface() {
             {reason === 'contract' && (
               <div style={{ fontSize: 11, color: '#3c6b22', background: EVM.okSoft, border: '1px solid #c4d8a8', borderRadius: 6, padding: '6px 8px' }}>
                 これは組織コミット（contract）。本来は decision インボックスへ第5コミット判断として記録されます。
-                <b>（commit-decision 導出が backend 未実装ゆえ inbox 連動は保留・§0 #7）</b>
+                <b>（インボックス連動は今後対応）</b>
               </div>
             )}
 
@@ -328,7 +328,7 @@ export function CapacitySurface() {
                   予測完了が変わる葉: {preview.changed} 件
                 </div>
                 <div style={{ fontSize: 10.5, color: EVM.ink3, marginTop: 4 }}>
-                  プレビューと確定は同一 derive()/level() を通る（フロント近似なし・§5.4）。
+                  プレビューと確定は同一の導出計算を通ります（画面側の近似なし）。
                 </div>
               </div>
             )}

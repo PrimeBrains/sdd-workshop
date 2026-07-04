@@ -43,7 +43,7 @@ describe('surfaces render without throwing', () => {
     const html = wrap(<CapacitySurface />);
     expect(html).toContain('capacity ヒートマップ');
     expect(html).toContain('改定履歴');
-    expect(html).toContain('α_i');
+    expect(html).toContain('契約稼働率');
     expect(html).toContain('田中');
   });
 
@@ -52,14 +52,14 @@ describe('surfaces render without throwing', () => {
     expect(html).toContain('ノード木');
     expect(html).toContain('被覆マトリクス');
     expect(html).toContain('トレーサビリティ');
-    expect(html).toContain('supersede');
+    expect(html).toContain('置き換え');
   });
 
   it('decision inbox (warnings + commits, no dismiss)', () => {
     const html = wrap(<DecisionInboxSurface onNavigate={() => {}} />);
     expect(html).toContain('判断要');
     expect(html).toContain('コミット判断');
-    expect(html).toContain('R-U12'); // demo trigger fires (conflicting agreement)
-    expect(html).toContain('P5'); // demo trigger fires (design diff-back at-risk)
+    expect(html).toContain('見積合意の矛盾'); // demo trigger fires (conflicting agreement)
+    expect(html).toContain('差し戻しリスク'); // demo trigger fires (design diff-back at-risk)
   });
 });

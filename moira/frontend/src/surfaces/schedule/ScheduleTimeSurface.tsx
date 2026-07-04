@@ -53,7 +53,7 @@ export function ScheduleTimeSurface() {
                 </button>
               ))}
               <span
-                title="視点 actor が backend に無いためブロッカー（§0 #2）。valid-time/視点 actor 拡張で解禁。"
+                title="現在のユーザー情報が未設定のため使用できません"
                 style={{ fontSize: 11.5, border: `1px dashed ${EVM.rule}`, background: EVM.ruleSoft, color: EVM.ink4, borderRadius: 999, padding: '3px 11px', cursor: 'not-allowed' }}
               >
                 自分（backend拡張待ち）
@@ -74,7 +74,7 @@ export function ScheduleTimeSurface() {
             </div>
           </div>
           <div style={{ fontSize: 10.5, color: EVM.ink3, marginTop: 6 }}>
-            SPI＝スケジュール済み領域内の進捗率（全体進捗ではない・R-S6）。低カバレッジ時は淡色 de-rate。
+            SPI＝スケジュール済み領域内の進捗率（全体進捗ではない）。カバレッジが低いときは斜線の注意表示。
           </div>
         </Card>
 
@@ -101,7 +101,7 @@ export function ScheduleTimeSurface() {
 
         {/* gantt */}
         <Card pad={10}>
-          <SectionTitle hint="木×DAG 射影／凍結PMB ＋ 生きた予測（R-S7）">Gantt</SectionTitle>
+          <SectionTitle hint="凍結ベースライン(PMB) ＋ 生きた予測(EAC)">Gantt</SectionTitle>
           <ScheduleGantt model={model} asOf={asOf} selected={selected} onSelect={setSelected} />
         </Card>
       </div>

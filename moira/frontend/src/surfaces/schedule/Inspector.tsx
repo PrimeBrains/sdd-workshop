@@ -9,6 +9,7 @@ import { EVM } from '../../theme/tokens';
 import { Card, EstimatePill, LifecyclePill, Pill, Avatar } from '../../theme/atoms';
 import { useMoira } from '../../moira/hooks';
 import { actorLabel, labelOf } from '../../moira/labels';
+import { LIFECYCLE_JA } from '../../moira/glossary';
 import { DEMO_ACTORS } from '../../moira/demo-data';
 import type { Actor, Event, LifecycleState, NodeId } from '../../moira/engine';
 
@@ -86,7 +87,7 @@ export function Inspector({ node }: { node: NodeId | null }) {
       machine: 'lifecycle',
       to,
     };
-    stage(ev, `lifecycle: ${n.lifecycle} → ${to}`);
+    stage(ev, `状態: ${LIFECYCLE_JA[n.lifecycle]} → ${LIFECYCLE_JA[to]}`);
   };
   const agreeDraft = () => {
     const ev: Event = {
@@ -98,7 +99,7 @@ export function Inspector({ node }: { node: NodeId | null }) {
       to: 'agreed',
       ...(n.latestEstimate !== null ? { frozenBudget: n.latestEstimate } : {}),
     };
-    stage(ev, `estimate: proposed → agreed（frozenBudget=${n.latestEstimate ?? '—'} MD, by 田中）`);
+    stage(ev, `見積: 提案中 → 合意（確定予算=${n.latestEstimate ?? '—'} MD）`);
   };
   const reestimateDraft = () => {
     const ev: Event = {
@@ -109,7 +110,7 @@ export function Inspector({ node }: { node: NodeId | null }) {
       machine: 'estimate-agreement',
       to: 'proposed',
     };
-    stage(ev, 'estimate: agreed → proposed（再見積・要再合意）');
+    stage(ev, '見積: 合意済 → 提案中（再見積・要再合意）');
   };
   const reassignDraft = (a: Actor) => {
     const ev: Event = {
@@ -121,7 +122,7 @@ export function Inspector({ node }: { node: NodeId | null }) {
       to: n.lifecycle === 'pending' ? 'ready' : n.lifecycle,
       assignee: a,
     };
-    stage(ev, `担当 → ${actorLabel(a)}（latest-wins R-T5）`);
+    stage(ev, `担当 → ${actorLabel(a)}（最新の割当が有効）`);
   };
 
   return (
@@ -165,7 +166,7 @@ export function Inspector({ node }: { node: NodeId | null }) {
       {(overdue || forecastBehind || costAhead || !agreed || frozenSlot === null) && (
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           {overdue && <Pill tone="crit">遅延中 — 予測 {predicted} を過ぎて未完了</Pill>}
-          {forecastBehind && <Pill tone="warn">予測 {predicted} が基準 {frozenSlot} に遅延（R-S7）</Pill>}
+          {forecastBehind && <Pill tone="warn">予測 {predicted} が基準 {frozenSlot} より遅延</Pill>}
           {costAhead && <Pill tone="warn">仕掛中 — AC {ac}MD 計上・EV 未計上</Pill>}
           {!agreed && <Pill tone="na">未合意 → EV 0</Pill>}
           {frozenSlot === null && <Pill tone="crit">未スケジュール → PV 不算入</Pill>}
@@ -181,7 +182,7 @@ export function Inspector({ node }: { node: NodeId | null }) {
         <div style={{ fontSize: 11, color: EVM.ink3, marginBottom: 6 }}>行為（イベント追記・確認後に確定）</div>
         <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
           {FORWARD.filter((s) => s !== n.lifecycle).map((s) => (
-            <ActBtn key={s} onClick={() => lifecycleDraft(s)}>→{s}</ActBtn>
+            <ActBtn key={s} title={s} onClick={() => lifecycleDraft(s)}>→{LIFECYCLE_JA[s]}</ActBtn>
           ))}
           {!agreed ? (
             <ActBtn tone="ok" onClick={agreeDraft}>合意（人間のみ）</ActBtn>
@@ -223,17 +224,18 @@ export function Inspector({ node }: { node: NodeId | null }) {
               取消
             </button>
           </div>
-          <div style={{ fontSize: 10.5, color: EVM.ink3 }}>追記すると derive() が再実行され、全画面のメトリクスがライブ更新されます（R-S2）。</div>
+          <div style={{ fontSize: 10.5, color: EVM.ink3 }}>追記すると再計算が走り、全画面のメトリクスがライブ更新されます。</div>
         </div>
       )}
     </Card>
   );
 }
 
-function ActBtn({ children, onClick, tone }: { children: React.ReactNode; onClick: () => void; tone?: 'ok' }) {
+function ActBtn({ children, onClick, tone, title }: { children: React.ReactNode; onClick: () => void; tone?: 'ok'; title?: string }) {
   return (
     <button
       onClick={onClick}
+      title={title}
       style={{
         fontSize: 11,
         border: `1px solid ${tone === 'ok' ? '#c4d8a8' : EVM.rule}`,

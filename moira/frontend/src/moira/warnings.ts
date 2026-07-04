@@ -39,11 +39,11 @@ export function computeInbox(derived: DerivedState, projected: ProjectedState): 
         key: `R-U12:${id}`,
         rid: 'R-U12',
         kind: 'warning',
-        title: `矛盾合意: ${labelOf(id)}（${[...n.agreedActorValues.entries()].map(([a, v]) => `${a}=${v}`).join(' / ')}）`,
+        title: `見積合意の矛盾: ${labelOf(id)}（${[...n.agreedActorValues.entries()].map(([a, v]) => `${a}=${v}`).join(' / ')}）`,
         node: id,
         surface: 'spec-value',
-        actions: ['現行値で agreed 再発行'],
-        clearWhen: '一致する凍結値で agreed 再発行（latest-wins）',
+        actions: ['現行値で見積合意をやり直す'],
+        clearWhen: '一致する値で見積合意をやり直すと消えます',
       });
     }
 
@@ -56,8 +56,8 @@ export function computeInbox(derived: DerivedState, projected: ProjectedState): 
         title: `未合意完了: ${labelOf(id)}`,
         node: id,
         surface: 'spec-value',
-        actions: ['事後合意', '再見積→合意', 'cancel'],
-        clearWhen: '合意 or cancel（イベント）',
+        actions: ['事後合意', '再見積→合意', '中止'],
+        clearWhen: '合意または中止の追記で消滅',
       });
     }
 
@@ -67,11 +67,11 @@ export function computeInbox(derived: DerivedState, projected: ProjectedState): 
         key: `P5:${id}`,
         rid: 'P5',
         kind: 'warning',
-        title: `at-risk: ${labelOf(id)}（implemented 後に後退）`,
+        title: `差し戻しリスク: ${labelOf(id)}（完了後に作業中へ後退）`,
         node: id,
         surface: 'spec-value',
-        actions: ['後退 transition', '再見積', '依存付替'],
-        clearWhen: 'implemented 再到達（後続完了では消えない）',
+        actions: ['状態を戻す', '再見積', '依存の付け替え'],
+        clearWhen: '再び完了に到達すると消えます（後続の完了では消えません）',
       });
     }
   }
@@ -84,11 +84,11 @@ export function computeInbox(derived: DerivedState, projected: ProjectedState): 
         key: `R-C3:${e.from}->${e.to}`,
         rid: 'R-C3',
         kind: 'warning',
-        title: `キャンセル孤児: ${labelOf(e.to)}（前提 ${labelOf(e.from)} が cancel）`,
+        title: `前提タスクの中止: ${labelOf(e.to)}（前提 ${labelOf(e.from)} が中止）`,
         node: e.to,
         surface: 'schedule-time',
-        actions: ['辺除去', '代替へ付替', '後続 cancel'],
-        clearWhen: 'relate or transition',
+        actions: ['依存を外す', '代替に付け替え', '後続も中止'],
+        clearWhen: '依存の付け替えか状態変更で消滅',
       });
     }
   }
@@ -102,10 +102,10 @@ export function computeInbox(derived: DerivedState, projected: ProjectedState): 
         key: `commit-agree:${id}`,
         rid: 'commit·合意',
         kind: 'commit',
-        title: `合意が必要: ${labelOf(id)}（proposed）`,
+        title: `見積合意が必要: ${labelOf(id)}（提案中）`,
         node: id,
         surface: 'spec-value',
-        actions: ['proposed→agreed（人間）'],
+        actions: ['見積に合意する（人間のみ）'],
         clearWhen: '合意の追記で消滅',
       });
     }
@@ -116,10 +116,10 @@ export function computeInbox(derived: DerivedState, projected: ProjectedState): 
       key: `commit-assign:${id}`,
       rid: 'commit·割当',
       kind: 'commit',
-      title: `割当が必要: ${labelOf(id)}（未割当 backlog）`,
+      title: `担当割当が必要: ${labelOf(id)}（未割当）`,
       node: id,
       surface: 'schedule-time',
-      actions: ['担当付替（assign transition）'],
+      actions: ['担当を割り当てる'],
       clearWhen: '担当付与で消滅',
     });
   }

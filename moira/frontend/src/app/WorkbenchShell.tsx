@@ -64,10 +64,10 @@ export function WorkbenchShell() {
         }}
       >
         <div className="serif" style={{ fontSize: 20, fontWeight: 600 }}>Moira</div>
-        <div style={{ fontSize: 11, color: EVM.ink3 }}>Spec × Ticket × EVM ／ 単一 DerivedState 射影</div>
+        <div style={{ fontSize: 11, color: EVM.ink3 }}>Spec × Ticket × EVM</div>
 
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span style={{ fontSize: 11, color: EVM.ink3 }}>役割＝同一導出へのフィルタ</span>
+          <span style={{ fontSize: 11, color: EVM.ink3 }}>役割表示の切替</span>
           <div style={{ display: 'flex', border: `1px solid ${EVM.rule}`, borderRadius: 999, overflow: 'hidden' }}>
             {(['mgr', 'dev'] as const).map((p) => (
               <button
@@ -116,7 +116,7 @@ export function WorkbenchShell() {
           }}
         >
           <div style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: EVM.ink4, padding: '2px 8px 6px' }}>
-            層A read ダッシュボード
+            ダッシュボード
           </div>
           {NAV.map((item, i) => {
             const active = surface === item.id;
@@ -124,7 +124,7 @@ export function WorkbenchShell() {
               return (
                 <div key="sep">
                   <div style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: EVM.ink4, padding: '10px 8px 6px' }}>
-                    層B 非ダッシュボード
+                    入力・設定
                   </div>
                   <NavBtn item={item} active={active} onClick={() => setSurface(item.id)} />
                 </div>
