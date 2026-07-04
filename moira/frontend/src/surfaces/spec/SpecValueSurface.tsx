@@ -5,19 +5,23 @@
 //   - traceability: dependency vs supersede edges drawn distinctly (current effective
 //     vs superseded), from projected (display projection)
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { EVM } from '../../theme/tokens';
 import { Bar, Card, EstimatePill, LifecyclePill, Pill, SectionTitle } from '../../theme/atoms';
 import { useMoira } from '../../moira/hooks';
 import { labelOf } from '../../moira/labels';
 import { ESTIMATE_JA, EDGE_POLICY_JA } from '../../moira/glossary';
-import { buildGanttModel } from '../schedule/gantt-geometry';
+import { assigneeOptions, buildGanttModel, DEFAULT_ROW_FILTER, type RowFilter } from '../schedule/gantt-geometry';
+import { SpecFilterBar } from './SpecFilterBar';
 
 const pct = (v: number, d = 0) => `${(v * 100).toFixed(d)}%`;
 
 export function SpecValueSurface() {
   const { projected, derived } = useMoira();
-  const model = useMemo(() => buildGanttModel(projected, derived, 'all'), [projected, derived]);
+  // spec-value uses the STRICT completion sense (completed ∧ agreed = 本当に完了)
+  const [filter, setFilter] = useState<RowFilter>({ ...DEFAULT_ROW_FILTER, completionStrict: true });
+  const model = useMemo(() => buildGanttModel(projected, derived, filter), [projected, derived, filter]);
+  const options = useMemo(() => assigneeOptions(projected), [projected]);
   const leaves = model.rows.filter((r) => r.isLeaf);
   const covLow = derived.estimateCoverage < 0.999;
 
@@ -41,18 +45,32 @@ export function SpecValueSurface() {
         </div>
       </Card>
 
+      {/* row filter (担当 / 完了(厳密) / 見積) — issue #8 */}
+      <Card pad={12}>
+        <SpecFilterBar filter={filter} onChange={setFilter} options={options} />
+      </Card>
+
       {/* node tree */}
       <Card>
         <SectionTitle hint="feature ─ req/design/tasks/impl ／ 現行の木（置き換え/中止済みを除外）">ノード木 ＋ 状態</SectionTitle>
+        {model.rows.length === 0 ? (
+          <div data-testid="filter-empty" style={{ fontSize: 12, color: EVM.ink3, padding: '14px 6px' }}>
+            条件に合う行がありません。
+          </div>
+        ) : (
         <div style={{ display: 'flex', flexDirection: 'column' }}>
           {model.rows.map((r) => {
-            const ev = r.completed && r.estimateState === 'agreed' ? r.frozenBudget ?? 0 : 0;
+            const done = r.completed && r.estimateState === 'agreed';
+            const ev = done ? r.frozenBudget ?? 0 : 0;
+            const opacity = r.contextOnly ? 0.5 : done ? 0.55 : 1;
             return (
               <div
                 key={r.node}
                 data-testid={`spec-row:${r.node}`}
+                data-context-only={r.contextOnly ? 'true' : undefined}
                 className="evm-row"
-                style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 6px', borderBottom: `1px solid ${EVM.ruleSoft}`, paddingLeft: 6 + r.depth * 16 }}
+                title={r.contextOnly ? '絞り込みの文脈として表示（祖先）' : undefined}
+                style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 6px', borderBottom: `1px solid ${EVM.ruleSoft}`, paddingLeft: 6 + r.depth * 16, opacity }}
               >
                 <span style={{ color: EVM.ink4, fontSize: 10 }}>{r.isLeaf ? '·' : '▸'}</span>
                 <span style={{ fontSize: 12.5, fontWeight: r.isLeaf ? 400 : 600, minWidth: 200 }}>{r.label}</span>
@@ -65,6 +83,7 @@ export function SpecValueSurface() {
             );
           })}
         </div>
+        )}
       </Card>
 
       {/* coverage table */}

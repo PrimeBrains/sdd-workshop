@@ -13,7 +13,7 @@
 import { EVM } from '../../theme/tokens';
 import { Avatar } from '../../theme/atoms';
 import type { IsoDate, NodeId } from '../../moira/engine';
-import { daysBetween, nominalDays, type GanttModel, type GanttRow } from './gantt-geometry';
+import { daysBetween, divergence, nominalDays, type DivTone, type GanttModel } from './gantt-geometry';
 
 const ROW_H = 26;
 const HEAD_H = 30;
@@ -27,14 +27,6 @@ interface Props {
   dayW?: number;
 }
 
-type DivTone = 'behind' | 'ahead' | 'none';
-function divergence(row: GanttRow): DivTone {
-  if (row.frozenSlot !== null && row.predicted !== null) {
-    if (row.predicted > row.frozenSlot) return 'behind';
-    if (row.predicted < row.frozenSlot) return 'ahead';
-  }
-  return 'none';
-}
 const divColor: Record<DivTone, string> = {
   behind: EVM.behind,
   ahead: EVM.ahead,
@@ -128,17 +120,22 @@ export function ScheduleGantt({ model, asOf, selected, onSelect, dayW = 18 }: Pr
           {rows.map((r, i) => {
             const selectedRow = r.node === selected;
             const isAgent = r.kind === 'agent';
+            // dim done rows always; dim ancestor-scaffolding rows harder (issue #8)
+            const opacity = r.contextOnly ? 0.5 : r.completed ? 0.55 : 1;
             return (
               <div
                 key={r.node}
                 data-testid={`gantt-row:${r.node}`}
+                data-context-only={r.contextOnly ? 'true' : undefined}
                 className="evm-row"
                 onClick={() => onSelect(r.node)}
+                title={r.contextOnly ? '絞り込みの文脈として表示（祖先）' : undefined}
                 style={{
                   display: 'flex',
                   height: ROW_H,
                   alignItems: 'center',
                   cursor: 'pointer',
+                  opacity,
                   background: selectedRow ? EVM.brandWash : i % 2 === 0 ? EVM.card : EVM.paperWarm,
                   borderBottom: `1px solid ${EVM.ruleSoft}`,
                   outline: selectedRow ? `1.5px solid ${EVM.brandDeep}` : 'none',

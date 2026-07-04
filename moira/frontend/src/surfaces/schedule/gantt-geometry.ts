@@ -56,6 +56,7 @@ export interface GanttRow {
   predicted: IsoDate | null;
   completed: boolean;
   slotState: SlotState;
+  contextOnly: boolean; // kept only as ancestor scaffolding of a matched leaf (issue #8)
 }
 
 export interface GanttModel {
@@ -78,6 +79,127 @@ function classify(completed: boolean, frozenSlot: IsoDate | null, predicted: Iso
   if (completed && frozenSlot === null) return 'complete-unscheduled';
   if (!completed && predicted !== null) return 'incomplete';
   return 'unscheduled-incomplete';
+}
+
+// ---- row filter (issue #8) ---------------------------------------------------
+// Filtering is applied to LEAVES ONLY; a matched leaf's whole ancestor chain is
+// kept as (dimmed) scaffolding so a row never floats without its phase context.
+// Pure & display-only — no metric is (re)computed here.
+
+export type DivTone = 'behind' | 'ahead' | 'none';
+
+/** predicted vs frozenSlot divergence (R-S7) — display-only classification.
+ * Moved here from ScheduleGantt so the row filter can share it (issue #8). */
+export function divergence(row: GanttRow): DivTone {
+  if (row.frozenSlot !== null && row.predicted !== null) {
+    if (row.predicted > row.frozenSlot) return 'behind';
+    if (row.predicted < row.frozenSlot) return 'ahead';
+  }
+  return 'none';
+}
+
+export type AssigneeFilter = 'all' | 'unassigned' | { id: string };
+
+export interface RowFilter {
+  kind: 'all' | 'human' | 'agent'; // subsumes the old queue filter
+  assignee: AssigneeFilter;
+  completion: 'all' | 'incomplete' | 'complete';
+  completionStrict: boolean; // true: done = completed ∧ agreed (spec-value「本当に完了」)
+  //                            false: done = completed (Gantt「進捗100%」)
+  estimate: 'all' | 'unestimated' | 'proposed' | 'agreed';
+  divergence: 'all' | 'behind' | 'on-track';
+}
+
+// All fields required (never optional) — exactOptionalPropertyTypes trap; the
+// neutral value is always 'all'.
+export const DEFAULT_ROW_FILTER: RowFilter = {
+  kind: 'all',
+  assignee: 'all',
+  completion: 'all',
+  completionStrict: false,
+  estimate: 'all',
+  divergence: 'all',
+};
+
+/** Leaf-only match predicate; every dimension AND'd. Pure. */
+export function leafMatches(row: GanttRow, f: RowFilter): boolean {
+  if (!(f.kind === 'all' || row.kind === f.kind)) return false;
+
+  if (f.assignee === 'unassigned') {
+    if (row.assignee !== null) return false;
+  } else if (f.assignee !== 'all') {
+    if (row.assignee?.id !== f.assignee.id) return false;
+  }
+
+  if (f.completion !== 'all') {
+    const done = f.completionStrict ? row.completed && row.estimateState === 'agreed' : row.completed;
+    if (f.completion === 'complete' && !done) return false;
+    if (f.completion === 'incomplete' && done) return false;
+  }
+
+  if (f.estimate === 'unestimated') {
+    if (row.latestEstimate !== null) return false;
+  } else if (f.estimate === 'proposed') {
+    if (!(row.latestEstimate !== null && row.estimateState === 'proposed')) return false;
+  } else if (f.estimate === 'agreed') {
+    if (row.estimateState !== 'agreed') return false;
+  }
+
+  if (f.divergence === 'behind') {
+    if (divergence(row) !== 'behind') return false;
+  } else if (f.divergence === 'on-track') {
+    if (divergence(row) === 'behind') return false;
+  }
+
+  return true;
+}
+
+/** Distinct assignees across the projected nodes, first-occurrence (insertion)
+ * order, deduped by kind:id. Reviewers / capacity-only humans are excluded —
+ * the row filter keys on `assignee`. Pure. */
+export function assigneeOptions(projected: ProjectedState): Actor[] {
+  const seen = new Set<string>();
+  const out: Actor[] = [];
+  for (const n of projected.nodes.values()) {
+    const a = n.assignee;
+    if (a === null) continue;
+    const key = `${a.kind}:${a.id}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(a);
+  }
+  return out;
+}
+
+/** No active filtering across any dimension (completionStrict alone is inert
+ * when completion === 'all'). Used to short-circuit to the unfiltered rows. */
+function isNoFilter(f: RowFilter): boolean {
+  return (
+    f.kind === 'all' &&
+    f.assignee === 'all' &&
+    f.completion === 'all' &&
+    f.estimate === 'all' &&
+    f.divergence === 'all'
+  );
+}
+
+/** rows(all) → matched leaves ∪ their ancestors; non-matched survivors marked
+ * contextOnly. Row order (already topo/insertion sorted) is preserved. */
+function applyFilter(rows: GanttRow[], f: RowFilter, projected: ProjectedState): GanttRow[] {
+  if (isNoFilter(f)) return rows;
+  const matched = new Set<NodeId>();
+  for (const r of rows) if (r.isLeaf && leafMatches(r, f)) matched.add(r.node);
+  const keep = new Set<NodeId>(matched);
+  for (const id of matched) {
+    let p = projected.nodes.get(id)?.parent ?? null;
+    while (p !== null && !keep.has(p)) {
+      keep.add(p);
+      p = projected.nodes.get(p)?.parent ?? null;
+    }
+  }
+  return rows
+    .filter((r) => keep.has(r.node))
+    .map((r) => (matched.has(r.node) ? r : { ...r, contextOnly: true }));
 }
 
 /** Order ONE sibling set by a stable topological sort over the dependency edges
@@ -121,7 +243,7 @@ export function orderSiblings(
 export function buildGanttModel(
   projected: ProjectedState,
   derived: DerivedState,
-  filterKind: 'all' | 'human' | 'agent',
+  filter: RowFilter,
 ): GanttModel {
   const forecast = new Map(derived.forecast.map((f) => [f.node, f]));
   const acMap = new Map(derived.acByNode.map((a) => [a.node, a.ac]));
@@ -144,31 +266,27 @@ export function buildGanttModel(
     const predicted = fc?.predictedCompletion ?? null;
     const completed = n.lifecycle === 'implemented' || n.lifecycle === 'accepted';
 
-    const kindMatch =
-      filterKind === 'all' ||
-      (n.assignee !== null && n.assignee.kind === filterKind) ||
-      !isLeaf; // keep parents as scaffolding regardless of filter
-
-    if (kindMatch) {
-      rows.push({
-        node: id,
-        depth,
-        isLeaf,
-        label: labelOf(id),
-        lifecycle: n.lifecycle,
-        estimateState: n.estimateState,
-        assignee: n.assignee,
-        kind: n.assignee?.kind ?? null,
-        latestEstimate: n.latestEstimate,
-        frozenBudget: n.frozenBudget,
-        ownCost: n.ownCost,
-        ac: acMap.get(id) ?? 0,
-        frozenSlot,
-        predicted,
-        completed,
-        slotState: classify(completed, frozenSlot, predicted),
-      });
-    }
+    // Pass 1: emit EVERY effective node (contextOnly:false). Filtering happens
+    // in a second pass so the date window below stays filter-independent.
+    rows.push({
+      node: id,
+      depth,
+      isLeaf,
+      label: labelOf(id),
+      lifecycle: n.lifecycle,
+      estimateState: n.estimateState,
+      assignee: n.assignee,
+      kind: n.assignee?.kind ?? null,
+      latestEstimate: n.latestEstimate,
+      frozenBudget: n.frozenBudget,
+      ownCost: n.ownCost,
+      ac: acMap.get(id) ?? 0,
+      frozenSlot,
+      predicted,
+      completed,
+      slotState: classify(completed, frozenSlot, predicted),
+      contextOnly: false,
+    });
     if (frozenSlot !== null) dates.push(frozenSlot);
     if (predicted !== null) dates.push(predicted);
 
@@ -188,5 +306,8 @@ export function buildGanttModel(
   }
   start = addDaysIso(start, -3);
   end = addDaysIso(end, 4);
-  return { rows, start, end, totalDays: Math.max(1, daysBetween(start, end)) };
+
+  // Pass 2: leaf filter + ancestor scaffolding (window already fixed above).
+  const filtered = applyFilter(rows, filter, projected);
+  return { rows: filtered, start, end, totalDays: Math.max(1, daysBetween(start, end)) };
 }

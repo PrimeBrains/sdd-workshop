@@ -8,7 +8,8 @@ import { EVM } from '../../theme/tokens';
 import { Bar, Card, Pill, SectionTitle } from '../../theme/atoms';
 import { useMoira } from '../../moira/hooks';
 import { labelOf } from '../../moira/labels';
-import { buildGanttModel } from './gantt-geometry';
+import { assigneeOptions, buildGanttModel, DEFAULT_ROW_FILTER, type RowFilter } from './gantt-geometry';
+import { GanttFilterBar } from './GanttFilterBar';
 import { ScheduleGantt } from './ScheduleGantt';
 import { Inspector } from './Inspector';
 import type { NodeId } from '../../moira/engine';
@@ -17,10 +18,11 @@ type Kind = 'all' | 'human' | 'agent';
 
 export function ScheduleTimeSurface() {
   const { projected, derived, asOf } = useMoira();
-  const [kind, setKind] = useState<Kind>('all');
+  const [filter, setFilter] = useState<RowFilter>(DEFAULT_ROW_FILTER);
   const [selected, setSelected] = useState<NodeId | null>(null);
 
-  const model = useMemo(() => buildGanttModel(projected, derived, kind), [projected, derived, kind]);
+  const model = useMemo(() => buildGanttModel(projected, derived, filter), [projected, derived, filter]);
+  const options = useMemo(() => assigneeOptions(projected), [projected]);
 
   const spi = derived.spi;
   const cov = derived.scheduleCoverage;
@@ -36,17 +38,17 @@ export function ScheduleTimeSurface() {
               {(['all', 'human', 'agent'] as Kind[]).map((k) => (
                 <button
                   key={k}
-                  onClick={() => setKind(k)}
+                  onClick={() => setFilter({ ...filter, kind: k })}
                   data-testid={`queue-filter:${k}`}
                   style={{
                     fontSize: 11.5,
-                    border: `1px solid ${kind === k ? EVM.brandDeep : EVM.rule}`,
-                    background: kind === k ? EVM.brandSoft : EVM.paperWarm,
-                    color: kind === k ? EVM.brandDeep : EVM.ink2,
+                    border: `1px solid ${filter.kind === k ? EVM.brandDeep : EVM.rule}`,
+                    background: filter.kind === k ? EVM.brandSoft : EVM.paperWarm,
+                    color: filter.kind === k ? EVM.brandDeep : EVM.ink2,
                     borderRadius: 999,
                     padding: '3px 11px',
                     cursor: 'pointer',
-                    fontWeight: kind === k ? 600 : 400,
+                    fontWeight: filter.kind === k ? 600 : 400,
                   }}
                 >
                   {k === 'all' ? '全員' : k === 'human' ? '人間（レビュー/作業）' : 'エージェント'}
@@ -76,6 +78,10 @@ export function ScheduleTimeSurface() {
           <div style={{ fontSize: 10.5, color: EVM.ink3, marginTop: 6 }}>
             SPI＝スケジュール済み領域内の進捗率（全体進捗ではない）。カバレッジが低いときは斜線の注意表示。
           </div>
+          {/* row filter (担当 / 完了 / 進捗) — issue #8 */}
+          <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${EVM.ruleSoft}` }}>
+            <GanttFilterBar filter={filter} onChange={setFilter} options={options} />
+          </div>
         </Card>
 
         {/* unassigned backlog lane */}
@@ -102,7 +108,13 @@ export function ScheduleTimeSurface() {
         {/* gantt */}
         <Card pad={10}>
           <SectionTitle hint="凍結ベースライン(PMB) ＋ 生きた予測(EAC)">Gantt</SectionTitle>
-          <ScheduleGantt model={model} asOf={asOf} selected={selected} onSelect={setSelected} />
+          {model.rows.length === 0 ? (
+            <div data-testid="filter-empty" style={{ fontSize: 12, color: EVM.ink3, padding: '18px 6px' }}>
+              条件に合う行がありません。
+            </div>
+          ) : (
+            <ScheduleGantt model={model} asOf={asOf} selected={selected} onSelect={setSelected} />
+          )}
         </Card>
       </div>
 
