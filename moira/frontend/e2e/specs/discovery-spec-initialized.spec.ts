@@ -1,4 +1,4 @@
-// E2E regression for units/discovery-spec-initialized (計器③) — the genesis state.
+﻿// E2E regression for units/discovery-spec-initialized (計器③) — the genesis state.
 // Green locks: F + 3 phase rows appear, all pending, P2 0%, NO impl row. The "0%"
 // is proven non-vacuous against estimate-agreed's 100%. Activity shows the births.
 import { test, expect } from '@playwright/test';
@@ -16,7 +16,7 @@ test.describe(SPEC_META.scenarioUnit, () => {
     // EARS 1 (3行生成) + EARS 2 (lifecycle 適用＝pending)
     for (const node of PHASES) {
       await expect(specRow(page, node)).toBeVisible();
-      await expect(lifecycleBadge(specRow(page, node))).toHaveText('pending');
+      await expect(lifecycleBadge(specRow(page, node))).toHaveText('未着手');
     }
     // EARS 3: 全行未見積 → 見積カバレッジ 0%
     await expect(metric(page, 'estimate-coverage')).toHaveText('0%');

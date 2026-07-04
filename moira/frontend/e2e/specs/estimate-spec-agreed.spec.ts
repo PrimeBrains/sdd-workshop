@@ -1,4 +1,4 @@
-// E2E regression for units/estimate-spec-agreed (計器③). Asserts the full target;
+﻿// E2E regression for units/estimate-spec-agreed (計器③). Asserts the full target;
 // the activity/history surface (新規) is now implemented, so EARS 5 is a green lock
 // (was a test.fail tripwire). Green asserts are proven non-vacuous by the
 // all-proposed before-fixture.
@@ -15,7 +15,7 @@ test.describe(SPEC_META.scenarioUnit, () => {
     await loadFixture(page, estimateAgreed);
     await navTo(page, 'spec-value');
     for (const node of PHASES) {
-      await expect(estimateBadge(specRow(page, node))).toHaveText('agreed');
+      await expect(estimateBadge(specRow(page, node))).toHaveText('見積合意済');
     }
     await expect(metric(page, 'estimate-coverage')).toHaveText('100%');
   });
@@ -27,7 +27,7 @@ test.describe(SPEC_META.scenarioUnit, () => {
     await loadFixture(page, estimateProposed);
     await navTo(page, 'spec-value');
     for (const node of PHASES) {
-      await expect(estimateBadge(specRow(page, node))).toHaveText('proposed*');
+      await expect(estimateBadge(specRow(page, node))).toHaveText('見積提案中*');
     }
     await expect(metric(page, 'estimate-coverage')).toHaveText('0%');
   });

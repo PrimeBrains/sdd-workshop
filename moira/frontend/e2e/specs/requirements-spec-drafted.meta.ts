@@ -7,7 +7,7 @@ export const SPEC_META: SpecMeta = {
   scenarioUnit: 'units/requirements-spec-drafted',
   surfaces: ['spec-value', 'schedule-time', 'decision-inbox'],
   clauses: [
-    { ears: 1, mode: 'green' }, // 作成中→作成完了（lifecycle implemented。JP「レビュー待ち」は英語ラベル差）
+    { ears: 1, mode: 'green' }, // 作成中→作成完了（lifecycle implemented。表示は glossary JA「完了(検収待ち)」#10）
     { ears: 2, mode: 'green' }, // 出来高を合意済み見積分だけ上げる（EV% 24.0%）
     { ears: 3, mode: 'green' }, // 部分EV を計上しない＝二値（EV寄与 満額 3・EV% ちょうど 24.0%）
     {
@@ -35,7 +35,11 @@ export const SPEC_META: SpecMeta = {
       mode: 'deferred',
       note: 'reviewer 指名は人間のコミット write 規律で、画面の観測対象でない（自動指名しないことは負の運用規律）。',
     },
-    { ears: 9, mode: 'green' }, // decision インボックスに出さない（横断インボックスに req が無い）
+    {
+      ears: 9,
+      mode: 'green',
+      note: '【裁定 2026-07-04】unit :384「decision 一覧に出さない」は issue #12（「受入判断する」セクション新設）とE2E同期時に矛盾が顕在化し、実画面提示のうえユーザーが実装側を正と裁定。裁定後の挙動（検収待ちは受入セクションに出る）を回帰固定。unit 当該節の改訂は kiro-scenario 所管の follow-up。',
+    },
     { ears: 10, mode: 'green' }, // 承認前に出来高を増減しない（accept イベント無しで EV% は 24.0% のまま）
     {
       ears: 11,

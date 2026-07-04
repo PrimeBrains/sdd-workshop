@@ -1,4 +1,4 @@
-// E2E regression for units/requirements-spec-accepted (計器③). The headline:
+﻿// E2E regression for units/requirements-spec-accepted (計器③). The headline:
 // approval is NOT earned value — req moves to accepted and EV% stays 32.0%; design
 // then starts (implementing). Non-vacuity: the metric reads 8.0% on the returned
 // fixture, so 32.0% is real.
@@ -16,10 +16,10 @@ test.describe(SPEC_META.scenarioUnit, () => {
   test('After 承認: req=accepted・EV% 32.0%・review=accepted・design=implementing [EARS 1,4,5,7]', async ({ page }) => {
     await loadFixture(page, requirementsAccepted);
     await navTo(page, 'spec-value');
-    await expect(lifecycleBadge(specRow(page, 'F/req'))).toHaveText('accepted'); // EARS 1
-    await expect(lifecycleBadge(specRow(page, 'F/review-req'))).toHaveText('accepted'); // EARS 5
+    await expect(lifecycleBadge(specRow(page, 'F/req'))).toHaveText('検収済'); // EARS 1
+    await expect(lifecycleBadge(specRow(page, 'F/review-req'))).toHaveText('検収済'); // EARS 5
     await expect(covRow(page, 'F/review-req')).toContainText('1'); // EARS 4 (出来高据え置き)
-    await expect(lifecycleBadge(specRow(page, 'F/design'))).toHaveText('implementing'); // EARS 7
+    await expect(lifecycleBadge(specRow(page, 'F/design'))).toHaveText('作業中'); // EARS 7
     await expect(metric(page, 'ev-percent')).toHaveText('32.0%'); // EARS 2/3/8
   });
 
@@ -45,6 +45,8 @@ test.describe(SPEC_META.scenarioUnit, () => {
   test('EARS 10: 承認・設計着手は decision インボックスに出ない', async ({ page }) => {
     await loadFixture(page, requirementsAccepted);
     const inbox = await navTo(page, 'decision-inbox');
+    // 正の対照: インボックス自体は描画されている（負アサートの空虚化防止）。
+    await expect(inbox.getByTestId('inbox-total')).toBeVisible();
     await expect(inbox).not.toContainText('F/req');
     await expect(inbox).not.toContainText('F/design');
   });

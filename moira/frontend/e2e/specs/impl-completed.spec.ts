@@ -1,4 +1,4 @@
-// E2E regression for units/impl-completed (計器③) — the spine's terminal. Both impls
+﻿// E2E regression for units/impl-completed (計器③) — the spine's terminal. Both impls
 // + the impl review complete (EV% → 100% REAL), all 9 leaves accepted, and the human
 // signs off F (accepted): the only feature completion in the backbone. The real 100%
 // has P2 100% (vs the apparent 100% at P2 75% in tasks-completed).
@@ -16,10 +16,10 @@ test.describe(SPEC_META.scenarioUnit, () => {
     await navTo(page, 'spec-value');
     // EARS 10/12/14: 実装・実装レビューが accepted（子9葉完了）
     for (const node of IMPL) {
-      await expect(lifecycleBadge(specRow(page, node))).toHaveText('accepted');
+      await expect(lifecycleBadge(specRow(page, node))).toHaveText('検収済');
     }
     // EARS 15: 人間が F を完了へ＝背骨唯一の feature accepted（終端）
-    await expect(lifecycleBadge(specRow(page, 'F'))).toHaveText('accepted');
+    await expect(lifecycleBadge(specRow(page, 'F'))).toHaveText('検収済');
     // EARS 16: 本物の 100%（P2 も 100%）
     await expect(metric(page, 'ev-percent')).toHaveText('100.0%');
     await expect(metric(page, 'estimate-coverage')).toHaveText('100%');
@@ -43,13 +43,15 @@ test.describe(SPEC_META.scenarioUnit, () => {
   test('非空虚: 実装完了前は F=pending（F accepted の非空虚） [witness]', async ({ page }) => {
     await loadFixture(page, implEstimateAgreed);
     await navTo(page, 'spec-value');
-    await expect(lifecycleBadge(specRow(page, 'F'))).toHaveText('pending');
+    await expect(lifecycleBadge(specRow(page, 'F'))).toHaveText('未着手');
   });
 
   // EARS 6,18: completion / feature sign-off stay out of the decision inbox.
   test('EARS 6,18: 実装完了・F 完了は decision インボックスに出ない', async ({ page }) => {
     await loadFixture(page, implCompleted);
     const inbox = await navTo(page, 'decision-inbox');
+    // 正の対照: インボックス自体は描画されている（負アサートの空虚化防止）。
+    await expect(inbox.getByTestId('inbox-total')).toBeVisible();
     await expect(inbox).not.toContainText('F/impl-1');
   });
 

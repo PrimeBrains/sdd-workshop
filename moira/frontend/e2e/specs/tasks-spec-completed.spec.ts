@@ -1,4 +1,4 @@
-// E2E regression for units/tasks-spec-completed (計器③). The honesty climax: every
+﻿// E2E regression for units/tasks-spec-completed (計器③). The honesty climax: every
 // spec phase is accepted and EV% reads 100% — but it is APPARENT, because impl-1/
 // impl-2 are born unestimated and estimate coverage drops to 75%. The screen shows
 // 100% and 75% together so the apparent 100% can't be mistaken for done.
@@ -16,7 +16,7 @@ test.describe(SPEC_META.scenarioUnit, () => {
     await navTo(page, 'spec-value');
     // EARS 18: 全 spec 葉が accepted
     for (const node of SPEC_LEAVES) {
-      await expect(lifecycleBadge(specRow(page, node))).toHaveText('accepted');
+      await expect(lifecycleBadge(specRow(page, node))).toHaveText('検収済');
     }
     // EARS 21: 見かけ 100% と P2 75% を同時に正直表示（apparent ≠ done）
     await expect(metric(page, 'ev-percent')).toHaveText('100.0%');
@@ -30,7 +30,7 @@ test.describe(SPEC_META.scenarioUnit, () => {
     await loadFixture(page, tasksCompleted);
     await navTo(page, 'spec-value');
     await expect(specRow(page, 'F/impl-1')).toBeVisible(); // 実装ノード誕生
-    await expect(estimateBadge(specRow(page, 'F/impl-1'))).toHaveText('proposed*');
+    await expect(estimateBadge(specRow(page, 'F/impl-1'))).toHaveText('見積提案中*');
     await expect(specRow(page, 'F/impl-1')).toContainText('見積 —'); // 未見積
   });
 
@@ -48,6 +48,8 @@ test.describe(SPEC_META.scenarioUnit, () => {
   test('EARS 9: タスク承認は decision インボックスに出ない', async ({ page }) => {
     await loadFixture(page, tasksCompleted);
     const inbox = await navTo(page, 'decision-inbox');
+    // 正の対照: インボックス自体は描画されている（負アサートの空虚化防止）。
+    await expect(inbox.getByTestId('inbox-total')).toBeVisible();
     await expect(inbox).not.toContainText('F/tasks');
   });
 

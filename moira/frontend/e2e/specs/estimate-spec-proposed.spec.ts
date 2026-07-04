@@ -1,4 +1,4 @@
-// E2E regression for units/estimate-spec-proposed (計器③). Green locks: the 3
+﻿// E2E regression for units/estimate-spec-proposed (計器③). Green locks: the 3
 // phases carry a proposed* estimate value, P2 still 0% (proposed ≠ agreed), and the
 // activity surface logs 「見積案を提示」. Non-vacuity: the genesis fixture shows 「見積 —」.
 import { test, expect } from '@playwright/test';
@@ -14,7 +14,7 @@ test.describe(SPEC_META.scenarioUnit, () => {
     // EARS 1: 見積案の値が出る（要件定義=3）
     await expect(specRow(page, 'F/req')).toContainText('見積 3');
     // EARS 2: 未承認の印（proposed*）。EARS 4 の「未確定」は P2 0% として間接表示。
-    await expect(estimateBadge(specRow(page, 'F/req'))).toHaveText('proposed*');
+    await expect(estimateBadge(specRow(page, 'F/req'))).toHaveText('見積提案中*');
     await expect(metric(page, 'estimate-coverage')).toHaveText('0%');
   });
 

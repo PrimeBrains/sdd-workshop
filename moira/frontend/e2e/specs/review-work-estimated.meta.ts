@@ -7,7 +7,7 @@ export const SPEC_META: SpecMeta = {
   surfaces: ['spec-value'],
   clauses: [
     { ears: 1, mode: 'green' }, // レビュー作業ノードを feature の子として作成＋見積案 proposed
-    { ears: 2, mode: 'green' }, // 依存辺 phase→review（traceability の ──implemented──▸）
+    { ears: 2, mode: 'green' }, // 依存辺 phase→review（traceability の ──完了で解放──▸・#10 glossary 表示）
     { ears: 3, mode: 'green' }, // 提示時「未承認」印（During で proposed*）
     { ears: 4, mode: 'green' }, // 分母に算入しカバレッジ低下（During 50%）
     { ears: 5, mode: 'green' }, // 承認 → agreed＋凍結（After で agreed）

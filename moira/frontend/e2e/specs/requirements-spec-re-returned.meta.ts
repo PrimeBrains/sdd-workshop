@@ -32,7 +32,11 @@ export const SPEC_META: SpecMeta = {
       mode: 'deferred',
       note: '畳んだ工数単独でスラッシュ警告を出さないこと（負の警告事象）は health の非描画で観測対象外。',
     },
-    { ears: 10, mode: 'green' }, // 二度目の差し戻しを decision の判断項目に出さない（「差し戻し」行なし・P5 at-risk は別信号）
+    {
+      ears: 10,
+      mode: 'green',
+      note: '【裁定 2026-07-04】requirements-spec-returned EARS 10 と同裁定（実装が正）。コミット判断3セクションへの不出現＋P5「差し戻しリスク」警告の出現を回帰固定。unit 文言改訂は kiro-scenario 所管 follow-up。',
+    },
     {
       ears: 11,
       mode: 'xfail',

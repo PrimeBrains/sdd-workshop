@@ -1,4 +1,4 @@
-// E2E regression for units/estimate-impl-agreed (計器③). The 正直化 moment: agreeing
+﻿// E2E regression for units/estimate-impl-agreed (計器③). The 正直化 moment: agreeing
 // the impl estimates grows the denominator 12.5→28.5, so the apparent 100% drops to
 // the honest 43.9% (non-monotonic) while estimate coverage recovers 75→100%.
 import { test, expect } from '@playwright/test';
@@ -18,7 +18,7 @@ test.describe(SPEC_META.scenarioUnit, () => {
     // EARS 6: 見積カバレッジ回復（75→100%）・実装3ノードが agreed
     await expect(metric(page, 'estimate-coverage')).toHaveText('100%');
     for (const node of IMPL) {
-      await expect(estimateBadge(specRow(page, node))).toHaveText('agreed');
+      await expect(estimateBadge(specRow(page, node))).toHaveText('見積合意済');
     }
     // EARS 4: 実装レビュー作業ノードが存在する
     await expect(specRow(page, 'F/review-impl')).toBeVisible();
@@ -36,7 +36,7 @@ test.describe(SPEC_META.scenarioUnit, () => {
   test('EARS 9: 既存 req/design/tasks の完了状態・出来高は不変', async ({ page }) => {
     await loadFixture(page, implEstimateAgreed);
     await navTo(page, 'spec-value');
-    await expect(lifecycleBadge(specRow(page, 'F/req'))).toHaveText('accepted');
+    await expect(lifecycleBadge(specRow(page, 'F/req'))).toHaveText('検収済');
     await expect(covRow(page, 'F/req')).toContainText('3'); // EV寄与 unchanged
   });
 

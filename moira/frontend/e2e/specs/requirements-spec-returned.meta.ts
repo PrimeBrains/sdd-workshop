@@ -32,7 +32,11 @@ export const SPEC_META: SpecMeta = {
       mode: 'deferred',
       note: 'レビュー担当の指名が出来高/スケジュール/カバレッジを動かさないことは非消費属性で、画面の観測対象でない（reviewer 列自体も未描画）。',
     },
-    { ears: 10, mode: 'green' }, // 差し戻しを decision の判断項目に出さない（「差し戻し」行なし。P5 at-risk 警告は別信号で許容）
+    {
+      ears: 10,
+      mode: 'green',
+      note: '【裁定 2026-07-04】unit §4-4/:396 は inbox 全体への不出現を描くが、#12 実装は P5「差し戻しリスク」を warning セクションに描画（unit 自身も §4-2/§7 で P5 を正直な信号と期待）。実画面提示のうえユーザーが実装側を正と裁定。spec はコミット判断3セクションへの不出現＋P5 警告の出現を回帰固定。unit 文言改訂は kiro-scenario 所管 follow-up。',
+    },
     {
       ears: 11,
       mode: 'deferred',

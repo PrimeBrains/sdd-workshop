@@ -1,4 +1,4 @@
-// E2E regression for units/design-spec-completed (計器③). Green locks the EV arc to
+﻿// E2E regression for units/design-spec-completed (計器③). Green locks the EV arc to
 // 80% (design completed +5, reviewed +1, approval adds none), terminal lifecycles
 // (design/review accepted, tasks implementing), binary EV, and inbox-absence.
 // Reviewer column / queues / schedule dates / filter ride as xfail tripwires.
@@ -12,9 +12,9 @@ test.describe(SPEC_META.scenarioUnit, () => {
   test('After 設計完了: design/review=accepted・tasks=implementing・EV% 80.0% [EARS 1,2,3,11,12,16,18]', async ({ page }) => {
     await loadFixture(page, designCompleted);
     await navTo(page, 'spec-value');
-    await expect(lifecycleBadge(specRow(page, 'F/design'))).toHaveText('accepted'); // EARS 12
-    await expect(lifecycleBadge(specRow(page, 'F/review-design'))).toHaveText('accepted'); // EARS 16
-    await expect(lifecycleBadge(specRow(page, 'F/tasks'))).toHaveText('implementing'); // EARS 18
+    await expect(lifecycleBadge(specRow(page, 'F/design'))).toHaveText('検収済'); // EARS 12
+    await expect(lifecycleBadge(specRow(page, 'F/review-design'))).toHaveText('検収済'); // EARS 16
+    await expect(lifecycleBadge(specRow(page, 'F/tasks'))).toHaveText('作業中'); // EARS 18
     await expect(metric(page, 'ev-percent')).toHaveText('80.0%'); // EARS 2,13,14,19
     await expect(metric(page, 'estimate-coverage')).toHaveText('100%');
     await expect(covRow(page, 'F/design')).toContainText('5'); // EARS 3 binary full budget
@@ -32,6 +32,8 @@ test.describe(SPEC_META.scenarioUnit, () => {
   test('EARS 9,24: 設計の完了・承認・タスク着手は decision インボックスに出ない', async ({ page }) => {
     await loadFixture(page, designCompleted);
     const inbox = await navTo(page, 'decision-inbox');
+    // 正の対照: インボックス自体は描画されている（負アサートの空虚化防止）。
+    await expect(inbox.getByTestId('inbox-total')).toBeVisible();
     await expect(inbox).not.toContainText('F/design');
     await expect(inbox).not.toContainText('F/tasks');
   });

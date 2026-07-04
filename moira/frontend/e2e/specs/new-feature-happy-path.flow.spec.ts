@@ -1,4 +1,4 @@
-// Flow-level E2E regression for flows/new-feature-happy-path (計器③, flow tier). Where
+﻿// Flow-level E2E regression for flows/new-feature-happy-path (計器③, flow tier). Where
 // the per-unit specs lock each snapshot, THIS spec walks the THROUGH-LINE: it boots
 // the app at each backbone snapshot in order and asserts the EV%/coverage arc on
 // spec-value, proving the emergent claim — the achievement signal stays honest at
@@ -73,7 +73,7 @@ test.describe(SPEC_META.scenarioUnit, () => {
     const done = BACKBONE.find((b) => b.slug === 'impl-completed')!.fixture;
     await loadFixture(page, done);
     await navTo(page, 'spec-value');
-    await expect(lifecycleBadge(specRow(page, 'F'))).toHaveText('accepted');
+    await expect(lifecycleBadge(specRow(page, 'F'))).toHaveText('検収済');
     await expect(metric(page, 'ev-percent')).toHaveText('100.0%');
     await expect(metric(page, 'estimate-coverage')).toHaveText('100%');
   });
