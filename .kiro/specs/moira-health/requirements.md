@@ -2,7 +2,7 @@
 
 ## Introduction
 
-`moira-health` は Moira 正典モデル `moira/MODEL.md`(v16, 凍結) を本番アーキテクチャへ落とす **CQRS 分解の Wave2** であり、MODEL の中核思想「システムは観測・導出・警告に徹し、コミットメントを伴う判断は人間に残す」(§0/§2.1) のうち **警告(warning)の確定・集約・clearance(消滅)** を単一の責務として所有する read=導出 spec である。具体的には次を所有する:
+`moira-health` は Moira 正典モデル `moira/MODEL.md`(v20) を本番アーキテクチャへ落とす **CQRS 分解の Wave2** であり、MODEL の中核思想「システムは観測・導出・警告に徹し、コミットメントを伴う判断は人間に残す」(§0/§2.1) のうち **警告(warning)の確定・集約・clearance(消滅)** を単一の責務として所有する read=導出 spec である。具体的には次を所有する:
 
 1. **9 警告の確定・集約** — R-U12/R-U13/R-T3/R-T4/R-S3/R-S6/R-S7/R-C3 および P5 at-risk を、上流 derivation(`moira-evm`/`moira-schedule`/`moira-scope-deps`)が出す検出データを受けて**現在の導出状態に対する述語**として確定し集約する(判断型 8 件を decision インボックスへ集約、de-rate 型 R-S6 は inbox 非集約＝常駐メトリクス修飾という集約形に分類する; R-S6 の SPI de-rate 消費は `moira-evm`、提示は `moira-surface-health` が所有し health は分類のみ; UI-ARCHITECTURE §4.2/§3)。
 2. **clearance(消滅トリガー)の単一定義** — 各警告が「条件を偽化する入力(4 イベント追記 または 構成入力 c/期日/目標日 変更)」でのみ消え、acknowledge(イベント無し)では消えないこと(§2.1 警告持続)。
@@ -122,8 +122,8 @@
 
 #### Acceptance Criteria
 
-1. While a node's EV_abs is non-increasing and its AC continues to rise over a sustained window (per the evm detection data), the system shall raise an R-S3 thrashing warning, and shall not raise it for a one-off cost from a folded estimation activity (R-E2b) landing without an estimate.
-   - 和訳: ノードの EV_abs が増えない一方 AC が継続的な期間にわたり増え続ける間(evm の検出データに従う)、システムは R-S3 thrashing 警告を発し、畳んだ見積活動(R-E2b)が見積なしに一度だけ計上する cost に対してはこれを発してはならない。
+1. While a node's EV_abs is non-increasing and its AC continues to rise over a sustained window (per the evm detection data), the system shall raise an R-S3 thrashing warning, and shall not raise it for a one-off cost from a folded estimation activity (R-E2b) **or a folded review activity (§7#18(b))** landing without an estimate (MODEL R-S3 本文と一致；2026-07-04 追いつき＝畳んだレビュー carve-out の取りこぼし解消・moira-evm Req11.2 と同期).
+   - 和訳: ノードの EV_abs が増えない一方 AC が継続的な期間にわたり増え続ける間(evm の検出データに従う)、システムは R-S3 thrashing 警告を発し、畳んだ見積活動(R-E2b)**または畳んだレビュー作業(§7#18(b))**が見積なしに一度だけ計上する cost に対してはこれを発してはならない（carve-out は各回の畳み cost を単独で免責するのみで、反復差し戻しによる持続的 AC 増での正当な発火は妨げない）。
 2. While a predecessor node is terminal `cancelled` and a dependency edge's satisfaction threshold from it has become permanently unsatisfiable (per the scope-deps detection data), the system shall raise an R-C3 cancel-orphan warning identifying the blocked successor and the unsatisfied edge, carrying R-C3's action enumeration as defined once by R3.
    - 和訳: 先行ノードが終端 `cancelled` であり、そこからの依存辺の充足閾値が永久に充足不能になっている間(scope-deps の検出データに従う)、システムは R-C3 キャンセル孤児警告を発し、被ブロック後続・未充足辺を特定し、R3 が一度だけ定義する R-C3 の行為列挙を伴わなければならない。
 3. The system shall not auto-cancel a successor under R-C3 in any case — whether all or some predecessors are cancelled, the human decides.

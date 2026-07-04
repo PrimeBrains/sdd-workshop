@@ -2,7 +2,7 @@
 
 ## Introduction
 
-`moira-surface-schedule` は Moira 正典モデル `moira/MODEL.md`(v19) を本番アーキテクチャへ落とす **CQRS 分解の Wave3 read サーフェス**であり、`moira/UI-ARCHITECTURE.md` が R-S2 に予約する三ダッシュボードの一つ `schedule-time`（スケジュール・時間）を担う。UI-ARCHITECTURE §3 のとおり、これは **全 actor 共通の母 view** であり、A1 上の射影（projection）であって独立した一級実体ではない。
+`moira-surface-schedule` は Moira 正典モデル `moira/MODEL.md`(v20) を本番アーキテクチャへ落とす **CQRS 分解の Wave3 read サーフェス**であり、`moira/UI-ARCHITECTURE.md` が R-S2 に予約する三ダッシュボードの一つ `schedule-time`（スケジュール・時間）を担う。UI-ARCHITECTURE §3 のとおり、これは **全 actor 共通の母 view** であり、A1 上の射影（projection）であって独立した一級実体ではない。
 
 本 surface は次を **提示の下限**（UI-ARCH §2 ②層: MODEL 既定・必須）として凍結する:
 
@@ -17,6 +17,9 @@
 9. **期日超過アラート（R-T4）の read 表示と deep-link** — 導出スケジュールが外部期日を超えた事実を read で表示し、判断（health）と実行への deep-link のみを所有する（R-T4 の主集約は inbox・判断は health；本 surface は実行動線としての read 表示と deep-link に限る）。
 10. **P5 at-risk（解放済み後続）の read 表示と deep-link** — 起点ノードの後退で at-risk となった**解放済み後続**を、本 surface（Gantt/スケジュール文脈）の副 host として read 表示し、起点ノードの再到達（write）へ deep-link する。起点ノードの主 host は `moira-surface-spec-value`、主集約は inbox（UI-ARCH §4.2 P5 文脈ビュー＝spec-value／health/schedule-time〔解放済み後続〕）。
 11. **R-C3 キャンセル孤児の read 表示と deep-link** — cancel により永久充足不能となった依存（孤児）を、本 surface（スケジュール文脈）の文脈ビューとして read 表示し、辺除去/付替/後続 cancel の write へ deep-link する。主集約は inbox、文脈ビューは spec-value と schedule-time の双方（UI-ARCH §4.2 R-C3 文脈ビュー＝spec-value／schedule-time）。孤児の**検出（述語評価）は上流 `moira-scope-deps` が所有**し、本 surface は読むだけ。
+12. **兄弟行のトポロジカル順＋挿入順**（issue #7・Req16）— 同じ親の下の兄弟行を依存の順序＋登録順で並べる（名前の辞書順の廃止・表示側の決定的導出・並び順データの非保持）。
+13. **行フィルタの拡張軸と祖先足場**（issue #8・Req17）— 担当者/完了/進捗の各軸で葉行を絞り込み、祖先足場を保持する（同一導出への表示絞り込み・会計不変）。
+14. **クリティカルパスの強調表示**（issue #16・Req18）— 公開導出（依存最長経路）を消費して Gantt 上で強調し、「資源律速は含まない」正直注記を添える。
 
 本 surface は **read-only** であり（UI-ARCH §6: 自前状態・隠れキャッシュ・dismiss フラグを持たず、derive() を読むだけで再計算しない）、上流 `moira-schedule`（導出）および推移的に `moira-core`（emit/derive 契約・effective-set・latest-wins・二層データ）の導出出力を **消費**する。MODEL を唯一の真実源（SSOT）とし、MODEL/UI-ARCHITECTURE の文言を変えず・新概念を足さず、その提示の下限を写すことに徹する。**検出=読 / 解消=書 の分離**（roadmap）に従い、陳腐化・de-rate・過負荷・未割当ギャップは検出（読）のみを所有し、再ベースライン・再割当・c 改定は write skill へ委譲する。
 
@@ -214,7 +217,8 @@
 
 **Objective:** 利用者として、`implemented`（作成完了・人間の承認待ち）になった有効葉を、schedule-time 上の「レビュー待ち」一覧として読みたい。それにより、いま動くべき側（次の手番＝玉）が、エージェント作業キューから人間レビュー待ちキューへ移ったことを read で把握できる。承認 `implemented→accepted` は別面の write であり、本一覧は read 表示のみを所有する。
 
-> **Reference-implementation deviation（一覧描画が参照実装に無い）:** `humanReviewQueue` の**導出**は参照実装 backend に実在する（`moira/backend/src/derivations/queues.ts`＝`lifecycle === 'implemented'` の有効葉・**actor 非依存**。`DerivedState.humanReviewQueue: NodeId[]`）。一方、フォワード本番の参照実装フロントエンドは**この一覧を schedule-time 上の独立した「レビュー待ち」リストとしては未描画**であり、現状は `moira-surface-spec-value` の `implemented` バッジで読む。本 Req13 は、既存の actor 非依存導出 `humanReviewQueue` を**消費して一覧描画する read 提示の新設**であり（導出の再計算ではない；UI-ARCH §6 二系統計算の禁止）、玉の受け渡し（エージェント作業キュー → 人間レビュー待ちキュー）を read で可視化する。これは横断の decision インボックスには出さない（成果物の承認は §2.1 の5コミット判断にも判断要警告にも含まれない；UI-ARCH §3）。
+> **Reference-implementation deviation（一覧描画が参照実装に無い）:** `humanReviewQueue` の**導出**は参照実装 backend に実在する（`moira/backend/src/derivations/queues.ts`＝`lifecycle === 'implemented'` の有効葉・**actor 非依存**。`DerivedState.humanReviewQueue: NodeId[]`）。一方、フォワード本番の参照実装フロントエンドは**この一覧を schedule-time 上の独立した「レビュー待ち」リストとしては未描画**のままである（2026-07-04 時点。issue #12 後も schedule-time 面には一覧が無い）。本 Req13 は、既存の actor 非依存導出 `humanReviewQueue` を**消費して一覧描画する read 提示の新設**であり（導出の再計算ではない；UI-ARCH §6 二系統計算の禁止）、玉の受け渡し（エージェント作業キュー → 人間レビュー待ちキュー）を read で可視化する。
+> **2026-07-04 裁定による改訂（インボックス受入区画との関係）:** 旧 note は「これは横断の decision インボックスには出さない」としていたが、issue #12 がインボックスに「受入判断する」区画を新設し検収待ちを描画するようになり、E2E 同期（1f53887・実画面提示）でユーザーが実装側を正と裁定した。改訂後の線引き: **成果物の承認を §2.1 の5コミット判断・判断要警告として集約しない、は不変**（承認は品質確認・五判断不変）。ただし**インボックスの受入区画は同一導出（`humanReviewQueue`）の別 read**であり（`moira-surface-decision` Req 7・DECISIONS-CATALOG D-69）、この禁止の対象外——再計算・第二真実源の禁止は依然として適用される。schedule-time の一覧（本 Req13）とインボックス受入区画は、単一導出への 2 つの read として共存する。
 
 #### Acceptance Criteria
 
@@ -222,8 +226,8 @@
    - 和訳: システムは人間レビュー待ちキュー——人間の `implemented→accepted` レビュー待ちである `implemented` の合意済み有効葉。`moira-schedule`/`moira-core` が供給する actor 非依存導出（`DerivedState.humanReviewQueue`）——を、schedule-time サーフェス上の「レビュー待ち」一覧として描画し、単一の上流導出から読み、キューを再計算してはならない。
 2. The system shall make visible that the ball (the next turn) has moved from the agent work queue to the human review queue when a leaf transitions `implementing → implemented`, by the leaf leaving the agent work queue (`{ready, implementing} ∧ assignee.kind=agent`) and appearing in the human review queue, without introducing a first-class "ball" state (the ball is derived from lifecycle + queues, MODEL has no "ball" concept).
    - 和訳: システムは、葉が `implementing → implemented` に遷移したとき、玉（次の手番）がエージェント作業キューから人間レビュー待ちキューへ移ったことを、当該葉がエージェント作業キュー（`{ready, implementing} ∧ assignee.kind=agent`）から外れ人間レビュー待ちキューに現れることで可視化しなければならない。その際、一級の「玉」状態を導入してはならない（玉は lifecycle＋キューから導出され、MODEL に「玉」概念はない）。
-3. The system shall present the review-waiting list as the schedule-context read of "the ball is on the human", and shall not route it to the cross-cutting decision inbox — deliverable acceptance (`implemented→accepted`) is neither one of the §2.1 five commitment decisions nor a judgement-requiring warning (UI-ARCH §3), so it is read here, not in the inbox.
-   - 和訳: システムはレビュー待ち一覧を「玉が人間にある」ことのスケジュール文脈 read として提示し、横断の decision インボックスへルーティングしてはならない——成果物の承認（`implemented→accepted`）は §2.1 の5コミット判断にも判断要警告にも含まれない（UI-ARCH §3）ため、ここで読み、インボックスでは扱わない。
+3. The system shall present the review-waiting list as the schedule-context read of "the ball is on the human", and shall not aggregate deliverable acceptance (`implemented→accepted`) as one of the §2.1 five commitment decisions nor as a judgement-requiring warning (UI-ARCH §3, five-decision count unchanged); the decision inbox's acceptance section (`moira-surface-decision` Req 7) presents the same standing awaiting-acceptance condition as **another read of the same single derivation** (`humanReviewQueue`) — this coexistence is permitted, while recomputation or a second source of truth remains forbidden (2026-07-04 arbitration, DECISIONS-CATALOG D-69).
+   - 和訳: システムはレビュー待ち一覧を「玉が人間にある」ことのスケジュール文脈 read として提示し、成果物の承認（`implemented→accepted`）を §2.1 の5コミット判断としても判断要警告としても集約してはならない（UI-ARCH §3・五判断の数は不変）。decision インボックスの受入区画（`moira-surface-decision` Req 7）は、同じ「検収待ち」継続条件を**同一導出（`humanReviewQueue`）への別 read** として提示する——この共存は許容され、再計算・第二真実源は依然禁止される（2026-07-04 裁定・DECISIONS-CATALOG D-69）。
 4. When the human `implemented→accepted` review is appended upstream so the leaf leaves `implemented`, the system shall reflect the leaf leaving the review-waiting list on the next read, holding no dismiss flag of its own.
    - 和訳: 人間の `implemented→accepted` レビューが上流で追記され当該葉が `implemented` を離れたとき、システムは次の読み出しで当該葉がレビュー待ち一覧から外れることを反映し、自前の dismiss フラグを持ってはならない。
 
@@ -260,3 +264,42 @@
    - 和訳: サブ単位がまだ `implementing`（または `implemented`）に達していない場合、システムは対応する実績日付を（捏造せず）欠落（例：「未」/空）として提示しなければならない（`moira-schedule` Req13 AC3 と整合する honest empty）。`implementing` 最中に開いた詳細（実績終了日がまだ空）の表示バリアントは本新規要件に含む。
 4. The system shall keep the frozen baseline slot (planned end) as the canonical planned-completion record and shall not move it when composing these dates (the upstream frozen-baseline inviolability of `moira-schedule` Req12 AC2 is preserved); the date values themselves are upstream-derived, this surface only displaying them.
    - 和訳: システムは凍結ベースライン・スロット（予定終了）を予定完了の正本記録として保ち、これらの日付を合成する際にそれを動かしてはならない（上流 `moira-schedule` Req12 AC2 の凍結ベースライン不可侵を保つ）。日付値そのものは上流導出であり、本サーフェスは表示のみを行う。
+
+### Requirement 16: 兄弟行の並び順＝依存トポロジカル順＋挿入順（辞書順の禁止）（issue #7・2026-07-04 追いつき・DECISIONS-CATALOG D-64）
+
+**Objective:** 利用者として、同じ親の下の兄弟行が依存の流れの順で並んでほしい。それにより上から読めば段取りが追え、先にやる作業が後ろに沈まない。
+
+#### Acceptance Criteria
+
+1. The system shall order sibling rows by a stable topological sort over the dependency edges whose both ends lie inside the sibling set, breaking ties by insertion (emit) order — never by lexicographic node-id/name order.
+   - 和訳: システムは、兄弟行を「両端が兄弟集合内にある依存辺」上の安定トポロジカルソートで並べ、同着は挿入（emit）順で決着させなければならない——ノード id／名前の辞書順で並べてはならない。
+2. The ordering shall be a deterministic display-side computation: the system shall not persist any display-order data, shall not add an ordering concept to the model, and the same input shall always yield the identical order.
+   - 和訳: 並び順は決定的な表示側の計算でなければならない: 表示順データを保存せず、モデルに順序概念を足さず、同じ入力からは常に同一の並びを得る。
+3. The system shall not conflate this display ordering with the forecast leveler's internal scheduling tie-break (longest-downstream-first, then node-id ascending) — the two orderings are different axes and the leveler's shall remain unaffected.
+   - 和訳: システムは、この表示の並び順を予測計算（leveler）内部のスケジューリング tie-break（下流最長優先→ノード id 昇順）と混同してはならない——両者は別軸であり、leveler 側の順序は影響を受けない。
+
+### Requirement 17: 行フィルタの拡張軸（担当者・完了・進捗）と祖先足場（issue #8・2026-07-04 追いつき・DECISIONS-CATALOG D-65）
+
+**Objective:** 利用者として、行数の増えた Gantt を担当者・完了状態・進捗（遅延）で絞り込みたい。それにより見たい行だけを、どの親の下かという木の文脈を保ったまま読める。
+
+#### Acceptance Criteria
+
+1. The system shall provide row filters over the Gantt — assignee (all / unassigned / a specific actor), completion (all / incomplete / complete), and divergence (all / behind / on-track) — in addition to the actor-kind filter of Req 8, all as display refinements over the same single derivation (P4), never as separately computed queries.
+   - 和訳: システムは、Req 8 の actor 種別フィルタに加え、Gantt の行フィルタ——担当者（全員／未割当／特定の担当）・完了（すべて／未完了／完了）・進捗（すべて／遅延中／順調）——を提供しなければならない。いずれも同一の単一導出への表示上の絞り込み（P4）であり、別系統で計算されたクエリであってはならない。
+2. The filters shall act on leaf rows only, retaining ancestor scaffolding regardless of the active filters (the same scaffolding discipline as Req 8 AC3), and shall not alter any aggregate accounting — metrics and counts derive from the full derivation, not the filtered subset.
+   - 和訳: フィルタは葉行にのみ作用し、有効なフィルタに依らず祖先の足場を保持しなければならない（Req 8 AC3 と同一の足場規律）。またいかなる集計・会計も変えてはならない——指標・件数は絞り込み後の部分集合ではなく全導出から導く。
+3. The divergence classification (behind / on-track) shall be read from the upstream forecast-vs-frozen-slot comparison (the R-S7 divergence data) as a display-only classification, never recomputed in this surface.
+   - 和訳: 進捗の分類（遅延中／順調）は、上流の予測対凍結スロット比較（R-S7 の乖離データ）から表示専用の分類として読み取り、本サーフェスで再計算してはならない。
+
+### Requirement 18: クリティカルパスの強調表示（公開導出の消費・依存最長経路の正直注記）（issue #16・2026-07-04 追いつき・DECISIONS-CATALOG D-72）
+
+**Objective:** 管理者として、着地を律する依存の最長経路を Gantt 上で強調して読みたい。それにより「どこを縮めれば着地が動くか」の当たりを付けられる。
+
+#### Acceptance Criteria
+
+1. The system shall highlight the nodes on the critical path — ONE deterministic maximal dependency chain — by consuming the published independent critical-path derivation (`moira-schedule` 所有・upstream), never recomputing the path in this surface (二系統計算の禁止・UI-ARCH §6).
+   - 和訳: システムは、クリティカルパス上のノード——決定的な最長依存連鎖 1 本——を、公開された独立のクリティカルパス導出（上流 `moira-schedule` 所有）を消費して強調表示しなければならず、本サーフェスで経路を再計算してはならない（二系統計算の禁止・UI-ARCH §6）。
+2. The highlight shall be honestly labeled as the DEPENDENCY-longest chain (nominal durations; agent lead time included unconditionally — PR-CRITPATH-AGENT), with an explicit note that it does NOT include resource-gated serialization (same-person queuing is capacity leveling, not a dependency edge).
+   - 和訳: 強調表示には「**依存**のつながりで最長の経路」（名目所要・エージェントのリードタイムも無条件算入＝PR-CRITPATH-AGENT）である旨を正直にラベルし、**資源律速（同一担当者の詰まり＝容量平準化であって依存辺ではない）を含まない**ことを明示の注記として添えなければならない。
+3. The system shall present the highlight as an overlay on the existing rows (e.g. a row marker and an outline on the live-forecast bar) without altering the schedule values themselves — the highlight is presentation, the underlying frozen slots and predictions stay untouched.
+   - 和訳: システムは、強調を既存の行への重ね描き（例: 行マーカーと生きた予測バーの外縁強調）として提示し、スケジュール値そのものを変えてはならない——強調は提示であり、基礎の凍結スロット・予測は不変。

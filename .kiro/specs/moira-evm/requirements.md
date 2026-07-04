@@ -2,7 +2,7 @@
 
 ## Introduction
 
-`moira-evm` は Moira 正典モデル `moira/MODEL.md`(v19) を本番アーキテクチャへ落とす **CQRS 分解の Wave1（読/導出側）** であり、Moira の **EVM 会計（出来高・コスト・指数・カバレッジ）の導出を一箇所に集約して所有する** spec である。基盤契約 `moira-core`（emit/derive・二層データ・effective-set・latest-wins・状態機械・凍結属性記録）を **消費**する前提で、同一ログ・同一実装から次を MODEL §3／要件群（P0–P3・R-U8/U9/U10・R-S1/S3/S4/S8・R-C2）に忠実に導出する:
+`moira-evm` は Moira 正典モデル `moira/MODEL.md`(v20) を本番アーキテクチャへ落とす **CQRS 分解の Wave1（読/導出側）** であり、Moira の **EVM 会計（出来高・コスト・指数・カバレッジ）の導出を一箇所に集約して所有する** spec である。基盤契約 `moira-core`（emit/derive・二層データ・effective-set・latest-wins・状態機械・凍結属性記録）を **消費**する前提で、同一ログ・同一実装から次を MODEL §3／要件群（P0–P3・R-U8/U9/U10・R-S1/S3/S4/S8・R-C2）に忠実に導出する:
 
 1. **EV の二形** — 絶対出来高 EV_abs（完了凍結予算の総和・合意済みのみ）と達成率 EV%（= EV_abs / Σ合意済み最新見積 ∈ [0,1]）。
 2. **二つの読み** — 現行進捗（現行有効集合の EV%）と累積EV（EV_abs、supersede 済みを含む過去総出来高）の区別導出（R-S5・§2.7）。
@@ -178,8 +178,8 @@
 
 1. The system shall derive a thrashing-detection signal for a node whose EV_abs is non-increasing while its AC continues to rise over a sustained window, the window being implementation-defined.
    - 和訳: システムは、EV_abs が非増のまま AC が継続的な期間にわたり増え続けるノードについて、thrashing 検出シグナルを導出しなければならない（期間は実装定義）。
-2. The system shall not raise the thrashing signal for a one-off cost from a folded estimation activity (R-E2b) landing without an estimate, treating it as expected.
-   - 和訳: システムは、畳んだ見積活動（R-E2b）が見積なしに一度だけ計上する cost について、これを想定内として thrashing シグナルを立ててはならない。
+2. The system shall not raise the thrashing signal for a one-off cost from a folded estimation activity (R-E2b) **or a folded review activity (§7#18(b))** landing without an estimate, treating it as expected (MODEL R-S3 本文と一致；2026-07-04 追いつき——旧文言は畳んだ見積活動のみを挙げ、MODEL v19 編集で拡張された畳んだレビュー作業の carve-out〔§7#18(b)(v)〕を取りこぼしていた既知 spec-gap の解消).
+   - 和訳: システムは、畳んだ見積活動（R-E2b）**または畳んだレビュー作業（§7#18(b)）**が見積なしに一度だけ計上する cost について、これを想定内として thrashing シグナルを立ててはならない（carve-out は各回の畳み cost を**単独で**免責するのみで、差し戻しの反復により AC が持続的期間にわたり積み上がる場合の正当な発火を妨げない）。
 3. The system shall provide the thrashing-detection data to the warning layer and shall not itself finalize, aggregate, or clear the warning (those being owned by `moira-health`).
    - 和訳: システムは thrashing 検出データを警告層へ提供し、警告の確定・集約・解消は自ら行ってはならない（それらは `moira-health` が所有する）。
 4. The system shall not normalize CPI to account for the node-vs-fold modeling choice, deriving the detection from the EV_abs/AC two-condition signal only.

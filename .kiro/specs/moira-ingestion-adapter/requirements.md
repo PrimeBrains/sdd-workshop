@@ -2,7 +2,7 @@
 
 ## Introduction
 
-`moira-ingestion-adapter` は Moira 正典モデル `moira/MODEL.md`(v19) を本番アーキテクチャへ落とす **CQRS 分解の Wave1**（依存 = `moira-core`）であり、**仕様方法論の段階的成果物（抽象 spec-unit）→ ノード候補＋見積提案**への **read-only 正規化（producer）**を所有する spec である。具体的には次を所有する:
+`moira-ingestion-adapter` は Moira 正典モデル `moira/MODEL.md`(v20) を本番アーキテクチャへ落とす **CQRS 分解の Wave1**（依存 = `moira-core`）であり、**仕様方法論の段階的成果物（抽象 spec-unit）→ ノード候補＋見積提案**への **read-only 正規化（producer）**を所有する spec である。具体的には次を所有する:
 
 1. **方法論非依存の入力境界** — cc-sdd 等の固有語彙を内部マッピングに閉じ込め、抽象 spec-unit（成果物を段階的に作成し人間が承認していく構造化された開発プロセスの成果物；§2.3 の操作的定義／0c）を入力に取る。
 2. **ノード候補の正規化** — フェーズ成果物を §2.6 の「フェーズ＝feature の子ノード」へ写し、木の所属・DAG の論理依存・lifecycle 初期状態を **候補**として提示する。A1 射程（0a）に従い運用/バグ/ad-hoc 作業も feature ノード候補とする。

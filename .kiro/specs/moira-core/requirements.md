@@ -2,7 +2,7 @@
 
 ## Introduction
 
-`moira-core` は Moira 正典モデル `moira/MODEL.md`(v19) を本番アーキテクチャへ落とす **CQRS 分解の Wave0** であり、全 read spec（×10）と全 write skill（×14）が依存する **基盤契約**を凍結する spec である。具体的には次を所有する:
+`moira-core` は Moira 正典モデル `moira/MODEL.md`(v20) を本番アーキテクチャへ落とす **CQRS 分解の Wave0** であり、全 read spec（×10）と全 write skill（×14）が依存する **基盤契約**を凍結する spec である。具体的には次を所有する:
 
 1. **emit/derive 契約** — 4 イベント（`transition`/`decompose`/`relate`/`cost`）の追記、構成入力（capacity c・期日・目標日）の追記、および同一ログからの導出読み出し。
 2. **データモデル** — イベント型、ノード ライフサイクル状態機械（`ready` を含む lifecycle 状態の保持。`ready` は状態として保持するのみで、先行充足から導く ready-eligible は `moira-scope-deps` 所有＝二語分離）、見積合意機械（人間限定）、effective-set（supersede×cancel 復帰規則）、辺の型・既定 policy の構造保持（評価は下流）、`(ts,id)` latest-wins、二層データの境界。
@@ -73,6 +73,14 @@
    - 和訳: システムは `cost` イベントを、event id で重複排除し行為者に帰属する加算的な実コスト計上として表現しなければならない。
 5. The system shall record actual cost in the single currency of human attention-time (MD) and never fold it into EV.
    - 和訳: システムは実コストを人間アテンション時間（MD）の単一通貨で記録し、それを EV に混入させてはならない。
+6. The system shall interpret a node's containment (which parent it is a child of) as a **latest-wins replacement** register carried by `decompose`: the most recent decompose naming the node as a child determines its **single effective parent**, a child shall never hold two effective parents simultaneously (the dual-membership state is structurally unrepresentable), and correcting a mis-parenting is achieved by re-decomposing the node under the correct parent — an append-only compensation whose derived reads (except the activity history) match a log in which the mistake never happened (MODEL §2.8「所属の latest-wins」・v20・issue #5).
+   - 和訳: システムは、ノードの所属（どの親の子か）を `decompose` が運ぶ **latest-wins の置き換え**レジスタとして解釈しなければならない: 当該ノードを子として名指した最新の decompose が**単一の有効親**を決め、子が二つの有効親を同時に持つ状態は構造的に表現不能であり、誤った親付けの是正は正しい親の下への再 decompose——追記専用の補償であり、その導出読み（活動履歴を除く）は誤りが一度も無かったログと一致する——で達成される（MODEL §2.8「所属の latest-wins」・v20・issue #5）。
+7. If a `decompose` would name the node itself or one of its own descendants as the new parent (an ownership cycle), then the system shall reject it as a fold-enforced structural invariant and surface a structural error (the tree-ness guard; MODEL §2.8 v20 — 循環拒否は relate 辺〔Requirement 9〕だけでなく所属にも及ぶ).
+   - 和訳: `decompose` がノード自身またはその子孫を新しい親として名指す場合（所属の循環）、システムはこれを fold で enforce する構造不変条件として拒否し、構造エラーとして顕在化しなければならない（木性ガード；MODEL §2.8 v20——循環拒否は relate 辺〔Requirement 9〕だけでなく所属にも及ぶ）。
+8. If a `cost` event carries a negative amount, then the system shall reject it and surface a structural error — actual cost is a non-negative fact and negative offsetting entries are not representable (MODEL §2.8/A6・v20).
+   - 和訳: `cost` イベントが負の額を運ぶ場合、システムはこれを拒否し構造エラーとして顕在化しなければならない——実コストは非負の事実であり、負値による相殺計上は表現できない（MODEL §2.8/A6・v20）。
+9. The system shall re-read logs recorded before this rule (multiple decompose events naming different parents for the same child) under the same latest-wins interpretation — the last-named parent wins — without modifying any stored event (A2 append-only preserved; the cross-version difference in derived reads is a disclosed v20 seam, MODEL §7#19(g)).
+   - 和訳: システムは、本規則より前に記録されたログ（同一の子に異なる親を名指す複数の decompose）も同じ latest-wins 解釈——最後に名指された親が勝つ——で読み直さなければならず、保存済みイベントを一切改変してはならない（A2 追記専用の保持。版間の導出読みの差は開示済みの v20 継ぎ目・MODEL §7#19(g)）。
 
 ### Requirement 4: 見積は合意状態を持つ提案・非人間 agreed の構造的拒否（R-U3/I6/A5）
 
@@ -260,6 +268,10 @@
 | 3.3 | §2.8, R-D3 | |
 | 3.4 | §2.8, R-U10 | |
 | 3.5 | §2.8, A6 | |
+| 3.6 | §2.8, A3, §7#19 | 所属の latest-wins 置換（v20・issue #5）; 補償再 decompose ≡ クリーンログ（activityLog 除く） |
+| 3.7 | §2.8, A3, I2 | 木性ガード（所属循環の fold 拒否・v20） |
+| 3.8 | §2.8, A6 | cost 非負の fold 拒否（v20） |
+| 3.9 | §2.8, A2, §7#19(g) | pre-v20 ログの遡及 latest-wins 読み（イベント不改変・版間差は開示済み継ぎ目） |
 | 4.1 | R-U3, A5 | |
 | 4.2 | I6 | 人間限定の合意権限ゲート; budget 凍結は 7.2 に一本化（R-U7/§3） |
 | 4.3 | I6 | R-U4 人間承認オーケストレーションは `moira-estimate-agree` 所有 |

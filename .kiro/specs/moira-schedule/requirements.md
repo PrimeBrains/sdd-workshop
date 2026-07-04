@@ -2,13 +2,15 @@
 
 ## Introduction
 
-`moira-schedule` は Moira 正典モデル `moira/MODEL.md`(v19) を本番アーキテクチャへ落とす **CQRS 分解の Wave1**（依存: `moira-core`）であり、Moira の **時間軸（schedule）導出**を所有する read/導出 spec である。具体的には次を所有する:
+`moira-schedule` は Moira 正典モデル `moira/MODEL.md`(v20) を本番アーキテクチャへ落とす **CQRS 分解の Wave1**（依存: `moira-core`）であり、Moira の **時間軸（schedule）導出**を所有する read/導出 spec である。具体的には次を所有する:
 
 1. **生きた予測スケジュール** — 人間が与えた割当と DAG の上での **c(i,d) 平準化（P7/P8）**・クリティカルパス優先の発見的増分解として、各サブ単位の予測完了を導出する（R-T1/R-U11/R-T2）。割当の読み取りでは、各サブ単位の被割当者を作業開始ライフサイクル遷移の単一属性（latest-wins 置換）として解釈し、平準化が誰の容量を消費するかを一意に決める（R-T5/§2.4）。
 2. **未割当バックログとキュー（P4 同一クエリ）** — 割当なしの合意済み作業を可視ギャップ（P0）として、エージェント作業キューと人間レビューキューを同一 DAG×ログへの actor フィルタ違い（P4）として導出する（参照実装 `queues.ts`＝二導出列＝`agentWorkQueue`／`humanReviewQueue`）。P4 見出しの「三キュー」および UI-ARCHITECTURE §4.1 の「作業/レビュー/エージェント」は、この同一クエリへの actor フィルタ・プリセット（全員/人間/エージェント）の表記であり、被覆上は **1 導出**（UI-ARCHITECTURE §4.1 line 73）として数える——本 spec が出すのはこの 1 導出（二導出列）であって、第 3 の独立キューを再計算しない。
 3. **スケジュール・カバレッジとスロット陳腐化** — 合意済みのうちスケジュール済みの割合（R-S6 の母数）と、生きた予測が凍結ベースライン・スロットと乖離する陳腐化スロットの**検出**（R-S7、原因別）。
 4. **検出データ** — 過負荷（R-T3）・期日超過（R-T4）の検出データを提供する（警告の**確定/集約**は `moira-health` が所有；本 spec は検出データを出すのみ）。
 5. **D_pred とスケジュール・バッファ** — プロジェクト導出完了 D_pred（クリティカルパス末端の max）と、二参照日付（期日・目標日）から導くスケジュール・バッファ残量/消費率（R-T6、境界条件含む）。
+6. **クリティカルパスの公開導出**（issue #16・Req16）— 依存最長経路そのもの（決定的 1 本＋総日数）を、既存導出契約の外の独立導出として公開する（leveler と部品共有・ドリフト構造防止）。
+7. **着地予想バーンアップ曲線**（issue #13・Req17）— 計画・実績・予測の三曲線（同一通貨＝凍結予算）と着地日を、既存導出契約の外の独立導出として公開する（予測不能分の正直開示つき）。
 
 本 spec は MODEL を唯一の真実源（SSOT）とし、MODEL の文言を変えず・新概念を足さず、`moira-core` が所有する契約概念（emit/derive・二層データ・effective-set・latest-wins・状態機械・凍結属性記録）を **消費**する前提で時間軸導出の責務だけを記述する。指標式本体（EV_abs/EV%/PV/AC/SPI/CPI/sunk）は `moira-evm` が所有し、SPI への R-S6 de-rate **適用**も `moira-evm`／健全性提示は `moira-health` が消費する——本 spec は de-rate される側の母数（スケジュール・カバレッジ）と D_pred・予測・未割当を提供するに留める（roadmap 共有シーム「schedule coverage: 導出は moira-schedule、SPI の de-rate 消費は moira-evm」「検出データは各 derivation、警告確定/集約は moira-health」）。
 
@@ -240,3 +242,33 @@
    - 和訳: システムは人間ゲート待ちを、件数と最も古い年齢（待ち葉の年齢の最大値）として提示しなければならない。待ちが空のときは件数 0・最古年齢を欠落（honest empty）として報告し、捏造してはならない。
 6. The system shall provide the human-gate backlog as a read scoped to these two gates only, neither presenting it as the complete bottleneck signal (the unassigned backlog of Req3/R-U9 and the health-owned warnings — at-risk P5, stale-slot R-S7 — are separate human-pending signals) nor consuming any capacity or rate-limiting any path with it; a leaf merely parked in a gate still counts (its genuine blockage being read via those other signals), an R-S4/R-S6-isomorphic de-rate read that is judgment material, not an automatic trigger.
    - 和訳: システムは人間ゲート待ちを、この2ゲートに限定した read として提供し、完全なボトルネック信号として提示してはならず（未割当バックログ＝Req3/R-U9、health 所有の警告＝at-risk P5・スロット陳腐化 R-S7 は別の人間待ち信号）、それで容量を消費したりパスを律速したりしてはならない。ゲートに居座るだけの葉も算入され（真の停滞は他信号で読む）、R-S4/R-S6 同型の de-rate read＝自動行為の引き金でなく判断材料である。
+
+### Requirement 16: クリティカルパスの公開導出（独立導出・leveler と部品共有・決定的1本）（issue #16・2026-07-04 追いつき・DECISIONS-CATALOG D-72）
+
+**Objective:** read サーフェス作者として、着地を律する依存最長経路そのものを消費可能な導出として得たい。それにより提示層は経路を再計算せずに強調表示できる（P7 の内部量の観測可能化）。
+
+#### Acceptance Criteria
+
+1. The system shall publish the critical path — ONE deterministic maximal dependency chain (the upstream→downstream node list plus its total nominal length in days) over the schedulable leaves — as an INDEPENDENT derivation outside the frozen derive() contract, so all existing derive() outputs stay byte-identical.
+   - 和訳: システムはクリティカルパス——スケジュール可能な葉の上の決定的な最長依存連鎖 1 本（上流→下流のノード列＋名目総日数）——を、凍結済み derive() 契約の**外**の独立導出として公開し、既存の derive() 出力はバイト同一のまま保たなければならない。
+2. The derivation shall share its building blocks with the forecast leveler — the schedulable-leaf predicate (agreed ∧ assigned ∧ estimated effective leaves) and the nominal per-node duration (human: ceil(est/1.0); agent: ceil(est) calendar days; P6/R-T2) — so the published chain and the leveler's internal critical-path ranking cannot structurally drift.
+   - 和訳: 本導出は予測計算（leveler）と部品を共有しなければならない——スケジュール可能葉の述語（合意済み∧割当済み∧見積ありの有効葉）と名目所要（人間: ceil(est/1.0)・エージェント: ceil(est) 暦日；P6/R-T2）——公開される経路と leveler 内部のクリティカルパス優先順位が構造的に食い違えないように。
+3. Ties (multiple maximal chains) shall be broken deterministically by the same rule the leveler's ready queue uses (longer downstream first, then node-id ascending), so the surfaced chain matches what the leveler prefers to start; the same input shall always yield the identical chain.
+   - 和訳: 同点（最長連鎖が複数）の決着は leveler の ready キューと同一規則（下流最長優先→ノード id 昇順）で決定的に行い、公開される経路が leveler の優先着手と一致するようにしなければならない。同じ入力からは常に同一の経路を得る。
+4. The published path shall be the DEPENDENCY-longest chain over nominal durations — agent lead time included unconditionally (PR-CRITPATH-AGENT), supersede edges excluded — and shall NOT be presented as the resource-gated chain (same-person serialization is capacity leveling, not a dependency edge); the derivation shall make this distinction available so consumers label it honestly.
+   - 和訳: 公開される経路は名目所要上の**依存**最長連鎖であり——エージェントのリードタイムも無条件算入（PR-CRITPATH-AGENT）・置換辺は除外——、資源律速の経路（同一担当者の直列化＝容量平準化であって依存辺ではない）として提示してはならない。消費側が正直にラベルできるよう、この区別を導出が利用可能にしなければならない。
+
+### Requirement 17: 着地予想バーンアップ曲線の独立導出（三曲線同一通貨・予測不能分の正直開示）（issue #13・2026-07-04 追いつき・DECISIONS-CATALOG D-70）
+
+**Objective:** read サーフェス作者として、「このままだと、いつ・どこまで終わるか」の時系列読み——計画・実績・予測の三曲線と着地日——を、既存の導出契約を変えずに消費したい。それにより health 面は着地の絵を再計算なしで描ける。
+
+#### Acceptance Criteria
+
+1. The system shall publish a landing-forecast curve as an INDEPENDENT derivation outside the frozen derive() contract (existing golden arcs stay byte-identical), computed from the event log plus the asOf reporting date (the ev/forecast seam).
+   - 和訳: システムは着地予想曲線を、凍結済み derive() 契約の**外**の独立導出として公開し（既存の golden 弧はバイト同一）、イベントログと asOf 報告日（実績/予測の継ぎ目）から計算しなければならない。
+2. The three step curves shall share ONE currency — the frozen baseline budget: pv(d) as the plan (PMB) evaluated per date; ev(d) for d ≤ asOf as the EXACT re-derivation of EV_abs over the event prefix on/before d — honestly non-monotone (a later supersede or lifecycle regression may make past points exceed present ones), never interpolated, never a fabricated history; and forecast(d) for d ≥ asOf as ev(asOf) plus the frozen budgets of incomplete effective leaves whose leveler-predicted completion is ≤ d (past predictions clamped to asOf — for still-open work the earliest honest landing is "now").
+   - 和訳: 三本の階段曲線は同一通貨（凍結ベースライン予算）を共有しなければならない: pv(d)＝日付ごとに評価した計画（PMB）、ev(d)（d ≤ asOf）＝d 以前のイベント接頭辞に対する EV_abs の**厳密な再導出**——正直に非単調であり（後の supersede や lifecycle 後退により過去の点が現在を上回りうる）、補間も歴史の捏造もしない——、forecast(d)（d ≥ asOf）＝ev(asOf) ＋ leveler 予測完了が d 以前の未完了有効葉の凍結予算（過去の予測は asOf に切り上げ——未完の作業の最も正直な着地は「いま」）。
+3. Incomplete effective leaves that cannot be forecast (no leveler prediction or no frozen budget) shall NOT be potted: the system shall exclude them from the curve and surface them as an unforecasted-leaves list plus a forecast-coverage ratio, so the forecast line honestly tops out below the BAC ceiling and consumers de-rate the read (R-S6-isomorphic discipline).
+   - 和訳: 予測できない未完了有効葉（leveler 予測なし・凍結予算なし）を**勝手に埋めてはならない**: 曲線から除外し、未予測葉の一覧と予測カバレッジ比として開示し、予測線が BAC 天井より正直に低く止まって消費側が読みを割り引けるようにしなければならない（R-S6 同型の規律）。
+4. The landing date shall be D_pred over the forecastable incomplete region (the max predicted completion, clamped to ≥ asOf); when nothing is forecastable it shall be absent (null) — a visible gap, not a guess (P0). The deadline and target date shall remain second-tier configuration inputs (R-T6) compared against the curve by the presentation layer, never folded into this derivation.
+   - 和訳: 着地日は予測可能な未完了領域に対する D_pred（予測完了の最大値・asOf 以上に切り上げ）とし、何も予測できないときは欠落（null）——推測ではなく可視ギャップ（P0）——としなければならない。期日・目標日は第二層の設定入力（R-T6）のままとし、曲線との比較は提示層が行い、本導出へ畳み込んではならない。

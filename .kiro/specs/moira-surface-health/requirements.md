@@ -2,7 +2,7 @@
 
 ## Introduction
 
-`moira-surface-health` は Moira 正典モデル `moira/MODEL.md`(v16, 凍結) を本番アーキテクチャへ落とす **CQRS 分解の Wave3（read サーフェス群）** の一つで、**「健全性・EVM」軸の常駐 read-only ダッシュボード**を所有する spec である。MODEL §0 が確定する「進捗・スケジュール・健全性はすべて 4 イベントからの導出」というモデルに対し、本 spec はその導出を**読むだけ**で、管理者が「対で読んで」即座に健全性を把握できるよう次を提示する:
+`moira-surface-health` は Moira 正典モデル `moira/MODEL.md`(v20) を本番アーキテクチャへ落とす **CQRS 分解の Wave3（read サーフェス群）** の一つで、**「健全性・EVM」軸の常駐 read-only ダッシュボード**を所有する spec である。MODEL §0 が確定する「進捗・スケジュール・健全性はすべて 4 イベントからの導出」というモデルに対し、本 spec はその導出を**読むだけ**で、管理者が「対で読んで」即座に健全性を把握できるよう次を提示する:
 
 1. **EV_abs（累積EV）と EV%（現行進捗）の区別表示** — 混同すると嘘になる二読み（過去総出来高 vs 現行有効集合の達成率）を分離ゾーンで提示（R-S5）。
 2. **PV／AC／SPI／CPI** — 予算次元 MD の絶対量。SPI は低スケジュール・カバレッジで de-rate（R-S6）、CPI は領域非対称（分子=完了/分母=WIP 含む）を正直に提示（§3）。
@@ -210,3 +210,22 @@
    - 和訳: システムは人間対応待ちを2パイプラインゲートに限定して提示し、完全なボトルネック信号として提示してはならない——未割当バックログ（R-U9・schedule サーフェスが host）と health 警告（at-risk P5・スロット陳腐化 R-S7）は別の人間待ち信号——ゲートに居座るだけの葉も算入したものとして提示し（真の停滞は他信号で読む）、可視会計から落としてはならない（P0）。
 5. The system shall treat the human-gate backlog presentation as the manager preset's reading over the SAME single R-S2 derivation (initial preset 管理者; Req10 AC6) and shall not physically split by role or derive a divergent second value for it (UI-ARCH §2.1/§6).
    - 和訳: システムは人間対応待ちの提示を、同一の単一 R-S2 導出に対する管理者プリセットの読み（初期プリセット管理者；Req10 AC6）として扱い、役割で物理分割したりそれについて乖離する第二の値を導出したりしてはならない（UI-ARCH §2.1/§6）。
+
+### Requirement 12: 着地予想バーンアップの提示（三曲線・BAC 天井・期日判定・予測不能分の de-rate 対読み）（issue #13・2026-07-04 追いつき・DECISIONS-CATALOG D-70）
+
+**Objective:** 健全性を読む管理者として、「このままだと、いつ・どこまで終わりそうか」を、計画・実績・予測の三本線と着地日・期日判定の一枚の絵で読みたい。それにより点の指標（SPI/CPI）だけでは見えない時系列の着地見通しを、楽観の捏造なしに把握できる。
+
+> **境界の明示（MODEL 変更なし・上流独立導出の消費）:** 本要件が描くバーンアップは、上流 `moira-schedule`（Req17）が公開する着地予想曲線の独立導出を**読むだけ**で、曲線・着地日・予測カバレッジのいずれも本サーフェスで再計算しない（UI-ARCH §6 二系統計算の禁止）。期日・目標日は第二層の設定入力（R-T6）で、曲線との比較・判定ラベルの合成のみを提示層が行う（値の導出ではなく設定と導出値の突き合わせ＝表示合成の許容範囲・D-55）。
+
+#### Acceptance Criteria
+
+1. The system shall present the landing-forecast burnup — the three step curves (plan pv(d) / actual ev(d) / forecast(d)) sharing the single frozen-budget currency, with the BAC as the shared ceiling — by consuming the upstream independent landing derivation (`moira-schedule` Req17), never recomputing any curve point, the landing date, or the forecast coverage in this surface.
+   - 和訳: システムは着地予想バーンアップ——単一の凍結予算通貨を共有する三本の階段曲線（計画 pv(d)／実績 ev(d)／予測 forecast(d)）と、共有の天井としての BAC——を、上流の独立した着地導出（`moira-schedule` Req17）を消費して提示し、曲線の点・着地日・予測カバレッジのいずれも本サーフェスで再計算してはならない。
+2. The system shall present the unforecasted portion honestly: the forecast line tops out below the BAC ceiling when unforecastable leaves exist, and the system shall surface the forecast-coverage ratio (and the unforecasted leaves) as a de-rate paired reading so the landing read is discounted rather than optimistically potted (R-S6-isomorphic; P0).
+   - 和訳: システムは予測できていない分を正直に提示しなければならない: 予測不能な葉が存在するとき予測線は BAC 天井より低く止まり、予測カバレッジ比（および未予測葉）を de-rate の対読みとして表出して、着地の読みが楽観的に埋められるのでなく割り引かれるようにする（R-S6 同型・P0）。
+3. The system shall present the landing verdict against the second-tier reference dates as a presentation-layer comparison of the derived landing date with the deadline / target date, with honest boundary conditions: absent deadline → neutral/undefined verdict (no fabricated judgement); target date later than deadline → a configuration error signal; nothing forecastable (absent landing date) → a visible gap, not a guess.
+   - 和訳: システムは、第二層の参照日付に対する着地判定を、導出された着地日と期日・目標日との提示層比較として提示し、境界条件を正直に扱わなければならない: 期日なし→中立/未定義の判定（判定の捏造をしない）、目標日が期日より後→構成エラーの信号、何も予測できない（着地日欠落）→推測でなく可視ギャップ。
+4. When the landing date exceeds the deadline, the system shall present the overrun with its magnitude (days) as a read-only signal and shall not auto-resolve it (no automatic staffing/scope action — the commitment belongs to humans; R-T4 と整合).
+   - 和訳: 着地日が期日を超えるとき、システムは超過をその量（日数）とともに read-only の信号として提示し、自動解決してはならない（要員追加・スコープ削減の自動行為なし——コミットは人間に属する。R-T4 と整合）。
+5. The system shall keep this presentation read-only over the upstream derivation and shall not fold the deadline/target comparison back into any derivation value (the comparison is a display composition over per-derivation outputs and second-tier config, permitted as presentation; aggregate metrics stay derive()-owned).
+   - 和訳: システムはこの提示を上流導出に対する read-only に保ち、期日/目標日比較をいかなる導出値へも畳み込んではならない（比較は導出出力と第二層設定の上での表示合成であり提示として許容される。集約指標は derive() 所有のまま）。

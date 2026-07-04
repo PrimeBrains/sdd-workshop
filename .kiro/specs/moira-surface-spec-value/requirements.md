@@ -2,7 +2,7 @@
 
 ## Introduction
 
-`moira-surface-spec-value` は Moira 正典モデル `moira/MODEL.md`(v19) を本番アーキテクチャへ落とす **CQRS 分解の Wave3（read サーフェス群）** の一つで、**「仕様・価値」軸の常駐 read-only ダッシュボード**を所有する spec である。MODEL §0 が確定する「進捗・価値はすべて 4 イベントからの導出」というモデルに対し、本 spec はその導出を**読むだけ**で次を人間に提示する:
+`moira-surface-spec-value` は Moira 正典モデル `moira/MODEL.md`(v20) を本番アーキテクチャへ落とす **CQRS 分解の Wave3（read サーフェス群）** の一つで、**「仕様・価値」軸の常駐 read-only ダッシュボード**を所有する spec である。MODEL §0 が確定する「進捗・価値はすべて 4 イベントからの導出」というモデルに対し、本 spec はその導出を**読むだけ**で次を人間に提示する:
 
 1. **ノード木** — feature ─ req/design/tasks/impl（MODEL §2.6 フェーズ＝ノード）のライフサイクル状態と見積状態を、アコーディオン＋進行中（`implementing`）上位で表示。
 2. **トレーサビリティ＋DAG ビューア** — 木と relate DAG（依存辺・supersede 辺）を区別して描く再利用可能な部品。
@@ -191,3 +191,27 @@
    - 和訳: `implemented` の葉が reviewer 未指名の場合、システムは reviewer を『未指名』の可視ギャップ（P0/R-U9）として提示し、reviewer を捏造してはならない。人間レビュー待ちキューの母集合は reviewer 指名の有無に依らない（キューは actor 非依存の `implemented` 導出；`moira-schedule` Req14 AC2）。
 4. The system shall treat the reviewer as a read-only display that moves no derived accounting — it shall not feed EV%/EV_abs, coverage, PV, SPI/CPI, or the schedule, and shall not host a reviewer-filter narrowing (the reviewer filter that selects on the per-node `reviewer` attribute is owned by `moira-surface-schedule` Req14; MODEL §7#18(f)); designating or changing a reviewer is a human commitment (§2.1#2 assignment) owned by a write skill, so this surface performs no reviewer write (offering at most a deep link to the write context).
    - 和訳: システムは reviewer を、いかなる導出会計も動かさない read-only 表示として扱わなければならない——EV%/EV_abs・カバレッジ・PV・SPI/CPI・スケジュールに与えず、レビュー担当を選んで絞る reviewer フィルタを host しない（それは `moira-surface-schedule` Req14 が所有する per-node `reviewer` 属性の選択フィルタ；視点 actor を要さない＝MODEL §7#18(f)）。reviewer の指名・変更は write skill が所有する人間のコミット判断（§2.1#2 割当）であり、本サーフェスは reviewer の書き込みを行わない（行うのは高々 write 文脈への深リンク）。
+
+### Requirement 12: 兄弟行の並び順＝依存トポロジカル順＋挿入順（辞書順の禁止）（issue #7・2026-07-04 追いつき・DECISIONS-CATALOG D-64）
+
+**Objective:** 仕様・価値を読む人間として、ノード木の同じ親の下の兄弟行が依存の流れの順で並んでほしい。それにより上から読めば段取りが追える（schedule-time と同一の並び規律・同一の純関数を共有）。
+
+#### Acceptance Criteria
+
+1. The system shall order sibling rows by a stable topological sort over the dependency edges whose both ends lie inside the sibling set, breaking ties by insertion (emit) order — never by lexicographic node-id/name order (the shared pure ordering function with the schedule surface; 表示部品そのものは surface 間で共有しない).
+   - 和訳: システムは、兄弟行を「両端が兄弟集合内にある依存辺」上の安定トポロジカルソートで並べ、同着は挿入（emit）順で決着させなければならない——ノード id／名前の辞書順で並べてはならない（並び順の純関数は schedule サーフェスと共有。表示部品そのものは surface 間で共有しない）。
+2. The ordering shall be a deterministic display-side computation: no display-order data is persisted, no ordering concept is added to the model, and the same input always yields the identical order.
+   - 和訳: 並び順は決定的な表示側の計算でなければならない: 表示順データを保存せず、モデルに順序概念を足さず、同じ入力からは常に同一の並びを得る。
+
+### Requirement 13: 行フィルタ（担当者・完了・見積状態）と祖先足場（issue #8・2026-07-04 追いつき・DECISIONS-CATALOG D-65）
+
+**Objective:** 仕様・価値を読む人間として、行数の増えたノード木を担当者・完了状態・見積状態で絞り込みたい。それにより見たい行だけを、どの親の下かという木の文脈を保ったまま読める（Req 7 の未合意フィルタはこの見積状態軸に包含される）。
+
+#### Acceptance Criteria
+
+1. The system shall provide row filters over the node tree — assignee (all / unassigned / a specific actor), completion (all / incomplete / complete), and estimate state (all / unestimated / proposed / agreed) — all as display refinements over the same single derivation (P4), never as separately computed queries.
+   - 和訳: システムは、ノード木の行フィルタ——担当者（全員／未割当／特定の担当）・完了（すべて／未完了／完了）・見積状態（すべて／未見積／見積提案中／見積合意済）——を提供しなければならない。いずれも同一の単一導出への表示上の絞り込み（P4）であり、別系統で計算されたクエリであってはならない。
+2. The filters shall act on leaf rows only, retaining ancestor scaffolding regardless of the active filters, and shall not alter any aggregate accounting — metrics (EV%, coverages) derive from the full derivation, not the filtered subset (D-52/D-53/D-55 と同型の「表示だけの絞り込み」規律).
+   - 和訳: フィルタは葉行にのみ作用し、有効なフィルタに依らず祖先の足場を保持しなければならない。またいかなる集計・会計も変えてはならない——指標（EV%・各カバレッジ）は絞り込み後の部分集合ではなく全導出から導く（D-52/D-53/D-55 と同型の「表示だけの絞り込み」規律）。
+3. The estimate-state axis shall subsume the unagreed filter of Req 7 (unestimated / proposed selections realize R-U9's "estimate-pending" narrowing), so the two shall not become divergent second implementations of the same narrowing.
+   - 和訳: 見積状態軸は Req 7 の未合意フィルタを包含しなければならない（未見積／提案中の選択が R-U9 の「見積待ち」絞り込みを実現する）。両者が同じ絞り込みの乖離した二重実装になってはならない。

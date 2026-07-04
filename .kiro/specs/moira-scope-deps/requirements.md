@@ -2,7 +2,7 @@
 
 ## Introduction
 
-`moira-scope-deps` は Moira 正典モデル `moira/MODEL.md`(v16, 凍結) を本番アーキテクチャへ落とす **CQRS 分解の Wave1（読/導出 spec）** であり、プロジェクトの **構造（木）と依存（DAG）の二重グラフ**（A3）上で次の **読み出し導出**を所有する spec である:
+`moira-scope-deps` は Moira 正典モデル `moira/MODEL.md`(v20) を本番アーキテクチャへ落とす **CQRS 分解の Wave1（読/導出 spec）** であり、プロジェクトの **構造（木）と依存（DAG）の二重グラフ**（A3）上で次の **読み出し導出**を所有する spec である:
 
 1. **tree+DAG の二重グラフ読み出し** — 木（所属 §2.6）と DAG（論理依存 §2.6）を混同せず区別して読み出す（A3）。
 2. **依存/置換（supersede）辺の種別分離** — 依存辺は ready 判定に使い、置換辺は使わない（§2.7・R-D7 辺）。
