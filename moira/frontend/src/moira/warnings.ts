@@ -5,14 +5,19 @@
 // §2.1 self-state ban). De-rate-type signals (R-S4/R-S6) are NOT here; they live
 // on health/spec-value as metric modifiers (UI-DESIGN-BRIEF §2.4).
 
-import type { DerivedState, NodeId, ProjectedState } from './engine';
+import type { Actor, DerivedState, NodeId, ProjectedState } from './engine';
 import { labelOf } from './labels';
 import type { SurfaceId } from '../app/types';
+
+/** the human-facing category each inbox item falls under (issue #12 sections). */
+export type DecisionType = 'estimate' | 'assign' | 'accept' | 'warning';
 
 export interface InboxItem {
   key: string;
   rid: string;
   kind: 'warning' | 'commit';
+  /** which of the 4 plain-language sections this item belongs to (issue #12). */
+  decisionType: DecisionType;
   title: string;
   node?: NodeId;
   surface: SurfaceId;
@@ -39,6 +44,7 @@ export function computeInbox(derived: DerivedState, projected: ProjectedState): 
         key: `R-U12:${id}`,
         rid: 'R-U12',
         kind: 'warning',
+        decisionType: 'warning',
         title: `見積合意の矛盾: ${labelOf(id)}（${[...n.agreedActorValues.entries()].map(([a, v]) => `${a}=${v}`).join(' / ')}）`,
         node: id,
         surface: 'spec-value',
@@ -53,6 +59,7 @@ export function computeInbox(derived: DerivedState, projected: ProjectedState): 
         key: `R-U13:${id}`,
         rid: 'R-U13',
         kind: 'warning',
+        decisionType: 'warning',
         title: `未合意完了: ${labelOf(id)}`,
         node: id,
         surface: 'spec-value',
@@ -67,6 +74,7 @@ export function computeInbox(derived: DerivedState, projected: ProjectedState): 
         key: `P5:${id}`,
         rid: 'P5',
         kind: 'warning',
+        decisionType: 'warning',
         title: `差し戻しリスク: ${labelOf(id)}（完了後に作業中へ後退）`,
         node: id,
         surface: 'spec-value',
@@ -84,6 +92,7 @@ export function computeInbox(derived: DerivedState, projected: ProjectedState): 
         key: `R-C3:${e.from}->${e.to}`,
         rid: 'R-C3',
         kind: 'warning',
+        decisionType: 'warning',
         title: `前提タスクの中止: ${labelOf(e.to)}（前提 ${labelOf(e.from)} が中止）`,
         node: e.to,
         surface: 'schedule-time',
@@ -102,6 +111,7 @@ export function computeInbox(derived: DerivedState, projected: ProjectedState): 
         key: `commit-agree:${id}`,
         rid: 'commit·合意',
         kind: 'commit',
+        decisionType: 'estimate',
         title: `見積合意が必要: ${labelOf(id)}（提案中）`,
         node: id,
         surface: 'spec-value',
@@ -116,6 +126,7 @@ export function computeInbox(derived: DerivedState, projected: ProjectedState): 
       key: `commit-assign:${id}`,
       rid: 'commit·割当',
       kind: 'commit',
+      decisionType: 'assign',
       title: `担当割当が必要: ${labelOf(id)}（未割当）`,
       node: id,
       surface: 'schedule-time',
@@ -123,6 +134,47 @@ export function computeInbox(derived: DerivedState, projected: ProjectedState): 
       clearWhen: '担当付与で消滅',
     });
   }
+  // ③ acceptance needed — 検収待ち（implemented）の有効葉（backend humanReviewQueue）。
+  // R-U13（未合意のまま完了）と同一ノードで併存し得るが意図的：片方は警告、
+  // 片方は「受け入れる／差し戻す」という通常のコミット判断で、別の行為を促す。
+  for (const id of derived.humanReviewQueue) {
+    items.push({
+      key: `commit-accept:${id}`,
+      rid: 'commit·受入',
+      kind: 'commit',
+      decisionType: 'accept',
+      title: `受入判断が必要: ${labelOf(id)}（完了・検収待ち）`,
+      node: id,
+      surface: 'schedule-time', // Inspector に →検収 / 差し戻し操作がある
+      actions: ['受け入れる（検収）', '差し戻す'],
+      clearWhen: '検収または差し戻しの追記で消滅',
+    });
+  }
 
   return items;
+}
+
+/**
+ * True iff the item's node has the given actor as its assignee OR reviewer
+ * (acceptance is the reviewer's job, so reviewers match too). Pure — no state.
+ * Node-less items (e.g. R-C3 keyed on an edge always carries a node) never match.
+ */
+export function itemMatchesActor(
+  item: InboxItem,
+  projected: ProjectedState,
+  actorId: string,
+): boolean {
+  if (item.node === undefined) return false;
+  const n = projected.nodes.get(item.node);
+  return n?.assignee?.id === actorId || n?.reviewer?.id === actorId;
+}
+
+/** Distinct actors appearing as an assignee or reviewer, id-sorted (filter options). Pure. */
+export function assigneeOptions(projected: ProjectedState): Actor[] {
+  const byId = new Map<string, Actor>();
+  for (const n of projected.nodes.values()) {
+    if (n.assignee !== null) byId.set(n.assignee.id, n.assignee);
+    if (n.reviewer !== null) byId.set(n.reviewer.id, n.reviewer);
+  }
+  return [...byId.values()].sort((a, b) => a.id.localeCompare(b.id));
 }

@@ -26,6 +26,8 @@ export interface MoiraProviderProps {
   /** R-T6 reference dates — boot constants from the fixture (issue #13). */
   initialDeadline?: IsoDate | null;
   initialTargetDate?: IsoDate | null;
+  /** viewpoint actor id — from the fixture `me` (issue #12); null unless served by `moira ui`. */
+  initialMe?: string | null;
   children: ReactNode;
 }
 
@@ -35,6 +37,7 @@ export function MoiraProvider({
   initialAsOf,
   initialDeadline = null,
   initialTargetDate = null,
+  initialMe = null,
   children,
 }: MoiraProviderProps) {
   const [events, setEvents] = useState<readonly Event[]>(initialEvents);
@@ -97,6 +100,7 @@ export function MoiraProvider({
       landing,
       deadline: initialDeadline,
       targetDate: initialTargetDate,
+      me: initialMe,
       appendEvent,
       appendCapacity,
       replaceSnapshot,
@@ -104,7 +108,7 @@ export function MoiraProvider({
       nextStamp,
       previewCapacity,
     }),
-    [events, capacityEntries, asOf, derived, projected, landing, initialDeadline, initialTargetDate, appendEvent, appendCapacity, replaceSnapshot, nextStamp, previewCapacity],
+    [events, capacityEntries, asOf, derived, projected, landing, initialDeadline, initialTargetDate, initialMe, appendEvent, appendCapacity, replaceSnapshot, nextStamp, previewCapacity],
   );
 
   return <MoiraContext.Provider value={value}>{children}</MoiraContext.Provider>;

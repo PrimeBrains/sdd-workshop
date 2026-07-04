@@ -40,6 +40,8 @@ export interface UiFixture {
   /** R-T6 reference dates, latest-wins-resolved from .moira/dates.json (issue #13). */
   deadline?: IsoDate;
   targetDate?: IsoDate;
+  /** viewpoint actor id (.moira/config.json `me`) — enables the「自分」inbox filter (issue #12). */
+  me?: string;
   /** true only when served by `moira ui` — tells the app to open the SSE bridge. */
   live?: boolean;
 }

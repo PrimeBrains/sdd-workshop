@@ -491,6 +491,7 @@ async function cmdUi(rest: string[]): Promise<void> {
       asOf: asOfFlag ?? cfg.asOf ?? today(),
       nodeLabels: labels.nodeLabels,
       actorLabels: labels.actorLabels,
+      me: cfg.me,
       ...(dates.deadline !== undefined ? { deadline: dates.deadline } : {}),
       ...(dates.targetDate !== undefined ? { targetDate: dates.targetDate } : {}),
       live: true,

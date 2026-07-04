@@ -27,6 +27,8 @@ export interface MoiraState {
   /** R-T6 reference dates (boot-time fixture values; a reload re-resolves them). */
   deadline: IsoDate | null;
   targetDate: IsoDate | null;
+  /** viewpoint actor id (fixture `me`, from `.moira/config.json`) — null unless served by `moira ui` (issue #12). */
+  me: string | null;
 
   appendEvent: (event: Event) => void;
   appendCapacity: (entry: CapacityEntry) => void;

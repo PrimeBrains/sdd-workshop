@@ -55,10 +55,14 @@ describe('surfaces render without throwing', () => {
     expect(html).toContain('置き換え');
   });
 
-  it('decision inbox (warnings + commits, no dismiss)', () => {
+  it('decision inbox (4 plain-language sections, no dismiss)', () => {
     const html = wrap(<DecisionInboxSurface onNavigate={() => {}} />);
     expect(html).toContain('判断要');
-    expect(html).toContain('コミット判断');
+    // the 4 decisionType sections (issue #12)
+    expect(html).toContain('見積に合意する');
+    expect(html).toContain('担当を割り当てる');
+    expect(html).toContain('受入判断する');
+    expect(html).toContain('警告に対処する');
     expect(html).toContain('見積合意の矛盾'); // demo trigger fires (conflicting agreement)
     expect(html).toContain('差し戻しリスク'); // demo trigger fires (design diff-back at-risk)
   });

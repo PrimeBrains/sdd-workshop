@@ -24,6 +24,8 @@ interface MoiraFixture {
   /** R-T6 reference dates (issue #13) — latest-wins-resolved by the CLI. */
   deadline?: IsoDate;
   targetDate?: IsoDate;
+  /** viewpoint actor id (.moira/config.json `me`) — enables the「自分」inbox filter (issue #12). */
+  me?: string;
   /** set only by the `moira ui` CLI server — mounts the SSE live bridge. */
   live?: boolean;
 }
@@ -33,6 +35,7 @@ const initialCapacity = fixture?.capacity ?? demoCapacity;
 const initialAsOf = fixture?.asOf ?? DEMO_AS_OF;
 const initialDeadline = fixture?.deadline ?? null;
 const initialTargetDate = fixture?.targetDate ?? null;
+const initialMe = fixture?.me ?? null;
 
 // Install user-supplied display labels before first render (no-op when absent).
 if (fixture?.nodeLabels !== undefined || fixture?.actorLabels !== undefined) {
@@ -50,6 +53,7 @@ createRoot(rootEl).render(
       initialAsOf={initialAsOf}
       initialDeadline={initialDeadline}
       initialTargetDate={initialTargetDate}
+      initialMe={initialMe}
     >
       {fixture?.live === true && <LiveFixtureBridge initialAsOf={initialAsOf} />}
       <App />

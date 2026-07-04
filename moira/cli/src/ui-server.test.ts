@@ -48,6 +48,13 @@ describe('injectFixture', () => {
     // absent by default — optional fields are omitted, not undefined
     expect(injectFixture('<head></head>', fixture)).not.toContain('deadline');
   });
+
+  it('carries the viewpoint actor `me` when present (issue #12)', () => {
+    const out = injectFixture('<head></head>', { ...fixture, me: 'alice' });
+    expect(out).toContain('"me":"alice"');
+    // absent by default — the base fixture omits `me`
+    expect(injectFixture('<head></head>', fixture)).not.toContain('"me"');
+  });
 });
 
 // --- live server (issue #6) --------------------------------------------------
