@@ -7,6 +7,7 @@
 import type {
   Actor,
   ActorKind,
+  DependencyEdge,
   DerivedState,
   EstimateState,
   IsoDate,
@@ -79,6 +80,44 @@ function classify(completed: boolean, frozenSlot: IsoDate | null, predicted: Iso
   return 'unscheduled-incomplete';
 }
 
+/** Order ONE sibling set by a stable topological sort over the dependency edges
+ * whose BOTH ends lie inside the set (Kahn), breaking ties by insertion order
+ * (the childrenOf / event order). Edges crossing to ancestors or other parents
+ * are ignored — the adapter's standard chain (req→design→tasks→impl-i→review-impl)
+ * is all direct siblings under one feature, so direct edges suffice. NO
+ * process-name heuristic lives here (vocabulary containment, ADR-0002): with no
+ * edges the insertion-order fallback stands, which is already the emit order the
+ * adapter records. Pure & display-only — replaces the old lexicographic id sort
+ * that scrambled phase order (design < impl-1 < req < review-impl < tasks). */
+export function orderSiblings(
+  siblings: readonly NodeId[], // insertion-order-preserving; caller filters to effective
+  edges: readonly DependencyEdge[], // pass projected.dependencyEdges as-is
+): NodeId[] {
+  const inSet = new Set(siblings);
+  const indeg = new Map<NodeId, number>(siblings.map((s) => [s, 0]));
+  const succ = new Map<NodeId, NodeId[]>(siblings.map((s) => [s, []]));
+  for (const e of edges) {
+    if (!inSet.has(e.from) || !inSet.has(e.to)) continue; // only edges inside this set
+    const succs = succ.get(e.from)!;
+    if (succs.includes(e.to)) continue; // dedupe repeated edges (fold pushes, never dedupes)
+    succs.push(e.to);
+    indeg.set(e.to, indeg.get(e.to)! + 1);
+  }
+  const done = new Set<NodeId>();
+  const out: NodeId[] = [];
+  while (out.length < siblings.length) {
+    // first unprocessed indeg==0 node in insertion order — the source of stability
+    let pick = siblings.find((s) => !done.has(s) && indeg.get(s) === 0);
+    // defensive: unreachable (fold rejects cyclic relate) but degrade
+    // deterministically instead of spinning — take the earliest unprocessed node
+    pick = pick ?? siblings.find((s) => !done.has(s))!;
+    done.add(pick);
+    out.push(pick);
+    for (const t of succ.get(pick) ?? []) indeg.set(t, indeg.get(t)! - 1);
+  }
+  return out;
+}
+
 export function buildGanttModel(
   projected: ProjectedState,
   derived: DerivedState,
@@ -133,14 +172,13 @@ export function buildGanttModel(
     if (frozenSlot !== null) dates.push(frozenSlot);
     if (predicted !== null) dates.push(predicted);
 
-    for (const c of [...children].sort((a, b) => (a < b ? -1 : 1))) visit(c, depth + 1);
+    for (const c of orderSiblings(children, projected.dependencyEdges)) visit(c, depth + 1);
   };
 
   const roots = [...projected.nodes.keys()]
     .filter((id) => projected.nodes.get(id)?.parent == null && effective(id))
-    .filter((id) => (projected.childrenOf.get(id) ?? []).length > 0)
-    .sort((a, b) => (a < b ? -1 : 1));
-  for (const r of roots) visit(r, 0);
+    .filter((id) => (projected.childrenOf.get(id) ?? []).length > 0);
+  for (const r of orderSiblings(roots, projected.dependencyEdges)) visit(r, 0);
 
   let start = dates[0]!;
   let end = dates[0]!;

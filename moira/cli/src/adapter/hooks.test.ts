@@ -75,8 +75,12 @@ describe('moira-guard decide()', () => {
     }
   });
 
-  it('lets a --parent add through, and stays silent off the moira surface', () => {
+  it('lets a --parent add and a standard relate through, and stays silent off the moira surface', () => {
     expect(guard.decide(bash('PreToolUse', 'moira add x --parent f'))).toBeUndefined();
+    // standard dependency edges (issue #7) are never denied — the only deny is a --parent-less add
+    expect(
+      guard.decide(bash('PreToolUse', 'moira relate f/req f/design --kind dependency --policy accepted')),
+    ).toBeUndefined();
     expect(guard.decide(bash('PreToolUse', 'npm test'))).toBeUndefined();
     expect(guard.decide({ hook_event_name: 'PreToolUse', tool_name: 'Edit', tool_input: {} })).toBeUndefined();
   });
