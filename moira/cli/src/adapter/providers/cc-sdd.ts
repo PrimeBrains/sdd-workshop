@@ -3,7 +3,7 @@
 // tasks.md checkboxes, and the moira-track node-ID convention
 // (<f>, <f>/req|design|tasks, <f>/impl-N, <f>/review-impl).
 //
-// Mapping contract (must stay in lockstep with moira-track reference §J):
+// Mapping contract (must stay in lockstep with moira-track provider-reference §P4):
 //   spec.json exists                    → <f> + 3 phase children exist      [hard]
 //   approvals.<p>.generated (or phase)  → <f>/<p> ≥ implemented             [hard]
 //   approvals.<p>.approved              → <f>/<p> = accepted                [hard]

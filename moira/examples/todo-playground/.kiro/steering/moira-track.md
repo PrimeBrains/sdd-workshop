@@ -6,7 +6,7 @@
 このプロジェクトには cc-sdd → Moira アダプタがインストールされている。
 **cc-sdd の各フェーズの節目で、必ず `/moira-track <phase>` を呼んで Moira に記録すること。**
 これが「kiro を回すだけで Moira が埋まる」体験の要。マッピングと emit の詳細は
-`.claude/skills/moira-track/`（SKILL.md / reference.md）が持つ。
+`.claude/skills/moira-track/`（SKILL.md / provider-reference.md / reference.md）が持つ。
 
 ## 発火トリガー（これを見たら必ず打つ・発火漏れ防止）
 
@@ -16,7 +16,7 @@
 |---|---|---|
 | cc-sdd の節目に到達（下の対応表の各行） | 対応する `/moira-track <phase>` | 🔔 moira-fire hook が `.kiro/specs/**` の編集を検知して助言 |
 | セッション開始時に **Moira drift 検知**が注入された | `/moira-track sync`（.kiro との突き合わせ・追いつき） | 🔔 moira-fire hook（SessionStart） |
-| `moira add` を打つ | **必ず `--parent <正しい親>`**（省略は root 二重辺＝issue #5） | 🔒 moira-guard hook が deny |
+| `moira add` を打つ | **必ず `--parent <正しい親>`**（明示が最も誤解が無い。所属は latest-wins 置換＝issue #5 解消済みだが、意図しない親付けは木を黙って動かす） | 🔒 moira-guard hook が deny |
 | ノードを **start する前** | **着手ゲート**: 見積 agreed＋担当＋着手予定日(slot) を確認。未充足なら 見積合意 → `moira assign --slot` を先に | 🔔 moira-guard hook |
 | `moira assign` を打つ | assign は lifecycle を **ready へ戻す**。**完了済み(accepted 等)に assign しない**・baseline は着手前 | 🔔 moira-guard hook |
 | ノードを **done した直後** | **AC 記録**: `moira cost <node> <実工数md>`（実測・捏造しない・累積加算） | 🔔 moira-guard hook |

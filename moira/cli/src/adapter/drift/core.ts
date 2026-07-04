@@ -1,7 +1,7 @@
 // Pure drift computation: (expected features, folded log) → drift report body.
 // No fs, no clock, no methodology vocabulary — fully table-testable.
 //
-// Honesty rules encoded here (mirrors moira-track reference §J):
+// Honesty rules encoded here (mirrors moira-track provider-reference §P4):
 //   - The 5 human decisions are NEVER inferred: a lag whose catch-up crosses
 //     estimate agreement (①) or assignment (②) is `needs-human`, not `behind`.
 //   - Suggested commands never invent values — estimates / assignees / slots /
@@ -29,6 +29,14 @@ export interface DriftOptions {
   provider: string;
   ignoreFeatures?: readonly string[];
   ignoreNodes?: readonly string[];
+  /**
+   * Multi-repo (ADR-0003 Stage 3): the feature space THIS work repo claims
+   * (`<id>` or `<prefix>/*`). When non-empty, log nodes matching NEITHER the
+   * expected feature space NOR the claim are another repo's business — they
+   * drop to skipped.nodes instead of flooding unknown-node. Empty = claim
+   * everything (single-repo behavior, unchanged).
+   */
+  scopeClaim?: readonly string[];
 }
 
 const IMPLEMENTING = lifecycleRank('implementing');
@@ -45,12 +53,26 @@ export function computeDrift(
   const isIgnoredNode = (id: string): boolean =>
     ignoreNodes.some((p) => (p.endsWith('/*') ? id.startsWith(p.slice(0, -1)) : id === p));
 
+  const claim = opts.scopeClaim ?? [];
+  const inClaim = (id: string): boolean =>
+    claim.some((p) =>
+      p.endsWith('/*') ? id === p.slice(0, -2) || id.startsWith(p.slice(0, -1)) : id === p,
+    );
+
   const active = expected.filter((f) => !ignoreFeatures.has(f.feature));
   const skippedFeatures = expected.filter((f) => ignoreFeatures.has(f.feature)).map((f) => f.feature);
 
   const features: FeatureDrift[] = active.map((f) => evaluateFeature(f, projected, isIgnoredNode));
-  const unknownNodes = findUnknownNodes(expected, projected, opts.projectRoot, isIgnoredNode);
-  const skippedNodes = [...projected.nodes.keys()].filter(isIgnoredNode).sort();
+  const { unknown: unknownNodes, outOfClaim } = findUnknownNodes(
+    expected,
+    projected,
+    opts.projectRoot,
+    isIgnoredNode,
+    claim.length > 0 ? inClaim : null,
+  );
+  const skippedNodes = [
+    ...new Set([...[...projected.nodes.keys()].filter(isIgnoredNode), ...outOfClaim]),
+  ].sort();
 
   return {
     schemaVersion: 1,
@@ -329,13 +351,20 @@ function findUnknownNodes(
   projected: ProjectedState,
   projectRoot: string,
   isIgnoredNode: (id: string) => boolean,
-): NodeDrift[] {
+  inClaim: ((id: string) => boolean) | null,
+): { unknown: NodeDrift[]; outOfClaim: string[] } {
   const inKnownSpace = (id: string): boolean =>
     expected.some((f) => id === f.feature || id.startsWith(`${f.feature}/`));
-  const out: NodeDrift[] = [];
+  const unknown: NodeDrift[] = [];
+  const outOfClaim: string[] = [];
   for (const node of projected.nodes.values()) {
     if (node.id === projectRoot || isIgnoredNode(node.id) || inKnownSpace(node.id)) continue;
-    out.push({
+    if (inClaim !== null && !inClaim(node.id)) {
+      // another work repo's feature space (multi-repo) — skipped, not noise
+      outOfClaim.push(node.id);
+      continue;
+    }
+    unknown.push({
       node: node.id,
       status: 'unknown-node',
       severity: 'advisory',
@@ -346,7 +375,7 @@ function findUnknownNodes(
       suggested: [],
     });
   }
-  return out.sort((a, b) => a.node.localeCompare(b.node));
+  return { unknown: unknown.sort((a, b) => a.node.localeCompare(b.node)), outOfClaim };
 }
 
 function nextSteps(

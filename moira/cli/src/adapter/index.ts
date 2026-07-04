@@ -6,15 +6,19 @@
 import { CliError } from '../errors.js';
 import { cmdDrift } from './drift/drift.js';
 import { cmdInstall, cmdStatus, cmdUninstall } from './install.js';
+import { cmdValidateProvider } from './validate.js';
 
 const out = (s: string): void => void process.stdout.write(`${s}\n`);
 
 const ADAPTER_USAGE = `moira adapter — cc-sdd → Moira アダプタの設置と突き合わせ.
 
-  moira adapter install   [--dir <path>] [--force] [--claude-md] [--provider <config.json>]
+  moira adapter install   [--dir <path>] [--force] [--claude-md] [--provider <config.json>] [--home <log-home>]
       skill (moira-track) / hooks (moira-guard, moira-fire) / provider 設定
       (.claude/moira-provider.json — 省略時は cc-sdd 既定) / steering 発火表を
       対象リポジトリへ設置し、.claude/settings.json へ hooks を非破壊マージする。冪等。
+      --home は multi-repo 用に .moira ポインタファイル（home: <path>）を書く（既存 .moira は保持）。
+  moira adapter validate-provider <config.json>
+      宣言的 provider 設定をスキーマ v1 で機械検証する（エラーは全件一括表示）。
   moira adapter status    [--dir <path>] [--json]
       インストール状態（バージョン・ファイル改変・settings 反映・環境）を報告する。
   moira adapter drift     [--dir <path>] [--json] [--feature <name>] [--check]
@@ -39,6 +43,8 @@ export function runAdapter(argv: string[]): void {
       return cmdStatus(rest);
     case 'drift':
       return cmdDrift(rest);
+    case 'validate-provider':
+      return cmdValidateProvider(rest);
     case 'uninstall':
       return cmdUninstall(rest);
     default:

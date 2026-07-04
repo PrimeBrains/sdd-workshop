@@ -77,7 +77,8 @@ moira ui                                        # ブラウザでダッシュボ
 
 `moira init` は上位探索**しない**（git init と同じ入れ子意味論）: 対象 = `--dir` > `MOIRA_DIR` > カレント。
 ポインタファイルの上での init は明示エラー（home 側で init する）。
-hooks（moira-guard/moira-fire）も同じ解決（MOIRA_DIR → ローカル `.moira` → ポインタ）で home を見つける。
+hooks（moira-guard/moira-fire）は **MOIRA_DIR → ローカル `.moira` → ポインタ（1 ホップ）** で home を
+見つける（**上位探索はしない** — CLI との意図的非対称・ADR-0003）。
 なお **home はどの経路でも常に 1 つ**（複数プロジェクトの容量集計はしない — D-50）。
 
 ## 自動化・スキルからの呼び出し

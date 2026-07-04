@@ -74,4 +74,42 @@ describe('computeDriftReport × declarative providers', () => {
     writeConfig({ schemaVersion: 1, id: '', detect: [], phases: [], triggers: [], drift: { mode: 'x' } });
     expect(() => computeDriftReport(tmp, tmp)).toThrow(/スキーマ不正/);
   });
+
+  it('scope.claim (multi-repo): unclaimed nodes drop to skipped, claimed strays stay unknown-node', () => {
+    writeConfig({ ...presenceCfg, scope: { claim: ['alpha/*', 'beta/*'] } });
+    mkdirSync(join(tmp, 'docs', 'alpha'), { recursive: true });
+    writeFileSync(join(tmp, 'docs', 'alpha', 'design.md'), '# design');
+    // log: a claimed stray (beta/x — claimed but no artifact), an unclaimed node
+    // (gamma/x — another repo's business), and the expected alpha nodes missing.
+    writeFileSync(
+      join(tmp, '.moira', 'events.json'),
+      JSON.stringify([
+        {
+          kind: 'decompose', id: 'e1', ts: 1, actor: { kind: 'human', id: 'me' },
+          parent: 'root', reason: 'r', children: [{ node: 'beta/x' }, { node: 'gamma/x' }],
+        },
+      ]),
+    );
+    const report = computeDriftReport(tmp, tmp);
+    expect(report.unknownNodes.map((n) => n.node)).toEqual(['beta/x']); // claimed stray
+    expect(report.skipped.nodes).toEqual(['gamma/x']); // unclaimed → skipped, not noise
+  });
+
+  it('empty claim keeps single-repo behavior (everything unclaimed is unknown-node)', () => {
+    writeConfig(presenceCfg); // scope 未宣言
+    mkdirSync(join(tmp, 'docs', 'alpha'), { recursive: true });
+    writeFileSync(join(tmp, 'docs', 'alpha', 'design.md'), '# design');
+    writeFileSync(
+      join(tmp, '.moira', 'events.json'),
+      JSON.stringify([
+        {
+          kind: 'decompose', id: 'e1', ts: 1, actor: { kind: 'human', id: 'me' },
+          parent: 'root', reason: 'r', children: [{ node: 'gamma/x' }],
+        },
+      ]),
+    );
+    const report = computeDriftReport(tmp, tmp);
+    expect(report.unknownNodes.map((n) => n.node)).toEqual(['gamma/x']);
+    expect(report.skipped.nodes).toEqual([]);
+  });
 });

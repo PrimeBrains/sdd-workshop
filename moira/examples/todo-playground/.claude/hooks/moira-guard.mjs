@@ -65,7 +65,7 @@ function resolveMoiraDataDir(base) {
 const B = `(?:^|[\\s"'\`($])`;
 /** Subcommands that append an event to .moira/events.json (make the dashboard stale). */
 const MUTATING = new RegExp(
-  `${B}(?:npx\\s+)?moira\\s+(?:init|add|agree|assign|start|done|accept|cancel|cost|relate|capacity)\\b`,
+  `${B}(?:npx\\s+)?moira\\s+(?:init|add|agree|assign|start|done|accept|cancel|cost|relate|capacity|deadline)\\b`,
 );
 /** True if a segment invokes `moira <sub>` (anywhere, given the boundary above). */
 const isMoira = (seg, sub) => new RegExp(`${B}(?:npx\\s+)?moira\\s+${sub}\\b`).test(seg);

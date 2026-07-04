@@ -11,7 +11,7 @@
 //   present, NO manifest entry      → hand-copied (e.g. the playground) → backup+overwrite
 // settings.json parse failure aborts the WHOLE install before any write.
 
-import { existsSync, mkdirSync, readFileSync, rmdirSync, unlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmdirSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { CliError } from '../errors.js';
@@ -24,8 +24,9 @@ import {
   type AdapterManifest,
 } from './manifest.js';
 import { templatesDir } from './paths.js';
-import { PROVIDER_CONFIG_REL, validateProviderConfig } from './provider-config.js';
+import { PROVIDER_CONFIG_REL, validateProviderConfig, type ProviderConfig } from './provider-config.js';
 import { ccSddProvider } from './providers/cc-sdd.js';
+import { renderProviderReference, renderSteering } from './render.js';
 import {
   mergeSettings,
   removeSettings,
@@ -47,6 +48,9 @@ interface ManagedFile {
 export const MANAGED_FILES: readonly ManagedFile[] = [
   { src: 'claude/skills/moira-track/SKILL.md', dest: '.claude/skills/moira-track/SKILL.md' },
   { src: 'claude/skills/moira-track/reference.md', dest: '.claude/skills/moira-track/reference.md' },
+  // Provider-specific reference (ADR-0003 Stage 2). Default installs ship the
+  // frozen cc-sdd canon; a custom `--provider` renders it from the config.
+  { src: 'claude/skills/moira-track/provider-reference.cc-sdd.md', dest: '.claude/skills/moira-track/provider-reference.md' },
   { src: 'claude/hooks/moira-guard.mjs', dest: '.claude/hooks/moira-guard.mjs' },
   { src: 'claude/hooks/moira-fire.mjs', dest: '.claude/hooks/moira-fire.mjs' },
   // Declarative provider config (ADR-0003 Stage 2). Content is the bundled
@@ -67,12 +71,12 @@ export const HOOK_INJECTIONS: readonly HookInjection[] = [
 
 const CLAUDE_MD_BEGIN = '<!-- moira-adapter:begin -->';
 const CLAUDE_MD_END = '<!-- moira-adapter:end -->';
-const CLAUDE_MD_BLOCK = `${CLAUDE_MD_BEGIN}
+const claudeMdBlock = (provider: string): string => `${CLAUDE_MD_BEGIN}
 ## Moira アダプタ
 
-この repo には cc-sdd → Moira アダプタがインストールされている（\`moira adapter status\` で確認）。
+この repo には ${provider} → Moira アダプタがインストールされている（\`moira adapter status\` で確認）。
 発火規約は \`.kiro/steering/moira-track.md\`、emit の振り付けは \`.claude/skills/moira-track/\`。
-cc-sdd の節目では \`/moira-track <phase>\`、取りこぼしの突き合わせは \`/moira-track sync\`。
+方法論の節目では \`/moira-track <phase>\`、取りこぼしの突き合わせは \`/moira-track sync\`。
 ${CLAUDE_MD_END}`;
 
 const BACKUP_SUFFIX = '.moira-adapter.bak';
@@ -105,6 +109,7 @@ export function cmdInstall(rest: string[]): void {
       force: { type: 'boolean' },
       'claude-md': { type: 'boolean' },
       provider: { type: 'string' },
+      home: { type: 'string' },
     },
     allowPositionals: false,
   });
@@ -112,12 +117,47 @@ export function cmdInstall(rest: string[]): void {
   const force = values.force === true;
   if (!existsSync(cwd)) throw new CliError(`target dir not found: ${cwd}`);
 
+  // --home <path> (Stage 3, multi-repo): write a `.moira` POINTER FILE so this
+  // work repo's commands/hooks resolve the shared log home. Deliberately NOT in
+  // the manifest (the path is environment-specific; uninstall leaves it alone).
+  if (typeof values.home === 'string' && values.home !== '') {
+    const pointerPath = join(cwd, '.moira');
+    const content = `home: ${values.home}\n`;
+    if (existsSync(pointerPath)) {
+      const st = statSync(pointerPath);
+      if (st.isDirectory()) {
+        err('warning: .moira/ ディレクトリが既にある — ポインタは書かない（この repo 自体がログ home）。');
+      } else if (readFileSync(pointerPath, 'utf8') === content) {
+        out('home: ポインタは既に同内容（no-op）');
+      } else {
+        err(`warning: 既存の .moira ポインタと内容が異なるため上書きしない（現: ${readFileSync(pointerPath, 'utf8').trim()}）。手で直すこと。`);
+      }
+    } else {
+      writeFileSync(pointerPath, content, 'utf8');
+      out(`home: .moira ポインタを設置 → ${values.home}（相対はこの repo 基準・1 ホップ）`);
+    }
+  }
+
   // Custom declarative provider (ADR-0003 Stage 2): validated BEFORE any write.
+  // A custom config ALSO swaps the provider-reference / steering payloads for
+  // deterministic renders from the config (the cc-sdd prose would be wrong).
   let providerOverride: string | null = null;
+  let customConfig: ProviderConfig | null = null;
   if (typeof values.provider === 'string') {
     const p = resolve(values.provider);
     if (!existsSync(p)) throw new CliError(`provider config not found: ${p}`);
     providerOverride = readFileSync(p, 'utf8');
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(providerOverride);
+    } catch (e) {
+      throw new CliError(`provider config が JSON として読めない: ${e instanceof Error ? e.message : String(e)}`);
+    }
+    const { config, errors } = validateProviderConfig(parsed);
+    if (config === null) {
+      throw new CliError(`provider config がスキーマ不正（何も書き込んでいない）:\n  - ${errors.join('\n  - ')}`);
+    }
+    customConfig = config;
   }
 
   if (providerOverride === null && !ccSddProvider.detect(cwd)) {
@@ -152,18 +192,19 @@ export function cmdInstall(rest: string[]): void {
     if (!existsSync(templatePath)) throw new CliError(`bundled template missing: ${file.src}（moira-cli の再ビルド/再 link が必要）`);
     let template = readFileSync(templatePath, 'utf8');
     if (file.dest === PROVIDER_CONFIG_REL) {
-      if (providerOverride !== null) template = providerOverride;
-      // Validate whatever will be installed (custom OR bundled) before writing.
-      let parsed: unknown;
-      try {
-        parsed = JSON.parse(template);
-      } catch (e) {
-        throw new CliError(`provider config が JSON として読めない: ${e instanceof Error ? e.message : String(e)}`);
+      if (providerOverride !== null) {
+        template = providerOverride; // validated above, before any write
+      } else {
+        // Guard the BUNDLED default too (a broken template must not install).
+        const { errors } = validateProviderConfig(JSON.parse(template));
+        if (errors.length > 0) {
+          throw new CliError(`bundled provider config がスキーマ不正:\n  - ${errors.join('\n  - ')}`);
+        }
       }
-      const { errors } = validateProviderConfig(parsed);
-      if (errors.length > 0) {
-        throw new CliError(`provider config がスキーマ不正（何も書き込んでいない）:\n  - ${errors.join('\n  - ')}`);
-      }
+    } else if (customConfig !== null && file.dest === '.claude/skills/moira-track/provider-reference.md') {
+      template = renderProviderReference(customConfig); // deterministic render
+    } else if (customConfig !== null && file.dest === '.kiro/steering/moira-track.md') {
+      template = renderSteering(customConfig); // deterministic render
     }
     const destPath = toPath(cwd, file.dest);
     let action: FileAction;
@@ -216,32 +257,34 @@ export function cmdInstall(rest: string[]): void {
   }
 
   // 5) optional CLAUDE.md block.
+  const providerLabel = customConfig?.displayName ?? customConfig?.id ?? 'cc-sdd';
   if (values['claude-md'] === true) {
     const claudeMdPath = join(cwd, 'CLAUDE.md');
     const text = existsSync(claudeMdPath) ? readFileSync(claudeMdPath, 'utf8') : '';
+    const block = claudeMdBlock(providerLabel);
     if (text.includes(CLAUDE_MD_BEGIN) && text.includes(CLAUDE_MD_END)) {
       const re = new RegExp(`${CLAUDE_MD_BEGIN}[\\s\\S]*?${CLAUDE_MD_END}`);
-      writeFileSync(claudeMdPath, text.replace(re, CLAUDE_MD_BLOCK), 'utf8');
+      writeFileSync(claudeMdPath, text.replace(re, block), 'utf8');
     } else {
       const sep = text === '' || text.endsWith('\n\n') ? '' : text.endsWith('\n') ? '\n' : '\n\n';
-      writeFileSync(claudeMdPath, `${text}${sep}${CLAUDE_MD_BLOCK}\n`, 'utf8');
+      writeFileSync(claudeMdPath, `${text}${sep}${block}\n`, 'utf8');
     }
     out('CLAUDE.md: moira-adapter ブロックを設置（マーカー区切り・冪等）');
   }
 
   // 6) manifest.
   const claudeMdPathNow = join(cwd, 'CLAUDE.md');
-  const claudeMdBlock =
+  const claudeMdBlockPresent =
     existsSync(claudeMdPathNow) && readFileSync(claudeMdPathNow, 'utf8').includes(CLAUDE_MD_BEGIN);
   const manifest: AdapterManifest = {
     adapterVersion: adapterVersion(),
     installedAt: new Date().toISOString(),
     files,
     settingsInjected: [...HOOK_INJECTIONS],
-    claudeMdBlock,
+    claudeMdBlock: claudeMdBlockPresent,
   };
   saveManifest(cwd, manifest);
-  out(`installed: cc-sdd → Moira adapter v${manifest.adapterVersion}（manifest: ${MANIFEST_REL}）`);
+  out(`installed: ${providerLabel} → Moira adapter v${manifest.adapterVersion}（manifest: ${MANIFEST_REL}）`);
 }
 
 function actionLabel(a: FileAction): string {

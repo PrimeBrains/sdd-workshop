@@ -147,7 +147,7 @@ export function debounceTrailing(
 
 // --- .moira directory watcher ----------------------------------------------
 
-const WATCHED_FILES = new Set(['events.json', 'capacity.json', 'labels.json', 'config.json']);
+const WATCHED_FILES = new Set(['events.json', 'capacity.json', 'dates.json', 'labels.json', 'config.json']);
 
 /**
  * Watch the .moira DIRECTORY (not individual files — an atomic replace/rename

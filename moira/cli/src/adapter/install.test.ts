@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -130,6 +130,14 @@ describe('cmdInstall', () => {
     cmdStatus(['--dir', tmp, '--json']);
     expect(JSON.parse(stdout.join('')).provider).toBe('docs-flow');
 
+    // custom provider swaps the provider-reference + steering for renders
+    const ref = read('.claude/skills/moira-track/provider-reference.md');
+    expect(ref).toContain('docs-flow');
+    expect(ref).not.toContain('.kiro/specs'); // no cc-sdd prose leaks in
+    expect(read('.kiro/steering/moira-track.md')).toContain('/moira-track design');
+    // engine-generic docs stay the bundled canon
+    expect(read('.claude/skills/moira-track/SKILL.md')).toBe(template('claude/skills/moira-track/SKILL.md'));
+
     // invalid config → whole install aborts before writing anything
     const fresh = join(tmp, 'fresh');
     mkdirSync(fresh, { recursive: true });
@@ -137,6 +145,22 @@ describe('cmdInstall', () => {
     writeFileSync(bad, JSON.stringify({ schemaVersion: 2 }));
     expect(() => cmdInstall(['--dir', fresh, '--provider', bad])).toThrow(/スキーマ不正/);
     expect(existsSync(join(fresh, '.claude'))).toBe(false);
+  });
+
+  it('--home writes a .moira pointer file (idempotent; never clobbers an existing .moira)', () => {
+    install('--home', '../shared-home');
+    expect(read('.moira')).toBe('home: ../shared-home\n');
+    install('--home', '../shared-home'); // same → no-op
+    expect(read('.moira')).toBe('home: ../shared-home\n');
+    install('--home', '../other'); // different → keep, warn
+    expect(read('.moira')).toBe('home: ../shared-home\n');
+
+    // an existing .moira DIRECTORY is never replaced by a pointer
+    const dirRepo = join(tmp, 'dir-repo');
+    mkdirSync(join(dirRepo, '.moira'), { recursive: true });
+    mkdirSync(join(dirRepo, '.kiro', 'specs'), { recursive: true });
+    cmdInstall(['--dir', dirRepo, '--home', '../x']);
+    expect(statSync(join(dirRepo, '.moira')).isDirectory()).toBe(true);
   });
 
   it('--claude-md appends a marker block idempotently and uninstall removes it', () => {

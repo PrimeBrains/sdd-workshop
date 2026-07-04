@@ -40,10 +40,14 @@ function loadAdapterConfig(homeRoot: string): AdapterRepoConfig {
 
 /** The work repo's declarative provider (Stage 2, ADR-0003): read
  *  .claude/moira-provider.json when present, else the cc-sdd code provider
- *  (backward compat — pre-Stage-2 installs have no config file). */
-function loadWorkRepoProvider(workDir: string): MethodologyProvider {
+ *  (backward compat — pre-Stage-2 installs have no config file). Also carries
+ *  the repo's scope.claim (Stage 3 multi-repo noise filter). */
+function loadWorkRepoProvider(workDir: string): {
+  provider: MethodologyProvider;
+  scopeClaim: readonly string[];
+} {
   const path = join(workDir, ...PROVIDER_CONFIG_REL.split('/'));
-  if (!existsSync(path)) return ccSddProvider;
+  if (!existsSync(path)) return { provider: ccSddProvider, scopeClaim: [] };
   let raw: unknown;
   try {
     raw = JSON.parse(readFileSync(path, 'utf8'));
@@ -56,7 +60,7 @@ function loadWorkRepoProvider(workDir: string): MethodologyProvider {
   if (config === null) {
     throw new CliError(`${PROVIDER_CONFIG_REL} がスキーマ不正:\n  - ${errors.join('\n  - ')}`);
   }
-  return resolveProvider(config);
+  return { provider: resolveProvider(config), scopeClaim: config.scope?.claim ?? [] };
 }
 
 /**
@@ -73,7 +77,7 @@ export function computeDriftReport(workDir: string, homeRoot: string, feature?: 
         'ログ home は --dir/MOIRA_DIR/.moira ポインタ/上位探索で解決)',
     );
   }
-  const provider = loadWorkRepoProvider(workDir);
+  const { provider, scopeClaim } = loadWorkRepoProvider(workDir);
   if (!provider.detect(workDir)) {
     throw new CliError(
       `provider "${provider.id}" の成果物が見つからない（突き合わせる相手が無い — cc-sdd なら .kiro/specs/）`,
@@ -89,6 +93,7 @@ export function computeDriftReport(workDir: string, homeRoot: string, feature?: 
   };
   if (adapterCfg.ignoreFeatures !== undefined) options.ignoreFeatures = adapterCfg.ignoreFeatures;
   if (adapterCfg.ignoreNodes !== undefined) options.ignoreNodes = adapterCfg.ignoreNodes;
+  if (scopeClaim.length > 0) options.scopeClaim = scopeClaim;
   let body = computeDrift(expected, projected, options);
   if (feature !== undefined) {
     if (!body.features.some((f) => f.feature === feature)) {
