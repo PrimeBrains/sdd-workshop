@@ -17,6 +17,7 @@ import { createServer, type Server, type ServerResponse } from 'node:http';
 import { existsSync, readFileSync, statSync, watch } from 'node:fs';
 import { extname, join, normalize } from 'node:path';
 import type { CapacityEntry, Event, IsoDate } from 'moira-backend';
+import type { Member } from './store.js';
 
 const MIME: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
@@ -37,11 +38,14 @@ export interface UiFixture {
   asOf: IsoDate;
   nodeLabels: Record<string, string>;
   actorLabels: Record<string, string>;
+  /** the roster (.moira/members.json) — seeds the UI so only user-supplied names show (issue #11). */
+  members: readonly Member[];
+  /** viewpoint actor id (.moira/config.json `me`) — the roster's "self" (#11) and
+   *  the「自分」decision-inbox filter (#12). */
+  me?: string;
   /** R-T6 reference dates, latest-wins-resolved from .moira/dates.json (issue #13). */
   deadline?: IsoDate;
   targetDate?: IsoDate;
-  /** viewpoint actor id (.moira/config.json `me`) — enables the「自分」inbox filter (issue #12). */
-  me?: string;
   /** true only when served by `moira ui` — tells the app to open the SSE bridge. */
   live?: boolean;
 }

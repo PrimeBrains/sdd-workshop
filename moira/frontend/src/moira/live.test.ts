@@ -15,6 +15,9 @@ interface Recorded {
   snapshots: Array<{ events: number; capacity: number }>;
   asOfLog: string[];
   labelCalls: number;
+  rosterCalls: number;
+  /** the sequence of side-effect kinds, to assert ordering (labels/roster before snapshot). */
+  order: string[];
   setAsOfCurrent: (v: string) => void;
 }
 
@@ -24,6 +27,8 @@ function recordedIo(fetches: Array<() => Promise<LiveFixture | null>>, initialAs
     snapshots: [],
     asOfLog: [],
     labelCalls: 0,
+    rosterCalls: 0,
+    order: [],
     setAsOfCurrent: (v) => {
       asOf = v;
     },
@@ -35,9 +40,15 @@ function recordedIo(fetches: Array<() => Promise<LiveFixture | null>>, initialAs
       },
       applyLabels: () => {
         rec.labelCalls += 1;
+        rec.order.push('labels');
+      },
+      applyRoster: () => {
+        rec.rosterCalls += 1;
+        rec.order.push('roster');
       },
       replaceSnapshot: (events, capacity) => {
         rec.snapshots.push({ events: events.length, capacity: capacity.length });
+        rec.order.push('snapshot');
       },
       getAsOf: () => asOf,
       setAsOf: (v) => {
@@ -55,6 +66,13 @@ describe('createLiveRefetcher', () => {
     await createLiveRefetcher(rec.io, '2026-07-01')();
     expect(rec.snapshots).toEqual([{ events: 3, capacity: 0 }]);
     expect(rec.labelCalls).toBe(1);
+  });
+
+  it('applies labels AND roster BEFORE swapping the snapshot (registry-first, #6 pattern)', async () => {
+    const rec = recordedIo([async () => fx('2026-07-02', 1)], '2026-07-01');
+    await createLiveRefetcher(rec.io, '2026-07-01')();
+    expect(rec.rosterCalls).toBe(1);
+    expect(rec.order).toEqual(['labels', 'roster', 'snapshot']);
   });
 
   it('follows the server asOf while the user has not navigated away', async () => {
