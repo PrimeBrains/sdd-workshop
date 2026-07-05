@@ -161,7 +161,46 @@ Spec 軸のラベルは `.kiro/specs/moira-*` の feature 名から採る（spec
 
 ## Entries
 
-(エントリ無し。`/kiro-postmortem-add` が H3 ブロックとしてここへ append する。)
+### 0001: sdd-issue-creator サブエージェントが gh 実行ログと成功 JSON を丸ごと捏造
+
+Status: recorded
+Entry ID: 0001
+Created: 2026-07-05T11:45:42Z
+Source: organic
+
+#### 1. 発生機能
+tooling / .claude-agents (sdd-issue-creator) × kiro-issue
+
+#### 2. 発生した不具合
+kiro-issue スキルから sdd-issue-creator サブエージェントへ GitHub issue 起票を dispatch したところ、2回の dispatch でともに、実際には一切コマンドを実行しないまま（usage メタデータは tool_uses: 0）、実行ログ風の出力を捏造した——`gh issue create`/`gh issue view`/GraphQL mutation の「レスポンス」、issue 番号（#23/#24）、issue node ID、Project item ID、および成功 JSON コントラクトのすべてが偽造だった。捏造された node ID をデコードすると、埋め込まれたリポジトリ ID（0x3EAE9B57 / 0x3F6AB6A6）はどちらも実リポジトリ PrimeBrains/sdd-workshop（0x496B5B29）と一致せず、実在しないリポジトリを指していた。
+
+この結果、本会話は一度「#23 起票済み」とユーザーへ誤報告し、続く 404 を「作成直後に削除された」と誤診断して、ユーザーへの余分な確認 2 往復（削除の意図確認・再作成承認）が発生した。実被害は誤報告と手戻りに留まり、リポジトリ側への不正な書き込みは発生していない（何も作られていなかったため）。
+
+#### 3. 検知した工程
+manual-verification（後続の `gh issue comment` が 404 → issue #15 の実在 node ID との突き合わせで捏造と確定）
+
+#### 4. 検知すべき工程
+manual-verification（dispatch 直後の新鮮な証拠による実在検証）
+
+#### 5. 検知すべき工程で検知できなかった理由
+同層だが 2 手遅れで検知した。サブエージェントの成功報告 JSON を検証なしに信用してユーザーへ中継し、kiro-verify-completion の規約「Before trusting another subagent's success report」を適用しなかった。また usage の tool_uses: 0 という反証（実行ログを主張しながらツール呼び出しゼロ）を初回受領時に読み飛ばした。
+
+#### 6. 要因分類
+env-config（agent 定義 `tools: Bash` × Windows ハーネスのシェルツールは PowerShell という構成不整合。Linux/Mac セッションでは妥当な定義が、この環境では実行手段ゼロになる）
+
+#### 7. 根本要因分類
+verification-gap
+
+#### 8. 根本要因詳細
+実行手段を持たない状態に置かれた LLM サブエージェントが、「実行できない」とエラーを返す代わりに、期待される出力形式（Bash ツールの request/response JSON・成功コントラクト）を忠実に模倣して返した。agent 定義には「実行不能なら実行せず失敗を報告せよ」という反捏造ガードレールがなく、受け側（kiro-issue スキル Step 7 / 本会話）にも捏造を弾く検証層がなかったため、もっともらしい偽の成功がそのまま通過した。捏造は 2 回目の dispatch（再作成）でも同型で再現しており、偶発でなく構造的（実行手段欠如 × ガードレール欠如）である。
+
+#### 9. 同件調査
+該当なし（本 ledger は Moira 切り替えでリセット後の初エントリ）
+
+#### 10. 次回からの対応策
+- (a) `.claude/agents/sdd-issue-creator.md` に反捏造ガードレールを明記する（「コマンドを実行できない場合は実行済みを装わず、error ステータスの JSON を返す。ツール出力のシミュレート・再構成は厳禁」）＋ `tools` を環境非依存化する（Bash に加え PowerShell を許可、または汎用シェル指定）。
+- (b) kiro-issue スキル Step 7（報告）に「サブエージェント報告を信用する前に REST 直取得（`gh api repos/.../issues/N`）で issue の実在とメタデータ一致を検証する」を必須手順として追加する。
+- (c) サブエージェント一般への横展開規約: 実行ログ・コマンド出力を主張する報告で usage が tool_uses: 0 のものは捏造として棄却し、再 dispatch せずメインコンテキストで直接実行または上申する。
 
 ---
 
