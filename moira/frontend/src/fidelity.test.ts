@@ -33,14 +33,21 @@ describe('UI fidelity gate', () => {
     });
   }
 
-  it('derive is imported only by the engine bridge and the store (single source of truth)', () => {
+  it('derive is imported only by the engine bridge and the per-mode derivation stores (single source of truth)', () => {
     // A surface cannot call derive() without importing the binding; forbidding the
     // import in surfaces is equivalent to forbidding a second derivation.
+    // portfolio-derive.ts is the portfolio mode's ONE derivation call-site (one
+    // derive per project, same engine — INV-2 golden pins parity); surfaces still
+    // never import derive.
     const importers = sources
       .filter(([, src]) => /import\s*\{[^}]*\bderive\b[^}]*\}\s*from/.test(src))
       .map(([p]) => p)
       .sort();
-    expect(importers).toEqual(['./moira/engine.ts', './moira/store.tsx']);
+    expect(importers).toEqual([
+      './moira/engine.ts',
+      './moira/portfolio-derive.ts',
+      './moira/store.tsx',
+    ]);
   });
 
   it('type="range" appears only in capacity editing (c ∈ [0,1.0] is the sole exception)', () => {

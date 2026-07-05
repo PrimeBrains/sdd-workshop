@@ -35,6 +35,11 @@ import {
 import { formatSnapshot } from './format.js';
 import { getGlobalDir, resolveMoiraHome, setGlobalDir } from './home.js';
 import { frontendDistDir } from './paths.js';
+import {
+  fallbackLabel,
+  loadPortfolioConfig,
+  resolvePortfolioEntries,
+} from './portfolio.js';
 import { realStamper } from './stamp.js';
 import {
   isIsoDate,
@@ -45,7 +50,12 @@ import {
   type ReferenceDateEntry,
 } from './store.js';
 import { resolveAddParent } from './tree.js';
-import { serveUi, type UiFixture } from './ui-server.js';
+import {
+  serveUi,
+  type PortfolioUiFixture,
+  type PortfolioUiProject,
+  type UiFixture,
+} from './ui-server.js';
 
 const out = (s: string): void => void process.stdout.write(`${s}\n`);
 const err = (s: string): void => void process.stderr.write(`${s}\n`);
@@ -608,13 +618,83 @@ function cmdLog(rest: string[]): void {
   }
 }
 
+/**
+ * Build the `--portfolio` payload: read EVERY declared home independently
+ * (issue #23). Config/duplicate errors are fatal (they are portfolio-file bugs);
+ * a home that cannot be read becomes a loadError row — a visible gap in the UI,
+ * never fabricated zeros. Only when NO home loads does the build fail.
+ * Uniform asOf: --asOf flag > max(config.asOf across loadable homes) > today —
+ * all projects derive at the SAME asOf for comparability.
+ */
+function buildPortfolioFixture(portfolioPath: string, asOfFlag?: string): PortfolioUiFixture {
+  const cfg = loadPortfolioConfig(portfolioPath);
+  const entries = resolvePortfolioEntries(cfg, portfolioPath);
+  const projects: PortfolioUiProject[] = [];
+  const asOfCandidates: string[] = [];
+  for (const e of entries) {
+    const empty = {
+      key: e.key,
+      events: [] as const,
+      capacity: [] as const,
+      nodeLabels: {},
+      actorLabels: {},
+      members: [] as const,
+    };
+    if (e.resolveError !== undefined) {
+      projects.push({ ...empty, label: e.label ?? fallbackLabel(e.root), loadError: e.resolveError });
+      continue;
+    }
+    try {
+      const repo = new MoiraRepo(e.root);
+      if (!repo.exists()) throw new Error(`.moira/ (config.json) が見つからない: ${e.root}`);
+      const homeCfg = repo.loadConfig();
+      const labels = repo.loadLabels();
+      const dates = resolveReferenceDates(repo.loadDateEntries());
+      if (homeCfg.asOf !== undefined) asOfCandidates.push(homeCfg.asOf);
+      projects.push({
+        key: e.key,
+        label: e.label ?? labels.nodeLabels[homeCfg.projectRoot] ?? fallbackLabel(e.root),
+        events: repo.loadEvents(),
+        capacity: repo.loadCapacity(),
+        nodeLabels: labels.nodeLabels,
+        actorLabels: labels.actorLabels,
+        members: repo.loadMembers(),
+        ...(dates.deadline !== undefined ? { deadline: dates.deadline } : {}),
+        ...(dates.targetDate !== undefined ? { targetDate: dates.targetDate } : {}),
+      });
+    } catch (e2) {
+      projects.push({
+        ...empty,
+        label: e.label ?? fallbackLabel(e.root),
+        loadError: e2 instanceof Error ? e2.message : String(e2),
+      });
+    }
+  }
+  const okCount = projects.filter((p) => p.loadError === undefined).length;
+  if (okCount === 0) {
+    throw new CliError(
+      'portfolio のどの home も読めませんでした:\n' +
+        projects.map((p) => `  - ${p.label}: ${p.loadError}`).join('\n'),
+    );
+  }
+  const asOf =
+    asOfFlag ??
+    (asOfCandidates.length > 0 ? asOfCandidates.reduce((a, b) => (a > b ? a : b)) : today());
+  return {
+    portfolio: projects,
+    asOf,
+    ...(cfg.label !== undefined ? { label: cfg.label } : {}),
+    live: true,
+  };
+}
+
 async function cmdUi(rest: string[]): Promise<void> {
   const { values } = parse(rest, {
     asOf: { type: 'string' },
     port: { type: 'string' },
     'no-open': { type: 'boolean' },
+    portfolio: { type: 'string' },
   });
-  const repo = requireRepo();
   const dist = frontendDistDir();
   if (!existsSync(join(dist, 'index.html'))) {
     throw new CliError(
@@ -626,6 +706,34 @@ async function cmdUi(rest: string[]): Promise<void> {
   // asOf and today() are re-resolved per request so an edited config or a date
   // rollover shows up without a restart.
   const asOfFlag = str(values.asOf);
+
+  const portfolioPath = str(values.portfolio);
+  if (portfolioPath !== undefined) {
+    // Portfolio mode: NO single-home resolution at all — the declared entries
+    // are the homes. Fail fast on portfolio-file errors; per-home failures are
+    // loadError rows. Fresh rebuild per request (same as single mode).
+    const first = buildPortfolioFixture(portfolioPath, asOfFlag);
+    const okDirs = first.portfolio
+      .filter((p) => p.loadError === undefined)
+      .map((p) => join(p.key, '.moira'));
+    const running = await serveUi({
+      distDir: dist,
+      port,
+      fixture: () => buildPortfolioFixture(portfolioPath, asOfFlag),
+      watchDirs: okDirs,
+    });
+    const errCount = first.portfolio.length - okDirs.length;
+    out(
+      `Moira portfolio → ${running.url}   (asOf=${first.asOf}, ${first.portfolio.length} projects` +
+        `${errCount > 0 ? `, うち ${errCount} 件は読込エラー — 画面にエラー行として表示` : ''})`,
+    );
+    out('各 home への追記はライブ反映（fs.watch → SSE）。portfolio.json の編集はブラウザ再読込で反映（home の追加・削除の watch は再起動が必要）。');
+    out('Press Ctrl+C to stop.');
+    if (values['no-open'] !== true) openBrowser(running.url);
+    return;
+  }
+
+  const repo = requireRepo();
   const provider = (): UiFixture => {
     const cfg = repo.loadConfig();
     const labels = repo.loadLabels();
@@ -722,7 +830,10 @@ usage: moira [--dir <log-home>] <command> ...
   moira import members <file.xlsx> [--dry-run]           (bulk-load roster + 個人休 + 祝日)
   moira show [--asOf <date>] [--startDate <date>] [--json]
   moira log
-  moira ui [--asOf <date>] [--port <n>] [--no-open]
+  moira ui [--asOf <date>] [--port <n>] [--no-open] [--portfolio <portfolio.json>]
+    --portfolio: 複数 home を読み取り専用で並置するポートフォリオ表示（issue #23）。
+      portfolio.json 例: {"schemaVersion":1,"label":"部門","homes":[{"path":"../proj-a"},{"path":"../proj-b"}]}
+      各 home は 1 つずつ独立に解決・導出され、ログのマージ・横断集計はしない（D-50 不変）。
   moira adapter install|status|drift|uninstall   (cc-sdd adapter; "moira adapter help")
 
 who: a plain id (= human), or "agent:claude" / "human:alice".`;

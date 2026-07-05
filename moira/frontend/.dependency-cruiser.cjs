@@ -35,10 +35,11 @@ module.exports = {
       severity: 'error',
       comment:
         'Surfaces must read the single DerivedState/ProjectedState via the hooks ' +
-        '(useMoira/useDerived), NOT by importing the MoiraProvider store directly. ' +
-        'One derive() lives in the store; surfaces are pure projections of it.',
+        '(useMoira/useDerived/usePortfolio), NOT by importing a provider store ' +
+        'directly. One derive() (per project, in portfolio mode) lives in the ' +
+        'store; surfaces are pure projections of it.',
       from: { path: '^src/surfaces/' },
-      to: { path: '^src/moira/store\\.tsx$' },
+      to: { path: '^src/moira/(store|portfolio-store)\\.tsx$' },
     },
     {
       name: 'surfaces-no-cross-surface',

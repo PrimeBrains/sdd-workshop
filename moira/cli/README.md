@@ -50,6 +50,7 @@ moira ui                                        # ブラウザでダッシュボ
 | `moira show [--asOf <date>] [--startDate <date>] [--json]` | 導出スナップショット | （読み取り） |
 | `moira log` | イベント一覧 | （読み取り） |
 | `moira ui [--asOf <date>] [--port <n>] [--no-open]` | ダッシュボード起動。**稼働中の追記は自動反映**（fs.watch→SSE。反映が見えなければブラウザをリロード——`/` は毎リクエスト最新を焼き込む。再起動は不要） | （読み取り） |
+| `moira ui --portfolio <portfolio.json> [...]` | **ポートフォリオ表示**（issue #23・D-73）: 複数 home を読み取り専用で並置（案件並置＋人横断＋ドリルダウン）。全 home を fs.watch（portfolio.json の home 増減の watch は再起動）。下記「ポートフォリオ」参照 | （読み取り） |
 | `moira adapter install\|status\|drift\|uninstall` | cc-sdd アダプタの設置・検査・突き合わせ（下記） | （drift/status/install は読み取り・emit なし） |
 
 - **who**: 素の id（＝human）／`agent:claude`／`human:alice`。
@@ -80,6 +81,30 @@ moira ui                                        # ブラウザでダッシュボ
 hooks（moira-guard/moira-fire）は **MOIRA_DIR → ローカル `.moira` → ポインタ（1 ホップ）** で home を
 見つける（**上位探索はしない** — CLI との意図的非対称・ADR-0003）。
 なお **home はどの経路でも常に 1 つ**（複数プロジェクトの容量集計はしない — D-50）。
+`--portfolio` も例外ではない: N 個の home を**それぞれ 1 つずつ**解決して並置するだけで、
+複数 home のマージ・集計 API は依然存在しない（下記）。
+
+## ポートフォリオ（複数 home の読み取り並置・issue #23）
+
+複数案件を束ねて見る `moira ui --portfolio <portfolio.json>`（D-73・ADR-0005）:
+
+```jsonc
+{
+  "schemaVersion": 1,
+  "label": "部門ポートフォリオ",          // 任意（表示用）
+  "homes": [
+    { "path": "../proj-a" },             // home root（.moira を含むディレクトリ）or .moira ポインタ（1ホップ）
+    { "path": "../proj-b", "label": "案件B" }   // label で表示名を上書き（既定は home の project label）
+  ]
+}
+```
+
+- **並置であって合成ではない**: 各 home はエントリごとに独立に解決・導出され、イベントログは
+  マージされない。案件行の数値は、その案件を単独で `moira ui` したときと**完全に同じ**。
+- 横断で合算するのは件数のみ（レビュー待ち・構造エラー）。EV%/SPI/CPI の横断合成値は出さない。
+- 人横断ビューは **Actor.id の一致のみ**で束ねる（容量整合の強制はしない — D-50。開示文言が常設される）。
+- 統一 asOf = `--asOf` > 各 home の config.asOf の最大 > 今日。
+- 読めない home は**エラー行として表示**される（全 home が読めないときのみ起動失敗）。
 
 ## 自動化・スキルからの呼び出し
 

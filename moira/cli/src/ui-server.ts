@@ -50,14 +50,48 @@ export interface UiFixture {
   live?: boolean;
 }
 
+/** One project of a portfolio payload (issue #23). Same per-home fields as the
+ *  single-project UiFixture, plus identity/label; a home that failed to load is
+ *  carried as a loadError row (visible gap — never fabricated zeros). */
+export interface PortfolioUiProject {
+  /** Stable identity: the normalized absolute home root. */
+  key: string;
+  label: string;
+  events: readonly Event[];
+  capacity: readonly CapacityEntry[];
+  nodeLabels: Record<string, string>;
+  actorLabels: Record<string, string>;
+  members: readonly Member[];
+  deadline?: IsoDate;
+  targetDate?: IsoDate;
+  /** Why this home could not be read (broken pointer / missing home / parse
+   *  failure). When set, the data fields above are empty placeholders. */
+  loadError?: string;
+}
+
+/** The `moira ui --portfolio` payload: N homes, independently read, juxtaposed.
+ *  The logs are NEVER merged (D-50) — each entry derives on its own in the
+ *  frontend. One uniform asOf is used across all projects (comparability). */
+export interface PortfolioUiFixture {
+  portfolio: PortfolioUiProject[];
+  asOf: IsoDate;
+  label?: string;
+  live?: boolean;
+}
+
+/** What the server injects/serves: a single project or a portfolio. */
+export type UiPayload = UiFixture | PortfolioUiFixture;
+
 export interface UiServerOptions {
   distDir: string;
   /** 0 = let the OS pick (tests); the resolved port is reflected in `url`. */
   port: number;
   /** Called per request — must build a FRESH fixture from disk every time. */
-  fixture: () => UiFixture;
+  fixture: () => UiPayload;
   /** The .moira directory to watch. Omit to disable the watcher (layer (a) only). */
   watchDir?: string;
+  /** Additional .moira directories to watch (portfolio mode: one per home). */
+  watchDirs?: readonly string[];
 }
 
 export interface RunningUi {
@@ -69,7 +103,7 @@ export interface RunningUi {
 }
 
 /** Inject the fixture as an inline classic <script> before the deferred app module. Pure. */
-export function injectFixture(indexHtml: string, fixture: UiFixture): string {
+export function injectFixture(indexHtml: string, fixture: UiPayload): string {
   // JSON with <,>,& escaped so it can never break out of the <script> element.
   const json = JSON.stringify(fixture)
     .replace(/</g, '\\u003c')
@@ -83,7 +117,7 @@ export function injectFixture(indexHtml: string, fixture: UiFixture): string {
   return `${inject}\n${indexHtml}`;
 }
 
-export function buildInjectedIndex(distDir: string, fixture: UiFixture): string {
+export function buildInjectedIndex(distDir: string, fixture: UiPayload): string {
   return injectFixture(readFileSync(join(distDir, 'index.html'), 'utf8'), fixture);
 }
 
@@ -180,12 +214,12 @@ export function watchMoiraDir(dir: string, onChange: () => void): { close: () =>
 // --- server -----------------------------------------------------------------
 
 export function serveUi(options: UiServerOptions): Promise<RunningUi> {
-  const { distDir, port, fixture, watchDir } = options;
+  const { distDir, port, fixture, watchDir, watchDirs } = options;
 
   // Last-good guard: the CLI writes .moira files non-atomically, so a read can
   // race a write and fail to parse — keep serving the previous snapshot.
-  let lastGood: UiFixture | null = null;
-  const readFixture = (): UiFixture => {
+  let lastGood: UiPayload | null = null;
+  const readFixture = (): UiPayload => {
     try {
       lastGood = fixture();
       return lastGood;
@@ -254,7 +288,12 @@ export function serveUi(options: UiServerOptions): Promise<RunningUi> {
     res.end(readFileSync(filePath));
   });
 
-  const watcher = watchDir !== undefined ? watchMoiraDir(watchDir, debounced.fire) : null;
+  // Portfolio mode watches every home's .moira dir; each watcher fires the same
+  // debounced ping (N rapid changes across homes collapse into one refetch).
+  const allWatchDirs = [...(watchDir !== undefined ? [watchDir] : []), ...(watchDirs ?? [])];
+  const watchers = allWatchDirs
+    .map((d) => watchMoiraDir(d, debounced.fire))
+    .filter((w): w is { close: () => void } => w !== null);
   const heartbeat = setInterval(() => hub.heartbeat(), 25_000);
   heartbeat.unref?.();
 
@@ -270,7 +309,7 @@ export function serveUi(options: UiServerOptions): Promise<RunningUi> {
           new Promise<void>((r) => {
             // Order matters: live SSE responses keep server.close() from
             // resolving, so end them BEFORE closing the server.
-            watcher?.close();
+            for (const w of watchers) w.close();
             debounced.cancel();
             clearInterval(heartbeat);
             hub.closeAll();

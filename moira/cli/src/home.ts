@@ -86,8 +86,10 @@ function followPointer(pointerPath: string): string {
   return target;
 }
 
-/** Resolve `p` treating a `.moira` pointer file at `p` as one hop. */
-function resolveExplicit(p: string): string {
+/** Resolve `p` treating a `.moira` pointer file at `p` as one hop.
+ *  Exported for the portfolio loader, which calls it once PER declared entry —
+ *  each call still yields exactly one home (the D-50 boundary above holds). */
+export function resolveExplicit(p: string): string {
   const root = resolve(p);
   if (statKind(join(root, '.moira')) === 'file') return followPointer(join(root, '.moira'));
   return root;

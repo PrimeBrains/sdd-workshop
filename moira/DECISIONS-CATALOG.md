@@ -652,25 +652,35 @@
 - **あなたが判定する一文**: 「クリティカルパスは予測計算と同じ材料から一本だけ決定的に公開し、画面は『依存の最長経路（担当者の詰まりは含まない）』と正直に添えて強調する。」
 - 〔**裏面**〕issue #16（eec799f・追跡 issue は #18）。実装: `backend/src/derivations/critical-path.ts` computeCriticalPath（独立導出・DerivedState 外＝golden 弧 byte 同一・landing と同じ規律）・`leveler.ts` の schedulableLeaves／nominalDurationDays を共用（"Shared … so the two never drift"）・tie-break は leveler の ready-queue 規則と同一（下流最長→nodeId 昇順）・`ScheduleGantt.tsx`（data-critical-path 属性・EAC バーの外縁強調・凡例「▣ クリティカルパス」＋補足で資源律速の非含有を明示）。根拠 clause: P7・R-T2（PR-CRITPATH-AGENT）・関連 D-42（依存ベース維持）・D-55（表示は導出の消費のみ）。計器資産: `critical-path.test.ts`・`critical-path.pbt.test.ts`・`render-smoke.test.tsx`（実装同梱・緑）。
 
+## D-73　複数プロジェクトは読み取り専用の並置で束ねる——会計の合成はしない
+
+- **状態**: `proposed（実装同梱の目録化・敵対検証ループ未通過 — issue #23 引き継ぎコメント参照）`　**仕分け**: (a)　**計器**: ①アーキ適合／②型・スキーマ／④E2E/シナリオ
+- **どんな場面の話か**: 部門で複数案件を束ねる PM/PMO が、案件横断の状況把握（各案件の EV/SPI/CPI・バッファ・レビュー待ち）や同じ人の掛け持ちを見たい。しかし記録の家は1プロジェクトに1つ（D-50/D-71）で、横断集計は意図的にスコープ外だった。
+- **決めたこと（誰の責任か）**: ポートフォリオは**提示層の読み取り並置**とする。宣言的な portfolio.json が N 個の home を名指しし、各 home は**1つずつ独立に**解決・fold・derive される（ログのマージ・イベント合流は存在しない＝D-50 不変）。横断で出すのは単位安全な**件数の合計のみ**——EV%/SPI/CPI の合成値は出さない（BAC も単位も案件ごとに異なり、重み付けは正典に持たない裁量パラメータになる）。人横断ビューは Actor.id の文字列一致だけで束ね、容量整合の強制・平準化はしない（見える化のみ・開示文言常設）。読めない home はゼロを捏造せず**エラー行として可視**。全案件は**統一 asOf** で導出する（比較可能性）。
+- **他にありえた選び方**: home 間でイベントログを合流して一つの導出を回す（D-50 破り・会計の汚染）／重み付きロールアップ EV% を出す（裁量ノブの密輸）／グローバル人物台帳で同定する（新しい真実源が増える）。
+- **外すとどうなるか**: 単一プロジェクト視点という正典の境界が崩れ、「合成された数字」が一人歩きする。または読めない案件が黙って消え、部分表示が全体に見える。
+- **あなたが判定する一文**: 「束ねは並置であって合成ではない。各案件の数字は単独で開いたときと完全に同じで、横断で足すのは件数だけ。整合の強制はしない。」
+- 〔**裏面**〕issue #23／ADR-0005。実装: `cli/src/portfolio.ts`（schemaVersion 1・全エラー列挙・重複 home 拒否・home.ts `resolveExplicit` を entry ごとに1回＝「1解決=1home」保持）・`cli/src/commands.ts` buildPortfolioFixture（統一 asOf＝`--asOf` > max(config.asOf) > today・loadError 行・全滅時のみ fatal）・`frontend/src/moira/portfolio-derive.ts`（案件ごと独立 derive＝INV-2 golden でパリティ固定）・`portfolio-store.tsx`／`app/PortfolioShell.tsx`／`surfaces/portfolio/*`（並置・人横断・ドリルダウン＝既存 WorkbenchShell の再マウント）。ガード: depcruise `single-backend-bridge`＋`surfaces-read-via-hooks-not-store`（portfolio-store を追加）・fidelity gate（derive import 白リストに portfolio-derive）。根拠 clause: D-50・MODEL §5:433（クロスプロジェクト Σc 整合は組織責務 A4）・P0（提示の自由と正直な開示）。計器資産: `cli/src/portfolio.test.ts`・`frontend/src/moira/portfolio.golden.test.ts`（INV-2）・`surfaces/portfolio/person-overlap.test.ts`・`app/render-portfolio.test.tsx`（実装同梱・緑）。シナリオ E2E（計器④の残り）は人間の When/Then 種待ち。
+
 ---
 
 # Decision → 計器 被覆マップ（draft・2026-06-26）
 
 > 各 Decision がどの計器で担保されるかと、その資産・状態。**状態凡例**: `実装済`＝テスト/ルールが存在し緑／`一部実装`＝一部（多くは agreed 分）に資産が稼働し残りは未整備／`RED tripwire`＝意図的赤で実装乖離を露出／`未実装`＝計器は割付済だが資産未整備（強い fitness 等の後続分はここ）／`AIチェック`＝⑥で照合（網羅実走は後続）／`人間のみ`＝⑦。
-> **網羅**: D-1〜D-72 は全件に計器を割付済（未割付＝可視ギャップは無し）。未確定(D-60〜62)は確定後に計器を再割付。D-63（所属の latest-wins・v20 正典確定）は②③に割付・稼働緑。D-64〜D-72（2026-07-04 実装先行分の目録化・issue #19）は実装同梱のテスト資産が既に緑だが、**判断は proposed（人間未批准）のまま**——資産の存在は批准の代わりにならない。
+> **網羅**: D-1〜D-73 は全件に計器を割付済（未割付＝可視ギャップは無し）。未確定(D-60〜62)は確定後に計器を再割付。D-63（所属の latest-wins・v20 正典確定）は②③に割付・稼働緑。D-64〜D-72（2026-07-04 実装先行分の目録化・issue #19）・D-73（2026-07-05 ポートフォリオ並置・issue #23）は実装同梱のテスト資産が既に緑だが、**判断は proposed（人間未批准）のまま**——資産の存在は批准の代わりにならない。
 > **基盤整備（2026-06-27 テスト基盤ステージ）**: CI（`.github/workflows/ci.yml`）新設・カバレッジ（@vitest/coverage-v8）配線・dependency-cruiser 導入が完了。状態更新は **agreed（D-1/D-2/D-3）分のみ**——`proposed`（D-4〜D-62）は人間未批准ゆえ**テスト未記述・状態は据え置き**（「割付≠検証済」を保持）。
 
 | 計器 | Decision | 状態 | 資産（予定/既存） |
 |---|---|---|---|
-| **①アーキ適合** | D-2,4,5,6,7,8,9,10,11,12,13,14,19,24,25,29,52,53,55,65,72 | 一部実装（基盤稼働） | `moira/backend/.dependency-cruiser.cjs` 導入・CI 実行。トポロジ2ルール稼働: `no-circular` ＋ `fold-no-downstream`（fold は derivations/derive を import しない＝**D-2/D-4 の弱い代理**・monolith 段階）。強い CQRS fitness（core→下流値の依存禁止・式は evm のみ・surface は seam 経由）は**物理分解後**。proposed の大半は未実装据え置き |
-| **②型・スキーマ** | D-2,3,12,15,16,17,18,19,20,21,22,24,25,26,27,28,30,31,32,33,34,37,40,42,43,44,46,47,48,54,58,59,63,71 | 一部実装 | Vitest 型テスト基盤稼働（`test:types`＝`vitest --typecheck.only` ＋ `tsc` build の二重実走・CI）。**agreed のみ**: D-3=`backend/src/decisions/events.test-d.ts`（イベント4種固定・削除API不在の正/負）／D-2=`backend/src/decisions/ready-lifecycle.test-d.ts`（ready は lifecycle 状態・readyEligible 系算出フィールド不在）。他②（proposed）は未実装据え置き |
+| **①アーキ適合** | D-2,4,5,6,7,8,9,10,11,12,13,14,19,24,25,29,52,53,55,65,72,73 | 一部実装（基盤稼働） | `moira/backend/.dependency-cruiser.cjs` 導入・CI 実行。トポロジ2ルール稼働: `no-circular` ＋ `fold-no-downstream`（fold は derivations/derive を import しない＝**D-2/D-4 の弱い代理**・monolith 段階）。強い CQRS fitness（core→下流値の依存禁止・式は evm のみ・surface は seam 経由）は**物理分解後**。proposed の大半は未実装据え置き |
+| **②型・スキーマ** | D-2,3,12,15,16,17,18,19,20,21,22,24,25,26,27,28,30,31,32,33,34,37,40,42,43,44,46,47,48,54,58,59,63,71,73 | 一部実装 | Vitest 型テスト基盤稼働（`test:types`＝`vitest --typecheck.only` ＋ `tsc` build の二重実走・CI）。**agreed のみ**: D-3=`backend/src/decisions/events.test-d.ts`（イベント4種固定・削除API不在の正/負）／D-2=`backend/src/decisions/ready-lifecycle.test-d.ts`（ready は lifecycle 状態・readyEligible 系算出フィールド不在）。他②（proposed）は未実装据え置き |
 | **③PBT** | D-1,3,17,18,20,22,28,29,36,37,42,45,46,58,59,63,66,70 | 一部実装 | `backend/src/pbt/`（カバレッジ @vitest/coverage-v8 を CI 配線）。**D-1=PR-DONE-LOCK★（2026-07-02 fold ガード実装済み・GREEN 回帰固定に昇格）**・D-3=PM-ORDER-INV（緑・既存）・**D-63=PM-TREE-INV／PR-REPARENT-HEAL（2026-07-02 稼働・緑）**。他は新規 property 追加（後続） |
-| **④E2E/シナリオ** | D-21,30,41,52,53,56,57,64,65,67,68,69,70,72 | 一部実装 | backend golden/rederive（既存）＋ frontend `engine.golden.test.ts`（同一 derive のパリティ・P2 v18 葉基底へ陳腐定数を是正）＋シナリオ回帰。UI host 系は後続。D-64〜70 は実装同梱資産（gantt-geometry/render/E2E・各エントリ裏面参照）が緑 |
+| **④E2E/シナリオ** | D-21,30,41,52,53,56,57,64,65,67,68,69,70,72,73 | 一部実装 | backend golden/rederive（既存）＋ frontend `engine.golden.test.ts`（同一 derive のパリティ・P2 v18 葉基底へ陳腐定数を是正）＋シナリオ回帰。UI host 系は後続。D-64〜70 は実装同梱資産（gantt-geometry/render/E2E・各エントリ裏面参照）が緑 |
 | **⑤境界モデル検査** | （Decisions では該当なし） | — | 順序・状態機械は主にプロパティ側 |
 | **⑥AI整合性チェック** | D-10,11,14,15,16,23,26,27,32,34,35,39,40,41,49,54,55,56,57,66,67,68,71 | 割付済・**サンプル試走済（網羅は後続）** | `decision-conformance` スキル＋`decision-conformance-checker`。2026-06-27 サンプル試走: **D-34・D-40＝ともに ALIGNED**（負の照合・mechanism 動作確認）。採点脚は**方向(A)＝専用採点者新設で確定**（実装は後続）。網羅実走（⑥全件）は後続。「割付＝検証済」ではない |
 | **⑦人間のみ** | D-23,35,38,39,43,49,50,51,60,61,62 | 人間のみ | 人間レビュー＋doc 敵対ゲート。footprint 無し（テスト対象が定義上存在しない） |
 
-> 集計（割付ベース・重複計上）: ①21・②34・③18・④14・⑥23・⑦11。多くが①②③に落ち、自動テスト化の余地が大きい。⑥⑦は計 34（重複 D-23/35/39/49 の4件を除き実数 30）で、うち⑦（計器⑦割付）は 11。
+> 集計（割付ベース・重複計上）: ①22・②35・③18・④15・⑥23・⑦11。多くが①②③に落ち、自動テスト化の余地が大きい。⑥⑦は計 34（重複 D-23/35/39/49 の4件を除き実数 30）で、うち⑦（計器⑦割付）は 11。
 > **整備済（2026-06-27）**: 基盤(CI・dependency-cruiser・@vitest/coverage-v8)導入完了。**agreed 分のみ**状態更新（①=fold境界の弱代理稼働／②=D-2/D-3 型サンプル稼働／⑥=D-34/D-40 サンプル試走 ALIGNED）。**proposed は据え置き**（割付≠検証済）。
 > **後続**: (1) ~~D-1 fold 完了ガードの実装是正~~（**2026-07-02 完了** — fold ガード追加・PR-DONE-LOCK★ を通常 `it()` へ昇格済み）。(2) CQRS 物理分解後に強い①fitness を追加。(3) `proposed` 批准後に当該テストを記述し状態更新。(4) ⑥網羅実走＋採点脚(A)の実装。
 
@@ -678,6 +688,6 @@
 
 ## 凡例・メモ
 
-- 本目録: D-1〜D-3 は 2026-06-26 の実験で人間批准済（`agreed`）。D-4〜D-62 は同日の網羅洗い出し（`proposed`・要レビュー）。D-63 は v20 正典確定の目録化（`proposed`）。D-64〜D-72 は 2026-07-04 の実装先行分（issue #7〜#16。#15 は実装なしゆえ対象外）の目録化（`proposed`・要レビュー・issue #19 追いつき）。計器は draft 割付。
+- 本目録: D-1〜D-3 は 2026-06-26 の実験で人間批准済（`agreed`）。D-4〜D-62 は同日の網羅洗い出し（`proposed`・要レビュー）。D-63 は v20 正典確定の目録化（`proposed`）。D-64〜D-72 は 2026-07-04 の実装先行分（issue #7〜#16。#15 は実装なしゆえ対象外）の目録化（`proposed`・要レビュー・issue #19 追いつき）。D-73 は 2026-07-05 のポートフォリオ並置（issue #23）の実装同梱目録化（`proposed`・敵対検証ループは issue #23 コメントで別セッションへ引き継ぎ）。計器は draft 割付。
 - 新規の設計判断はこの形式で `proposed` 起票 →（必要なら `doc-refine` でハードニング）→ 人間が `agreed`。MODEL の制約・語彙・既定に触れる判断は `moira-model-update` で正典へ昇格。
 - 関連: `moira/MODEL.md`（正典） ／ `moira/PROPERTIES.md`（内的整合性の目録） ／ `moira/DECISIONS.md`（意思決定ジャーナル＝来歴） ／ `.kiro/scenarios/README.md`（外的妥当性） ／ `.kiro/steering/moira-verification.md`（計器分類・被覆規律の正典）。

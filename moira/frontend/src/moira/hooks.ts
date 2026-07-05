@@ -5,11 +5,21 @@ import { useContext } from 'react';
 import { MoiraContext, type MoiraState } from './context';
 import { DEMO_ACTORS } from './demo-data';
 import type { Actor, DerivedState } from './engine';
+import { PortfolioContext, type PortfolioState } from './portfolio-context';
 import { rosterState } from './roster';
 
 export function useMoira(): MoiraState {
   const ctx = useContext(MoiraContext);
   if (ctx === null) throw new Error('useMoira must be used within a MoiraProvider');
+  return ctx;
+}
+
+/** Portfolio mode (issue #23): the N independently-derived projects. Surfaces
+ *  read through this hook — never the provider module (same seam discipline as
+ *  useMoira). */
+export function usePortfolio(): PortfolioState {
+  const ctx = useContext(PortfolioContext);
+  if (ctx === null) throw new Error('usePortfolio must be used within a PortfolioProvider');
   return ctx;
 }
 
