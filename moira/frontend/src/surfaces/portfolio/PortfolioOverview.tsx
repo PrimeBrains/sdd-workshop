@@ -1,8 +1,10 @@
 // 案件並置 — one row per project, each cell coming from THAT project's own
 // independent derivation (issue #23). Cross-project accounting is deliberately
-// NOT synthesized: EV%/SPI/CPI have per-project BACs and units, and a weighting
-// scheme would be a discretionary knob Moira's canon refuses to hold — only
-// unit-safe COUNTS are totalled. loadError homes stay visible error rows.
+// NOT synthesized: the unit (attention-time MD, A6 single currency) IS common
+// across projects so a Σ would be dimensionally possible — we decline it as a
+// design judgment (aggregation hides per-project variance; presentation-layer
+// knob proliferation, D-73/ADR-0005). Only COUNTS are totalled (readable
+// projects only, granularity caveat). loadError homes stay visible error rows.
 
 import { EVM } from '../../theme/tokens';
 import { usePortfolio } from '../../moira/hooks';
@@ -35,7 +37,7 @@ const td: React.CSSProperties = {
 };
 
 export function PortfolioOverview({ onOpenProject }: { onOpenProject: (key: string) => void }) {
-  const { projects } = usePortfolio();
+  const { projects, asOf } = usePortfolio();
   const ok = projects.flatMap((p) => (p.kind === 'ok' ? [p.data] : []));
   const errors = projects.flatMap((p) => (p.kind === 'error' ? [p.error] : []));
 
@@ -46,8 +48,9 @@ export function PortfolioOverview({ onOpenProject }: { onOpenProject: (key: stri
     <div style={{ padding: '18px 22px' }}>
       <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>案件並置</div>
       <div style={{ fontSize: 11.5, color: EVM.ink3, marginBottom: 12, lineHeight: 1.6 }}>
-        各行はその案件の home を単独で導出した値 —
-        その案件を単独ダッシュボードで開いたときと同じ数値です。横断の合成会計は行いません（D-50）。
+        各行はその案件の home を統一基準日 {asOf} で独立に導出した値 —
+        同じ基準日で単独ダッシュボードを開いたときと同じ数値です（案件自身の config.asOf
+        とは基準日が異なり得ます）。横断の合成会計は行いません（D-50）。
       </div>
 
       <table style={{ borderCollapse: 'collapse', width: '100%', background: EVM.card, borderRadius: 8 }}>
@@ -80,7 +83,7 @@ export function PortfolioOverview({ onOpenProject }: { onOpenProject: (key: stri
           ))}
           <tr data-testid="portfolio-total-row">
             <td style={{ ...td, textAlign: 'left', fontFamily: EVM.font, fontWeight: 600, borderBottom: 'none' }}>
-              合計（件数のみ）
+              合計（読めた{ok.length}案件・件数のみ）
             </td>
             <td style={{ ...td, color: EVM.ink4, borderBottom: 'none' }}>—</td>
             <td style={{ ...td, color: EVM.ink4, borderBottom: 'none' }}>—</td>
@@ -95,8 +98,11 @@ export function PortfolioOverview({ onOpenProject }: { onOpenProject: (key: stri
       </table>
 
       <div style={{ fontSize: 10.5, color: EVM.ink4, marginTop: 10, lineHeight: 1.7 }}>
-        EV%・SPI・CPI は案件ごとに BAC も単位も異なるため合成しません（重み付けは正典に持たない裁量パラメータ）。
-        合計するのは単位安全な件数のみ。SPI はスケジュールカバレッジとの対読み（cov 表示は 1.0 未満のときのみ）。
+        EV%・SPI・CPI の横断合成は出しません — 単位（アテンション時間 MD）は全案件共通で Σ は計算可能ですが、
+        集約は案件間の分散（危機案件）を平均で隠すため採らない設計判断です（D-73）。
+        合計は読めた案件のみの件数の和（レビュー待ち・構造エラー）で、件数はノード分解の粒度
+        （案件ごとの人間裁量）に依存するため案件間の比較には向きません。
+        SPI はスケジュールカバレッジとの対読み（cov 表示は 1.0 未満のときのみ）。
         レビュー待ちの最古経過日数は「人間ゲート待ち」計器の導入時に追加予定（現状は件数のみ）。
       </div>
     </div>

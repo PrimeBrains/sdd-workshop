@@ -7,10 +7,23 @@
 // Validation is hand-written and collects ALL errors before reporting — same
 // discipline as provider-config.ts / the WBS import path.
 
-import { readFileSync } from 'node:fs';
+import { readFileSync, realpathSync } from 'node:fs';
 import { basename, dirname, resolve } from 'node:path';
 import { CliError } from './errors.js';
 import { resolveExplicit } from './home.js';
+
+/** Canonical identity for duplicate detection: realpath collapses symlink
+ *  aliases and (on case-insensitive filesystems, e.g. win32) case variants —
+ *  a lexical `resolve` alone would let `C:\proj\A` and `c:\proj\a` slip
+ *  through as two rows and double-count the portfolio totals. Falls back to
+ *  the input for nonexistent paths (their duplicates compare lexically). */
+function canonicalKey(p: string): string {
+  try {
+    return realpathSync.native(p);
+  } catch {
+    return p;
+  }
+}
 
 export interface PortfolioHomeEntry {
   /** A home root (the directory containing `.moira/`) or a `.moira` pointer
@@ -136,7 +149,7 @@ export function resolvePortfolioEntries(
     } catch (e) {
       resolveError = e instanceof Error ? e.message : String(e);
     }
-    const key = root;
+    const key = canonicalKey(root);
     const first = seen.get(key);
     if (first !== undefined) {
       duplicates.push(`homes[${first}] と homes[${i}] が同じ home を指す: ${key}`);

@@ -12,6 +12,7 @@ const WINDOW_DAYS = 14;
 
 export function PersonView() {
   const { projects, asOf } = usePortfolio();
+  const errors = projects.flatMap((p) => (p.kind === 'error' ? [p.error] : []));
   const rows = useMemo(() => {
     const ok = projects.flatMap((p) => (p.kind === 'ok' ? [p.data] : []));
     return computePersonOverlap(ok, asOf, WINDOW_DAYS);
@@ -37,9 +38,30 @@ export function PersonView() {
       >
         本ビューは見える化のみ。複数案件にわたる容量整合の強制・平準化は行いません（D-50）。
         人の同定は Actor.id の一致のみです — 案件ごとに別 id の同一人物は合流せず、同じ id の別人は混ざります。
+        「同日複数案件」は完了予定日・凍結スロットの同日一致であり、作業区間の重なりや容量超過の判定ではありません。
         宣言容量の合計は明示的に宣言された c(i,d) のみ（未宣言日を 1.0 と見なして合算しません）。
         対象期間: 基準日から {WINDOW_DAYS} 日間。
       </div>
+
+      {/* honest gap: homes this view CANNOT see must not silently vanish */}
+      {errors.length > 0 && (
+        <div
+          data-testid="person-view-excluded"
+          style={{
+            fontSize: 11.5,
+            color: EVM.crit,
+            background: EVM.critSoft,
+            border: `1px solid ${EVM.rule}`,
+            borderRadius: 8,
+            padding: '8px 12px',
+            marginBottom: 14,
+            lineHeight: 1.7,
+          }}
+        >
+          読み込めなかった案件は本ビューに含まれていません（掛け持ちが実際より少なく見えます）:
+          {errors.map((e) => ` ${e.label}`).join(' /')}
+        </div>
+      )}
 
       {rows.length === 0 && (
         <div style={{ fontSize: 12, color: EVM.ink3 }}>
@@ -83,18 +105,21 @@ function PersonCard({ row }: { row: PersonOverlapRow }) {
           {row.slices.length}案件
         </span>
         {row.overlapDates.length > 0 && (
+          // Neutral (brand) styling on purpose: this is a VISIBILITY marker
+          // (same-day completion/slot coincidence), NOT a violation verdict —
+          // red would read as "over-capacity" which nothing here computes.
           <span
             data-testid={`person-overlap:${row.actorId}`}
             style={{
               fontSize: 10.5,
-              color: EVM.crit,
-              background: EVM.critSoft,
+              color: EVM.brandDeep,
+              background: EVM.brandSoft,
               borderRadius: 999,
               padding: '2px 10px',
               fontWeight: 600,
             }}
           >
-            同日複数案件: {row.overlapDates.join(', ')}
+            同日複数案件（予定日の一致・超過判定ではない）: {row.overlapDates.join(', ')}
           </span>
         )}
       </div>

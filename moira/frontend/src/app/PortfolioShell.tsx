@@ -77,7 +77,8 @@ export function PortfolioShell() {
           </button>
           <span style={{ fontSize: 12.5, fontWeight: 600 }}>{proj?.label ?? selectedKey}</span>
           <span style={{ fontSize: 10.5, color: EVM.ink3 }}>
-            単一案件ビュー — 会計はこの案件単独（横断合成なし）
+            単一案件ビュー — 会計はこの案件単独（横断合成なし）。基準日はポートフォリオ統一の {asOf}
+            で開始（案件自身の config.asOf とは異なり得ます）
           </span>
         </div>
         <div style={{ flex: '1 1 auto', minHeight: 0 }}>

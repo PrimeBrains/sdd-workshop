@@ -1,7 +1,7 @@
 // Portfolio config loader — schema v1 validation + per-entry single-home
 // resolution (issue #23). No merging: entries map 1:1 to homes (D-50 holds).
 
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -32,6 +32,15 @@ function writePortfolio(name: string, body: unknown): string {
   const p = join(tmp, name);
   writeFileSync(p, typeof body === 'string' ? body : JSON.stringify(body));
   return p;
+}
+
+/** Mirrors portfolio.ts's canonicalKey (realpath; falls back for nonexistent paths). */
+function canon(p: string): string {
+  try {
+    return realpathSync.native(p);
+  } catch {
+    return p;
+  }
 }
 
 describe('validatePortfolioConfig', () => {
@@ -112,8 +121,8 @@ describe('resolvePortfolioEntries', () => {
     });
     const entries = resolvePortfolioEntries(loadPortfolioConfig(p), p);
     expect(entries).toHaveLength(2);
-    expect(entries[0]).toEqual({ key: resolve(a), root: resolve(a) });
-    expect(entries[1]).toEqual({ key: resolve(b), root: resolve(b), label: '案件B' });
+    expect(entries[0]).toEqual({ key: canon(resolve(a)), root: resolve(a) });
+    expect(entries[1]).toEqual({ key: canon(resolve(b)), root: resolve(b), label: '案件B' });
   });
 
   it('follows a .moira pointer file one hop (per entry — still one home each)', () => {
@@ -154,4 +163,18 @@ describe('resolvePortfolioEntries', () => {
       /home の重複/,
     );
   });
+
+  it.runIf(process.platform === 'win32')(
+    'rejects case-variant duplicates on a case-insensitive filesystem (realpath canonicalization)',
+    () => {
+      makeHome('proj-a');
+      const p = writePortfolio('portfolio.json', {
+        schemaVersion: 1,
+        homes: [{ path: 'proj-a' }, { path: 'PROJ-A' }],
+      });
+      expect(() => resolvePortfolioEntries(loadPortfolioConfig(p), p)).toThrowError(
+        /home の重複/,
+      );
+    },
+  );
 });
