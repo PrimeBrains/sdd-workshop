@@ -3,8 +3,8 @@
 // stdout = data; stderr = warnings/progress (so the CLI is automation-friendly).
 
 import { spawn } from 'node:child_process';
-import { existsSync, statSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { existsSync, mkdirSync, statSync, writeFileSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import ExcelJS from 'exceljs';
 import { CapacityStore, derive, fold } from 'moira-backend';
@@ -34,7 +34,7 @@ import {
 } from './emit.js';
 import { lastNBusinessDays, previousBusinessDay } from './business-days.js';
 import { formatSnapshot } from './format.js';
-import { buildReport, formatReportText } from './report.js';
+import { buildReport, formatReportText, reportFilename } from './report.js';
 import { getGlobalDir, resolveMoiraHome, setGlobalDir } from './home.js';
 import { frontendDistDir } from './paths.js';
 import {
@@ -622,6 +622,8 @@ function cmdReport(rest: string[]): void {
     days: { type: 'string' },
     startDate: { type: 'string' },
     json: { type: 'boolean' },
+    out: { type: 'string' },
+    'save-dir': { type: 'string' },
   });
   const repo = requireRepo();
   const cfg = repo.loadConfig();
@@ -650,13 +652,33 @@ function cmdReport(rest: string[]): void {
     ...(deriveOpts.startDate !== undefined ? { startDate: deriveOpts.startDate } : {}),
     dates: resolveReferenceDates(repo.loadDateEntries()),
   });
-  if (values.json === true) {
-    out(JSON.stringify(report, null, 2));
-    return;
+
+  const asJson = values.json === true;
+  let rendered: string;
+  if (asJson) {
+    rendered = JSON.stringify(report, null, 2);
+  } else {
+    const labels = repo.loadLabels();
+    const projectLabel = labels.nodeLabels[cfg.projectRoot];
+    rendered = formatReportText(report, (id) => labels.nodeLabels[id] ?? id, projectLabel);
   }
-  const labels = repo.loadLabels();
-  const projectLabel = labels.nodeLabels[cfg.projectRoot];
-  out(formatReportText(report, (id) => labels.nodeLabels[id] ?? id, projectLabel));
+  out(rendered);
+
+  // Optional save (issue #25 follow-up): --out <file> writes to an exact path;
+  // --save-dir <dir> writes a deterministically-named file into that directory
+  // (dir created if missing). Both still print to stdout; the saved path is
+  // echoed to stderr so automation/skills can pick it up.
+  const outPath = str(values.out);
+  const saveDir = str(values['save-dir']);
+  if (outPath !== undefined || saveDir !== undefined) {
+    const target =
+      outPath !== undefined
+        ? resolve(outPath)
+        : resolve(saveDir!, reportFilename(cfg.projectRoot, asOf, asJson));
+    mkdirSync(dirname(target), { recursive: true });
+    writeFileSync(target, `${rendered}\n`, 'utf8');
+    err(`saved: ${target}`);
+  }
 }
 
 function cmdLog(rest: string[]): void {
@@ -886,9 +908,11 @@ usage: moira [--dir <log-home>] <command> ...
   moira import wbs <file.xlsx> [--dry-run]               (bulk-load a filled WBS in one append)
   moira import members <file.xlsx> [--dry-run]           (bulk-load roster + 個人休 + 祝日)
   moira show [--asOf <date>] [--startDate <date>] [--json]
-  moira report [--asOf <date>] [--prev <date>] [--days <n>] [--json]
+  moira report [--asOf <date>] [--prev <date>] [--days <n>] [--json] [--out <file>] [--save-dir <dir>]
     朝会ダイジェスト（issue #25）: 前回比 Δ・期間の出来事・キュー・feature 別・着地 vs 期日・
     直近 n 営業日の推移（既定 5、0 で省略）。--prev 既定は直前営業日（土日+日本の祝日スキップ）。
+    --out <file> で任意パスに保存、--save-dir <dir> で <dir>/moira-report-<root>-<asOf>.md を生成
+    （どちらも stdout にも出力し、保存先を stderr に表示）。
   moira log
   moira ui [--asOf <date>] [--port <n>] [--no-open] [--portfolio <portfolio.json>]
     --portfolio: 複数 home を読み取り専用で並置するポートフォリオ表示（issue #23）。

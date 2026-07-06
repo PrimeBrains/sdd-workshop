@@ -48,7 +48,7 @@ moira ui                                        # ブラウザでダッシュボ
 | `moira relate <from> <to> [--kind dependency\|supersede] [--policy ...] [--remove]` | 辺の追加/削除 | `relate` |
 | `moira capacity <who> <YYYY-MM-DD> <c> [--reason ...]` | 日次容量 c(i,d) | （capacity 層） |
 | `moira show [--asOf <date>] [--startDate <date>] [--json]` | 導出スナップショット | （読み取り） |
-| `moira report [--asOf <date>] [--prev <date>] [--days <n>] [--json]` | **朝会ダイジェスト**（issue #25・`moira-evm-digest` スキルの中核）: 現況ペア読み・前回比 Δ・期間の出来事・キュー・feature 別内訳・着地予測 vs 期日・直近 n 営業日の推移（既定 5、`--days 0` で省略）。「前回」は保存スナップショットではなく**同一ログの as-of 導出**（(ts,id) ≤ cut の prefix 再 fold・TE03）。`--prev` 既定 = 直前営業日（土日+日本の祝日をスキップ。祝日は同梱静的データ 2025–2027・範囲外は警告して土日のみ）。日境界は UTC 暦日（landing 導出と同一規律） | （読み取り） |
+| `moira report [--asOf <date>] [--prev <date>] [--days <n>] [--json] [--out <file>] [--save-dir <dir>]` | **朝会ダイジェスト**（issue #25・`moira-evm-digest` スキルの中核）: 現況ペア読み・前回比 Δ・期間の出来事・キュー・feature 別内訳・着地予測 vs 期日・直近 n 営業日の推移（既定 5、`--days 0` で省略）。「前回」は保存スナップショットではなく**同一ログの as-of 導出**（(ts,id) ≤ cut の prefix 再 fold・TE03）。`--prev` 既定 = 直前営業日（土日+日本の祝日をスキップ。祝日は同梱静的データ 2025–2027・範囲外は警告して土日のみ）。日境界は UTC 暦日（landing 導出と同一規律）。**保存**: `--out <file>` で任意パスへ、`--save-dir <dir>` で `<dir>/moira-report-<projectRoot>-<asOf>.md` を生成（dir は自動作成・stdout にも出力・保存先は stderr の `saved:`） | （読み取り） |
 | `moira log` | イベント一覧 | （読み取り） |
 | `moira ui [--asOf <date>] [--port <n>] [--no-open]` | ダッシュボード起動。**稼働中の追記は自動反映**（fs.watch→SSE。反映が見えなければブラウザをリロード——`/` は毎リクエスト最新を焼き込む。再起動は不要） | （読み取り） |
 | `moira ui --portfolio <portfolio.json> [...]` | **ポートフォリオ表示**（issue #23・D-73）: 複数 home を読み取り専用で並置（案件並置＋人横断＋ドリルダウン）。読めた home を fs.watch（home 増減・起動時に読めなかった home の修復反映は再起動。ブラウザ再読込は常に最新）。下記「ポートフォリオ」参照 | （読み取り） |

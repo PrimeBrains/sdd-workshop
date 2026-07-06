@@ -5,7 +5,7 @@
 
 import { describe, expect, it } from 'vitest';
 import type { Actor, Event, IsoDate } from 'moira-backend';
-import { buildReport, formatReportText } from './report.js';
+import { buildReport, formatReportText, reportFilename } from './report.js';
 
 const h1: Actor = { kind: 'human', id: 'h1' };
 const ai: Actor = { kind: 'agent', id: 'ai' };
@@ -148,6 +148,20 @@ describe('buildReport', () => {
     expect(empty.landing.deadline).toBeNull();
     expect(empty.landing.daysLate).toBeNull();
     expect(empty.structuralErrors).toEqual([]);
+  });
+});
+
+describe('reportFilename', () => {
+  it('is deterministic, dated, and mirrors the output format', () => {
+    expect(reportFilename('pl-sato', '2026-07-06')).toBe('moira-report-pl-sato-2026-07-06.md');
+    expect(reportFilename('pl-sato', '2026-07-06', true)).toBe(
+      'moira-report-pl-sato-2026-07-06.json',
+    );
+  });
+
+  it('slugs a path-hostile projectRoot so it cannot escape the target dir', () => {
+    expect(reportFilename('a/../b', '2026-07-06')).toBe('moira-report-a_.._b-2026-07-06.md');
+    expect(reportFilename('///', '2026-07-06')).toBe('moira-report-project-2026-07-06.md');
   });
 });
 

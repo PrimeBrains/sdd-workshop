@@ -215,6 +215,16 @@ function diffDays(a: IsoDate, b: IsoDate): number {
   return Math.round((Date.parse(`${a}T00:00:00Z`) - Date.parse(`${b}T00:00:00Z`)) / 86_400_000);
 }
 
+/**
+ * Deterministic filename for `moira report --save-dir` — sortable by date,
+ * unique per (project, asOf). projectRoot is slugged so a path-hostile id can
+ * never escape the target directory.
+ */
+export function reportFilename(projectRoot: NodeId, asOf: IsoDate, json = false): string {
+  const slug = projectRoot.replace(/[^\w.-]+/g, '_').replace(/^_+|_+$/g, '') || 'project';
+  return `moira-report-${slug}-${asOf}.${json ? 'json' : 'md'}`;
+}
+
 // --- text (Markdown for the morning meeting) -----------------------------------
 
 const sign = (n: number): string => (n >= 0 ? `+${trim(n)}` : trim(n));
