@@ -9,6 +9,15 @@
 //      the behavior itself is settled (実画面裁定=実装が正・E2E は同期済み), only the
 //      wording awaits the human stamp. Draft (= never ratified) is still rejected.
 //      ※この in-review 許容はゲート意味論の変更であり、Vertex 敵対レビューの対象。
+//      ※【限界の正直開示・doc-refine 検証ループ 2026-07-06】正典 lifecycle
+//      (.kiro/scenarios/README) は in-review を「初回レビュー中」と定義し、
+//      agreed→in-review の逆遷移（＝再批准）は本 #19 追いつきで導入した運用状態である。
+//      このゲートは status 値が 'in-review' であることしか見ず、それが『元 agreed の
+//      再批准中』か『draft から初めて来た初回レビュー中（＝未確定挙動）』かを
+//      **機械的に区別できない**。現行の許容は「in-review へ降格されるのは元 agreed の
+//      ユニットのみ」というプロセス（運用）保証に依存しており、機械保証ではない
+//      （FORK1 裁定=現状維持＋本注記。機械保証が要るなら previously-agreed 判定の
+//      追加、または agreed-only への回帰が選択肢）。
 //   3. every FLOW spec meta targets an EXISTING flow whose composed units are all
 //      agreed or in-review (the flow doc itself may be draft — it is the integration
 //      target being ratified separately; treated as agreed-equivalent)
