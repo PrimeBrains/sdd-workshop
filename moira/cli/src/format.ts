@@ -4,12 +4,31 @@
 
 import type { DerivedState } from 'moira-backend';
 
-function fmt(n: number | null): string {
+export function fmt(n: number | null): string {
   return n === null ? 'n/a' : n.toFixed(2);
 }
 
-function pct(n: number): string {
+export function pct(n: number): string {
   return `${(n * 100).toFixed(0)}%`;
+}
+
+/**
+ * The pair-read header block (EV%↔estimate coverage, SPI↔schedule coverage,
+ * absolutes, queues) — shared verbatim between `moira show` and `moira report`
+ * so the digest can never quote SPI/EV% detached from its coverage (R-S4/R-S6).
+ */
+export function pairReadLines(d: DerivedState, labelOf: (id: string) => string): string[] {
+  return [
+    `  EV%  ${pct(d.evPercent)} | estimate coverage ${pct(d.estimateCoverage)}   (pair-read R-S4)`,
+    `  SPI  ${fmt(d.spi)} | schedule coverage ${pct(d.scheduleCoverage)}   (pair-read R-S6)`,
+    `  EV_abs ${d.evAbs} | PV ${d.pv} | AC ${d.ac} | CPI ${fmt(d.cpi)} | exec coverage ${pct(
+      d.executionCoverage,
+    )}`,
+    `  review queue ${fmtQueue(d.humanReviewQueue, labelOf)} | agent queue ${fmtQueue(
+      d.agentWorkQueue,
+      labelOf,
+    )} | unassigned ${fmtQueue(d.unassignedBacklog, labelOf)}`,
+  ];
 }
 
 export function formatSnapshot(
@@ -20,15 +39,7 @@ export function formatSnapshot(
   const head = projectLabel === undefined ? '' : `   (${projectLabel})`;
   const lines: string[] = [
     `Moira — derived snapshot @ ${d.asOf}${head}`,
-    `  EV%  ${pct(d.evPercent)} | estimate coverage ${pct(d.estimateCoverage)}   (pair-read R-S4)`,
-    `  SPI  ${fmt(d.spi)} | schedule coverage ${pct(d.scheduleCoverage)}   (pair-read R-S6)`,
-    `  EV_abs ${d.evAbs} | PV ${d.pv} | AC ${d.ac} | CPI ${fmt(d.cpi)} | exec coverage ${pct(
-      d.executionCoverage,
-    )}`,
-    `  review queue ${fmtQueue(d.humanReviewQueue, labelOf)} | agent queue ${fmtQueue(
-      d.agentWorkQueue,
-      labelOf,
-    )} | unassigned ${fmtQueue(d.unassignedBacklog, labelOf)}`,
+    ...pairReadLines(d, labelOf),
   ];
   if (d.nodeStates.length > 0) {
     lines.push('', 'nodes:');

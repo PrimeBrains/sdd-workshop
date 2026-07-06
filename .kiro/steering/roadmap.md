@@ -89,7 +89,7 @@
 | 11 | moira-cancel-scope | transition(cancelled)+orphan評価 | R-C1/C2/C3,§2.7 | core,scope-deps,relate-edit,reschedule ｜人間承認 |
 | 12 | moira-cost-log | cost | A6/R-U10,P3/P6 | core,evm ｜R-S3 は検出側(evm/health)、cost-log は AC 入力を足すのみ |
 | 13 | moira-ticket-project | オペ(read 射影→外部) | A1,R-U1,P4 | core ｜外部出力は kiro-issue/sdd-issue-creator へ委譲(写像は0b) ｜0b |
-| 14 | moira-evm-digest | オペ(as-of 導出差分) | R-S2 as-of,I3,P5 | core,evm,health ｜cron/ETL でなく日境界 as-of 導出の差分(TE03)。行為列挙は導出層を読む |
+| 14 | moira-evm-digest | オペ(as-of 導出差分) | R-S2 as-of,I3,P5 | core,evm,health ｜cron/ETL でなく日境界 as-of 導出の差分(TE03)。行為列挙は導出層を読む ｜issue #25 で参照実装を前倒し済（`.claude/skills/moira-evm-digest/` + `moira report` CLI） |
 
 build order: core後 `cost-log,progress` → evm/scope後 `estimate-agree,decompose-author[0a],relate-edit` →
 scope後 `cancel-scope` → adapter後 `spec-ingest[0a,0c]` → schedule後 `assign-schedule,capacity,project-config,rebaseline` →

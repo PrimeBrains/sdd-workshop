@@ -11,6 +11,10 @@ export {
   type LandingOptions,
   type LandingPoint,
 } from './derivations/landing.js';
+export {
+  computeFeatureRollup,
+  type FeatureRollupRow,
+} from './derivations/feature-rollup.js';
 export { fold } from './fold.js';
 export { EventStore, sortEvents } from './event-store.js';
 export {

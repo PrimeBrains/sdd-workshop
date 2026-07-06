@@ -32,7 +32,9 @@ import {
   lifecycleEvent,
   relateEvent,
 } from './emit.js';
+import { lastNBusinessDays, previousBusinessDay } from './business-days.js';
 import { formatSnapshot } from './format.js';
+import { buildReport, formatReportText } from './report.js';
 import { getGlobalDir, resolveMoiraHome, setGlobalDir } from './home.js';
 import { frontendDistDir } from './paths.js';
 import {
@@ -606,6 +608,57 @@ function cmdShow(rest: string[]): void {
   out(formatSnapshot(d, (id) => labels.nodeLabels[id] ?? id, projectLabel));
 }
 
+/**
+ * `moira report` — the morning digest (issue #25 / roadmap skill #14
+ * moira-evm-digest). "Previous" defaults to the closest business day before
+ * asOf (weekends + Japanese holidays skipped; business-days.ts). All the diff
+ * work is as-of prefix re-derivation of the SAME log (TE03) — never a stored
+ * snapshot.
+ */
+function cmdReport(rest: string[]): void {
+  const { values } = parse(rest, {
+    asOf: { type: 'string' },
+    prev: { type: 'string' },
+    days: { type: 'string' },
+    startDate: { type: 'string' },
+    json: { type: 'boolean' },
+  });
+  const repo = requireRepo();
+  const cfg = repo.loadConfig();
+  const asOf = str(values.asOf) ?? cfg.asOf ?? today();
+  if (!isIsoDate(asOf)) throw new CliError(`--asOf は YYYY-MM-DD 形式で指定する: ${asOf}`);
+  const prevFlag = str(values.prev);
+  if (prevFlag !== undefined && !isIsoDate(prevFlag)) {
+    throw new CliError(`--prev は YYYY-MM-DD 形式で指定する: ${prevFlag}`);
+  }
+  const prev = prevFlag ?? previousBusinessDay(asOf, { warn: err });
+  if (prev >= asOf) throw new CliError(`--prev (${prev}) は asOf (${asOf}) より前の日付にする`);
+  const daysRaw = str(values.days) ?? '5';
+  const days = Number(daysRaw);
+  if (!Number.isInteger(days) || days < 0) {
+    throw new CliError(`--days は 0 以上の整数で指定する: ${daysRaw}`);
+  }
+
+  const events = repo.loadEvents();
+  const deriveOpts = buildDeriveOptions(repo, asOf, str(values.startDate));
+  const report = buildReport(events, {
+    asOf,
+    prev,
+    seriesDays: days === 0 ? [] : lastNBusinessDays(asOf, days, { warn: err }),
+    projectRoot: cfg.projectRoot,
+    ...(deriveOpts.capacityOf !== undefined ? { capacityOf: deriveOpts.capacityOf } : {}),
+    ...(deriveOpts.startDate !== undefined ? { startDate: deriveOpts.startDate } : {}),
+    dates: resolveReferenceDates(repo.loadDateEntries()),
+  });
+  if (values.json === true) {
+    out(JSON.stringify(report, null, 2));
+    return;
+  }
+  const labels = repo.loadLabels();
+  const projectLabel = labels.nodeLabels[cfg.projectRoot];
+  out(formatReportText(report, (id) => labels.nodeLabels[id] ?? id, projectLabel));
+}
+
 function cmdLog(rest: string[]): void {
   parse(rest, {});
   const repo = requireRepo();
@@ -833,6 +886,9 @@ usage: moira [--dir <log-home>] <command> ...
   moira import wbs <file.xlsx> [--dry-run]               (bulk-load a filled WBS in one append)
   moira import members <file.xlsx> [--dry-run]           (bulk-load roster + 個人休 + 祝日)
   moira show [--asOf <date>] [--startDate <date>] [--json]
+  moira report [--asOf <date>] [--prev <date>] [--days <n>] [--json]
+    朝会ダイジェスト（issue #25）: 前回比 Δ・期間の出来事・キュー・feature 別・着地 vs 期日・
+    直近 n 営業日の推移（既定 5、0 で省略）。--prev 既定は直前営業日（土日+日本の祝日スキップ）。
   moira log
   moira ui [--asOf <date>] [--port <n>] [--no-open] [--portfolio <portfolio.json>]
     --portfolio: 複数 home を読み取り専用で並置するポートフォリオ表示（issue #23）。
@@ -899,6 +955,8 @@ export async function runCli(argv: string[]): Promise<void> {
       return cmdImport(rest);
     case 'show':
       return cmdShow(rest);
+    case 'report':
+      return cmdReport(rest);
     case 'log':
       return cmdLog(rest);
     case 'ui':

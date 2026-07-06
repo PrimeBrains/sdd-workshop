@@ -145,6 +145,7 @@ moira init --me me --label "TODO アプリ"
 moira add add-task --estimate 3 ; moira agree add-task ; moira assign add-task --to me
 moira start add-task ; moira done add-task ; moira accept add-task ; moira cost add-task 4
 moira show     # ターミナルに EVM 導出
+moira report   # 朝会ダイジェスト(前回営業日比 Δ+推移+キュー)
 moira ui       # ブラウザでダッシュボード(自分のログ)
 ```
 
