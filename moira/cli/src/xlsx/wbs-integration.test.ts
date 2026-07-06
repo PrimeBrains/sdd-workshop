@@ -53,4 +53,34 @@ describe('moira import wbs — integration via runCli', () => {
     const after = readFileSync(join(dir, '.moira', 'events.json'), 'utf8');
     expect(after).toBe(before); // byte-identical
   });
+
+  it('imports completed / in-progress rows as backdated lifecycle transitions + cost (issue #24)', async () => {
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet('WBS');
+    ws.addRow([
+      'ID', '親ID', 'タスク名', '担当者', '見積MD', '予定開始日', '予定終了日', '先行ID',
+      '実績開始日', '実績終了日', '実績MD', '検収済',
+    ]);
+    ws.addRow(['D1', '', '完了済', 'alice', 3, '', '2026-07-02', '', '2026-07-01', '2026-07-03', 3.5, '済']);
+    ws.addRow(['D2', '', '着手中', 'alice', 2, '', '', 'D1', '2026-07-04', '', 1, '']);
+    ws.addRow(['D3', '', '計画のみ', 'alice', 1, '', '', 'D2', '', '', '', '']);
+    const actualsFile = join(dir, 'actuals.xlsx');
+    await wb.xlsx.writeFile(actualsFile);
+
+    await runCli(['--dir', dir, 'import', 'wbs', actualsFile]);
+    const evs = events() as Array<{ kind: string; node?: string; to?: string; ts: number; amount?: number }>;
+    // 3 decompose + 2 relate + 3 agree + 3 assign + 4 lifecycle (start/done/accept D1, start D2) + 2 cost = 17
+    expect(evs).toHaveLength(17);
+    const to = (state: string): number => evs.filter((e) => e.kind === 'transition' && e.to === state).length;
+    expect(to('implementing')).toBe(2); // start D1, start D2
+    expect(to('implemented')).toBe(1); // done D1
+    expect(to('accepted')).toBe(1); // accept D1
+    expect(evs.filter((e) => e.kind === 'cost')).toHaveLength(2);
+    // the actual dates ARE the transition ts (D-30 derivation source)
+    const done = evs.find((e) => e.kind === 'transition' && e.to === 'implemented')!;
+    expect(done.ts).toBe(Date.parse('2026-07-03T00:00:00Z'));
+    const d1cost = evs.find((e) => e.kind === 'cost' && e.node === 'D1')!;
+    expect(d1cost.ts).toBe(Date.parse('2026-07-03T00:00:00Z'));
+    expect(d1cost.amount).toBe(3.5);
+  });
 });

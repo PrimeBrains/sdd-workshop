@@ -21,9 +21,11 @@ describe('WBS template golden', () => {
     expect(ws.rowCount).toBe(1); // header only — the example lives on 説明
   });
 
-  it('formats the two date columns as yyyy-mm-dd', async () => {
+  it('formats the four date columns as yyyy-mm-dd', async () => {
     const ws = (await reload()).getWorksheet('WBS')!;
     expect(ws.getColumn(6).numFmt).toBe('yyyy-mm-dd'); // 予定開始日
     expect(ws.getColumn(7).numFmt).toBe('yyyy-mm-dd'); // 予定終了日
+    expect(ws.getColumn(9).numFmt).toBe('yyyy-mm-dd'); // 実績開始日
+    expect(ws.getColumn(10).numFmt).toBe('yyyy-mm-dd'); // 実績終了日
   });
 });

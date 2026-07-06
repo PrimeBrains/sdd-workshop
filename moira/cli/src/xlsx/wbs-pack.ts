@@ -86,6 +86,15 @@ export function packSchedule(
       if (pc) predStart = predStart === null ? addDays(pc, 1) : maxDate(predStart, addDays(pc, 1));
     }
 
+    // Completed rows (実績終了日 present) are never packed forward: bin-packing
+    // finished work into the future would fabricate a baseline and eat the
+    // assignee's future capacity. A WRITTEN 予定終了日 is still honored (branch
+    // below); a blank one stays null — disclosed via warning + scheduleCoverage.
+    if (r.actualEnd !== null && r.plannedEnd === null) {
+      slot.set(id, null);
+      continue;
+    }
+
     // No assignee → no assign (slot null). No estimate → no duration (slot null).
     if (r.assignee === null || r.estimate === null) {
       slot.set(id, null);

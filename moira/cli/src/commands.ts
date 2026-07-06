@@ -468,7 +468,7 @@ async function cmdImportWbs(rest: string[]): Promise<void> {
   // parse → validate: collect ALL errors, write nothing if any.
   const { rows, errors: parseErrors } = parseWbsSheet(ws);
   const projected = fold(repo.loadEvents());
-  const validateErrors = validateWbs(rows, projected, cfg.projectRoot);
+  const validateErrors = validateWbs(rows, projected, cfg.projectRoot, today());
   const errors = [...parseErrors, ...validateErrors];
   if (errors.length > 0) {
     for (const e of errors) err(`  error: ${e}`);
@@ -497,6 +497,10 @@ async function cmdImportWbs(rest: string[]): Promise<void> {
         ...r.predecessors.map((p) => `relate←${p}`),
         ...(r.estimate !== null ? ['agree'] : []),
         ...(r.assignee !== null ? ['assign'] : []),
+        ...(r.actualStart !== null ? [`start@${r.actualStart}`] : []),
+        ...(r.actualEnd !== null ? [`done@${r.actualEnd}`] : []),
+        ...(r.accepted ? ['accept'] : []),
+        ...(r.actualCost !== null && r.actualCost !== 0 ? [`cost:${r.actualCost}`] : []),
       ];
       out(`  ${r.id}  [${kinds.join(', ')}]  slot=${slot ?? '-'}`);
     }

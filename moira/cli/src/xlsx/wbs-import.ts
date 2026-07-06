@@ -6,10 +6,17 @@
 // when the error list is empty (all-or-nothing).
 
 import ExcelJS from 'exceljs';
-import type { Actor, Event, ProjectedState } from 'moira-backend';
+import type { Actor, Event, IsoDate, ProjectedState } from 'moira-backend';
 import { parseActor } from '../actors.js';
-import { agreeEvent, assignEvent, decomposeEvent, relateEvent } from '../emit.js';
-import type { Stamper } from '../stamp.js';
+import {
+  agreeEvent,
+  assignEvent,
+  costEvent,
+  decomposeEvent,
+  lifecycleEvent,
+  relateEvent,
+} from '../emit.js';
+import type { Stamp, Stamper } from '../stamp.js';
 import type { MoiraConfig } from '../store.js';
 import { cellIsoDate, cellNumber, cellString } from './util.js';
 
@@ -23,12 +30,19 @@ export interface WbsRow {
   plannedStart: string | null; // ISO or null
   plannedEnd: string | null; // ISO or null
   predecessors: string[]; // ids
+  actualStart: string | null; // ISO or null — set = "already started"
+  actualEnd: string | null; // ISO or null — set = "completed" (requires actualStart)
+  actualCost: number | null; // spent MD (AC); requires actualStart
+  accepted: boolean; // 検収済 = '済' (requires actualEnd)
 }
 
 const ID_RE = /^[A-Za-z0-9][A-Za-z0-9._/-]*$/;
 
 // Column order — index-aligned with wbs-template.WBS_HEADERS (1-based cells).
-const COL = { id: 1, parent: 2, name: 3, assignee: 4, estimate: 5, start: 6, end: 7, preds: 8 } as const;
+const COL = {
+  id: 1, parent: 2, name: 3, assignee: 4, estimate: 5, start: 6, end: 7, preds: 8,
+  actualStart: 9, actualEnd: 10, actualCost: 11, accepted: 12,
+} as const;
 
 /**
  * Parse the `WBS` sheet from row 2. Fully-empty rows are skipped. Cell-format
@@ -50,6 +64,10 @@ export function parseWbsSheet(ws: ExcelJS.Worksheet): { rows: WbsRow[]; errors: 
     const startCell = cellIsoDate(row.getCell(COL.start));
     const endCell = cellIsoDate(row.getCell(COL.end));
     const predsRaw = cellString(row.getCell(COL.preds));
+    const actualStartCell = cellIsoDate(row.getCell(COL.actualStart));
+    const actualEndCell = cellIsoDate(row.getCell(COL.actualEnd));
+    const actualCostCell = cellNumber(row.getCell(COL.actualCost));
+    const acceptedRaw = cellString(row.getCell(COL.accepted));
 
     const predecessors = predsRaw
       .split(',')
@@ -64,7 +82,11 @@ export function parseWbsSheet(ws: ExcelJS.Worksheet): { rows: WbsRow[]; errors: 
       estCell === null &&
       startCell === null &&
       endCell === null &&
-      predecessors.length === 0;
+      predecessors.length === 0 &&
+      actualStartCell === null &&
+      actualEndCell === null &&
+      actualCostCell === null &&
+      acceptedRaw === '';
     if (allEmpty) return;
 
     let estimate: number | null = null;
@@ -79,6 +101,22 @@ export function parseWbsSheet(ws: ExcelJS.Worksheet): { rows: WbsRow[]; errors: 
     if (endCell === 'invalid') errors.push(`行${rowNumber}: 予定終了日 が日付として読めません（YYYY-MM-DD）`);
     else plannedEnd = endCell;
 
+    let actualStart: string | null = null;
+    if (actualStartCell === 'invalid') errors.push(`行${rowNumber}: 実績開始日 が日付として読めません（YYYY-MM-DD）`);
+    else actualStart = actualStartCell;
+
+    let actualEnd: string | null = null;
+    if (actualEndCell === 'invalid') errors.push(`行${rowNumber}: 実績終了日 が日付として読めません（YYYY-MM-DD）`);
+    else actualEnd = actualEndCell;
+
+    let actualCost: number | null = null;
+    if (actualCostCell === 'invalid') errors.push(`行${rowNumber}: 実績MD が数値ではありません`);
+    else actualCost = actualCostCell;
+
+    let accepted = false;
+    if (acceptedRaw === '済') accepted = true;
+    else if (acceptedRaw !== '') errors.push(`行${rowNumber}: 検収済 は「済」または空欄のみ（"${acceptedRaw}"）`);
+
     rows.push({
       rowIndex: rowNumber,
       id,
@@ -89,6 +127,10 @@ export function parseWbsSheet(ws: ExcelJS.Worksheet): { rows: WbsRow[]; errors: 
       plannedStart,
       plannedEnd,
       predecessors,
+      actualStart,
+      actualEnd,
+      actualCost,
+      accepted,
     });
   });
 
@@ -98,11 +140,14 @@ export function parseWbsSheet(ws: ExcelJS.Worksheet): { rows: WbsRow[]; errors: 
 /**
  * Collect EVERY semantic error at once (never write on any error). `projected`
  * is fold(existing log); its `nodes` are the already-existing node ids.
+ * `today` bounds the actual-date columns — an actual in the future is a
+ * contradiction, not data.
  */
 export function validateWbs(
   rows: readonly WbsRow[],
   projected: ProjectedState,
   projectRoot: string,
+  today: IsoDate,
 ): string[] {
   const errors: string[] = [];
   const inFile = new Set<string>();
@@ -137,6 +182,29 @@ export function validateWbs(
     }
     if (r.plannedStart !== null && r.plannedEnd !== null && r.plannedStart > r.plannedEnd) {
       errors.push(`${at}: 予定開始日(${r.plannedStart}) が 予定終了日(${r.plannedEnd}) より後`);
+    }
+    // Actuals: transcription of what already happened — never in the future,
+    // never an end without a start (D-30: these dates become transition ts).
+    if (r.actualEnd !== null && r.actualStart === null) {
+      errors.push(`${at}: 実績終了日には実績開始日が必要です`);
+    }
+    if (r.actualStart !== null && r.actualEnd !== null && r.actualStart > r.actualEnd) {
+      errors.push(`${at}: 実績開始日(${r.actualStart}) が 実績終了日(${r.actualEnd}) より後`);
+    }
+    if (r.actualStart !== null && r.actualStart > today) {
+      errors.push(`${at}: 実績開始日(${r.actualStart}) が未来です（今日=${today}）`);
+    }
+    if (r.actualEnd !== null && r.actualEnd > today) {
+      errors.push(`${at}: 実績終了日(${r.actualEnd}) が未来です（今日=${today}）`);
+    }
+    if (r.actualCost !== null && r.actualStart === null) {
+      errors.push(`${at}: 実績MD は実績開始日のある行のみ記入できます`);
+    }
+    if (r.actualCost !== null && r.actualCost < 0) {
+      errors.push(`${at}: 実績MD は 0 以上（${r.actualCost}）`);
+    }
+    if (r.accepted && r.actualEnd === null) {
+      errors.push(`${at}: 検収済 は実績終了日のある行のみ記入できます`);
     }
     for (const p of r.predecessors) {
       if (!inFile.has(p) && !projected.nodes.has(p)) {
@@ -197,8 +265,17 @@ function detectCycle(ids: readonly string[], next: (id: string) => string[]): Se
  * Build the canonical event list. Actor is ALWAYS `me` (human) — a human filled
  * the sheet, so the estimate agreement is a legitimate human commit (an agent
  * agree is rejected by fold R-U4). Kind order is grouped: decompose → relate →
- * agree → assign, so every relate's endpoints already exist. A SINGLE shared
- * stamper must be passed (so (ts,id) ordering is preserved within one import).
+ * agree → assign → lifecycle actuals (start/done/accept) → cost, so every
+ * relate's endpoints already exist. A SINGLE shared stamper must be passed (so
+ * (ts,id) ordering is preserved within one import).
+ *
+ * Rows with actuals are ANCHORED: every event of such a row is emitted with
+ * ts = epoch(実績開始日) (done/accept/cost at epoch(実績終了日)). fold replays by
+ * the (ts, id) total order, so backdating ONLY the transitions would apply
+ * assign(→ready) after done and corrupt the state; anchoring the whole row keeps
+ * the semantic order (id seq breaks ties within one anchored day). The actual
+ * dates thereby BECOME the transition ts — the derivation source D-30 prescribes;
+ * no new event kind or attribute is introduced (D-66).
  */
 export function planWbsEvents(
   rows: readonly WbsRow[],
@@ -211,18 +288,26 @@ export function planWbsEvents(
   const nodeLabels: Record<string, string> = {};
   const warnings: string[] = [];
 
+  const byId = new Map<string, WbsRow>();
+  for (const r of rows) byId.set(r.id, r);
+
+  // Backdate a stamp onto an ISO day (00:00:00Z). The id keeps the stamper's
+  // wall-clock+seq form, so same-anchor events order by emission.
+  const at = (s: Stamp, day: string | null): Stamp =>
+    day === null ? s : { id: s.id, ts: Date.parse(`${day}T00:00:00Z`) };
+
   // 1. decompose (always explicit parent)
   for (const r of rows) {
     const parent = r.parent ?? cfg.projectRoot;
     const child = r.estimate === null ? { node: r.id } : { node: r.id, estimate: r.estimate };
-    events.push(decomposeEvent(stamp(), me, parent, [child], `import wbs: ${r.name}`));
+    events.push(decomposeEvent(at(stamp(), r.actualStart), me, parent, [child], `import wbs: ${r.name}`));
     nodeLabels[r.id] = r.name;
   }
 
   // 2. relate (dependency edge per predecessor; row order × predecessor order)
   for (const r of rows) {
     for (const p of r.predecessors) {
-      events.push(relateEvent(stamp(), me, 'add', p, r.id, 'dependency'));
+      events.push(relateEvent(at(stamp(), r.actualStart), me, 'add', p, r.id, 'dependency'));
     }
   }
 
@@ -230,9 +315,12 @@ export function planWbsEvents(
   for (const r of rows) {
     if (r.estimate === null) {
       warnings.push(`行${r.rowIndex} (${r.id}): 見積なし — 合意・スケジュール充填の対象外`);
+      if (r.actualEnd !== null) {
+        warnings.push(`行${r.rowIndex} (${r.id}): 完了行に見積なし — 合意予算がなく EV に乗りません`);
+      }
       continue;
     }
-    events.push(agreeEvent(stamp(), me, r.id, r.estimate));
+    events.push(agreeEvent(at(stamp(), r.actualStart), me, r.id, r.estimate));
   }
 
   // 4. assign (assignee + frozenSlot when a slot was packed) — assignee rows only
@@ -243,10 +331,10 @@ export function planWbsEvents(
     }
     const slot = slots.get(r.id);
     const opts = slot != null ? { frozenSlot: slot } : {};
-    if (slot == null && r.estimate !== null) {
+    if (slot == null && r.estimate !== null && r.actualEnd === null) {
       warnings.push(`行${r.rowIndex} (${r.id}): 完了予定を充填できませんでした（slot なし）`);
     }
-    events.push(assignEvent(stamp(), me, r.id, parseActor(r.assignee), opts));
+    events.push(assignEvent(at(stamp(), r.actualStart), me, r.id, parseActor(r.assignee), opts));
 
     // start-only rows that collide with a predecessor's packed completion
     if (r.plannedStart !== null) {
@@ -259,6 +347,37 @@ export function planWbsEvents(
         }
       }
     }
+  }
+
+  // 5. lifecycle actuals — start(→implementing) at 実績開始日, done(→implemented)
+  //    and accept(→accepted) at 実績終了日 (D-30: the actual dates ARE these ts).
+  for (const r of rows) {
+    if (r.actualStart === null) continue;
+    events.push(lifecycleEvent(at(stamp(), r.actualStart), me, r.id, 'implementing', 'import wbs: 実績開始'));
+    if (r.actualEnd === null) continue;
+    events.push(lifecycleEvent(at(stamp(), r.actualEnd), me, r.id, 'implemented', 'import wbs: 実績完了'));
+    if (r.accepted) {
+      events.push(lifecycleEvent(at(stamp(), r.actualEnd), me, r.id, 'accepted', 'import wbs: 検収済'));
+    }
+    if (r.actualCost === null) {
+      warnings.push(`行${r.rowIndex} (${r.id}): 完了行に実績MDなし — AC=0 のまま EV が入り CPI が楽観に振れます`);
+    }
+    if (r.plannedEnd === null) {
+      warnings.push(`行${r.rowIndex} (${r.id}): 完了行に予定終了日なし — 予定は凍結しません（scheduleCoverage が下がります）`);
+    }
+    for (const p of r.predecessors) {
+      const pr = byId.get(p);
+      if (pr !== undefined && pr.actualEnd === null) {
+        warnings.push(`行${r.rowIndex} (${r.id}): 完了行が未完了の先行 "${p}" に依存しています — 記入の食い違いの可能性`);
+      }
+    }
+  }
+
+  // 6. cost (実績MD → AC) — completed rows book it on 実績終了日; in-progress rows
+  //    book the spent-so-far at import time (now).
+  for (const r of rows) {
+    if (r.actualCost === null || r.actualCost === 0) continue;
+    events.push(costEvent(at(stamp(), r.actualEnd), me, r.id, r.actualCost));
   }
 
   return { events, nodeLabels, warnings };

@@ -15,6 +15,10 @@ function row(p: Partial<WbsRow> & { rowIndex: number; id: string }): WbsRow {
     plannedStart: null,
     plannedEnd: null,
     predecessors: [],
+    actualStart: null,
+    actualEnd: null,
+    actualCost: null,
+    accepted: false,
     ...p,
   };
 }
@@ -72,6 +76,24 @@ describe('packSchedule', () => {
     const s = packSchedule(rows, defaultCapacityLookup, START);
     expect(s.get('A')).toBeNull();
     expect(s.get('B')).toBeNull();
+  });
+
+  it('(g) completed row with blank 予定終了日 → null slot, never packed forward, no capacity eaten', () => {
+    const rows = [
+      row({ rowIndex: 2, id: 'DONE', actualStart: '2026-06-01', actualEnd: '2026-06-03' }),
+      row({ rowIndex: 3, id: 'NEXT' }),
+    ];
+    const s = packSchedule(rows, defaultCapacityLookup, START);
+    expect(s.get('DONE')).toBeNull(); // no baseline fabrication
+    expect(s.get('NEXT')).toBe('2026-07-06'); // DONE consumed no cursor day
+  });
+
+  it('(h) completed row with a WRITTEN 予定終了日 keeps it (baseline honored as written)', () => {
+    const rows = [
+      row({ rowIndex: 2, id: 'DONE', plannedEnd: '2026-06-02', actualStart: '2026-06-01', actualEnd: '2026-06-03' }),
+    ];
+    const s = packSchedule(rows, defaultCapacityLookup, START);
+    expect(s.get('DONE')).toBe('2026-06-02');
   });
 
   it('(f) deterministic: same input twice → identical Map', () => {

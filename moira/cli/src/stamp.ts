@@ -8,13 +8,16 @@ export interface Stamp {
 
 export type Stamper = () => Stamp;
 
-/** Runtime stamper: ts = wall-clock ms, id = ts + per-process seq + short random. */
+/** Runtime stamper: ts = wall-clock ms, id = ts + per-process seq + short random.
+ * seq is padded to 6 digits: id is the (ts, id) tie-breaker, and the WBS import
+ * backdates whole event groups onto the SAME ts (day epoch) — a 3-digit pad would
+ * invert lexicographic order at seq 1000 ('1000' < '999') inside such a group. */
 export function realStamper(): Stamper {
   let seq = 0;
   return () => {
     seq += 1;
     const ts = Date.now();
-    const id = `${ts.toString(36)}-${String(seq).padStart(3, '0')}-${Math.random()
+    const id = `${ts.toString(36)}-${String(seq).padStart(6, '0')}-${Math.random()
       .toString(36)
       .slice(2, 6)}`;
     return { id, ts };
