@@ -9,11 +9,14 @@ import { derive, fold } from '../../moira/engine';
 import type { Actor, DependencyEdge, Event, IsoDate, NodeId } from '../../moira/engine';
 import {
   assigneeOptions,
+  buildAxisTicks,
   buildGanttModel,
   DEFAULT_ROW_FILTER,
+  depSegments,
   type GanttRow,
   leafMatches,
   orderSiblings,
+  predecessorsOf,
   type RowFilter,
 } from './gantt-geometry';
 
@@ -323,5 +326,140 @@ describe('assigneeOptions', () => {
     // no schedule events ⇒ no assignees at all
     const events: Event[] = [est('app', [{ node: 'solo', estimate: 1 }])];
     expect(assigneeOptions(fold(events))).toEqual([]);
+  });
+});
+
+// ---- date-axis ticks (issue #28) --------------------------------------------
+
+describe('buildAxisTicks', () => {
+  it('emits month labels (1st of each month) inside the window, weeks/days off', () => {
+    // 2026-01-01 .. +60d at 10px/day → track 600px. Months: Jan(0), Feb(310), Mar(590)
+    const ticks = buildAxisTicks('2026-01-01', 60, 10, { weeks: false, days: false });
+    expect(ticks).toEqual([
+      { x: 0, kind: 'month', label: '1月' },
+      { x: 310, kind: 'month', label: '2月' }, // 31 days → 310px
+      { x: 590, kind: 'month', label: '3月' }, // 31+28 days → 590px (≤ 600)
+    ]);
+  });
+
+  it('anchors week ticks on the first Monday on/after start, every 7 days', () => {
+    // 2026-01-01 is a Thursday → first Monday is 2026-01-05 (+4 days = x40 at 10px/day)
+    const weeks = buildAxisTicks('2026-01-01', 20, 10, { weeks: true, days: false }).filter(
+      (t) => t.kind === 'week',
+    );
+    expect(weeks).toEqual([
+      { x: 40, kind: 'week', label: '1/5' },
+      { x: 110, kind: 'week', label: '1/12' },
+      { x: 180, kind: 'week', label: '1/19' },
+    ]);
+  });
+
+  it('emits a boundary for start itself when start is a Monday', () => {
+    // 2026-01-05 is a Monday → week tick at x0
+    const first = buildAxisTicks('2026-01-05', 7, 10, { weeks: true, days: false }).find(
+      (t) => t.kind === 'week',
+    );
+    expect(first).toEqual({ x: 0, kind: 'week', label: '1/5' });
+  });
+
+  it('emits a labelless day gridline per calendar day only when days is on', () => {
+    const off = buildAxisTicks('2026-01-01', 3, 10, { weeks: false, days: false });
+    expect(off.some((t) => t.kind === 'day')).toBe(false);
+    const on = buildAxisTicks('2026-01-01', 3, 10, { weeks: false, days: true }).filter(
+      (t) => t.kind === 'day',
+    );
+    expect(on).toEqual([
+      { x: 0, kind: 'day', label: null },
+      { x: 10, kind: 'day', label: null },
+      { x: 20, kind: 'day', label: null },
+      { x: 30, kind: 'day', label: null },
+    ]);
+  });
+});
+
+// ---- predecessors & dependency connectors (issue #29) -----------------------
+
+describe('predecessorsOf', () => {
+  it('returns the `from` edges into a node, first-occurrence order', () => {
+    const edges = [dep('a', 'c'), dep('b', 'c'), dep('a', 'd')];
+    expect(predecessorsOf(edges, 'c').map((e) => e.from)).toEqual(['a', 'b']);
+    expect(predecessorsOf(edges, 'd').map((e) => e.from)).toEqual(['a']);
+    expect(predecessorsOf(edges, 'x')).toEqual([]);
+  });
+
+  it('dedupes repeated edges', () => {
+    expect(predecessorsOf([dep('a', 'c'), dep('a', 'c')], 'c').map((e) => e.from)).toEqual(['a']);
+  });
+});
+
+describe('depSegments', () => {
+  const leaf = (node: NodeId, o: Partial<GanttRow>): GanttRow =>
+    row({ node, isLeaf: true, latestEstimate: 3, ...o });
+
+  it('maps an edge to finish→start geometry (pred right edge → succ left edge)', () => {
+    const rows = [
+      leaf('a', { predicted: '2026-01-05', latestEstimate: 2 }),
+      leaf('b', { predicted: '2026-01-10', latestEstimate: 3 }),
+    ];
+    const segs = depSegments(rows, [dep('a', 'b')], '2026-01-01', 10);
+    expect(segs).toEqual([
+      {
+        from: 'a',
+        to: 'b',
+        fromRow: 0,
+        toRow: 1,
+        fromX: 40, // a completes 2026-01-05 → 4d*10
+        toX: 60, // b completes 2026-01-10 → 90; minus nominal 3d*10 = 60 (bar left edge)
+        onCp: false,
+      },
+    ]);
+  });
+
+  it('flags onCp when both ends are on the critical path', () => {
+    const rows = [
+      leaf('a', { predicted: '2026-01-05' }),
+      leaf('b', { predicted: '2026-01-10' }),
+    ];
+    const segs = depSegments(rows, [dep('a', 'b')], '2026-01-01', 10, new Set(['a', 'b']));
+    expect(segs).toHaveLength(1);
+    expect(segs[0]!.onCp).toBe(true);
+  });
+
+  it('skips edges whose endpoint is not a visible row', () => {
+    const rows = [leaf('a', { predicted: '2026-01-05' })];
+    expect(depSegments(rows, [dep('a', 'z')], '2026-01-01', 10)).toEqual([]);
+  });
+
+  it('skips non-leaf endpoints (no bar to attach to)', () => {
+    const rows = [
+      leaf('a', { predicted: '2026-01-05' }),
+      row({ node: 'b', isLeaf: false, predicted: '2026-01-10' }),
+    ];
+    expect(depSegments(rows, [dep('a', 'b')], '2026-01-01', 10)).toEqual([]);
+  });
+
+  it('skips endpoints with neither predicted nor frozenSlot', () => {
+    const rows = [
+      leaf('a', { predicted: null, frozenSlot: null }),
+      leaf('b', { predicted: '2026-01-10' }),
+    ];
+    expect(depSegments(rows, [dep('a', 'b')], '2026-01-01', 10)).toEqual([]);
+  });
+
+  it('falls back to frozenSlot when predicted is absent', () => {
+    const rows = [
+      leaf('a', { predicted: null, frozenSlot: '2026-01-05', latestEstimate: 2 }),
+      leaf('b', { predicted: '2026-01-10', latestEstimate: 3 }),
+    ];
+    const segs = depSegments(rows, [dep('a', 'b')], '2026-01-01', 10);
+    expect(segs[0]!.fromX).toBe(40); // uses frozenSlot 2026-01-05
+  });
+
+  it('dedupes repeated edges', () => {
+    const rows = [
+      leaf('a', { predicted: '2026-01-05' }),
+      leaf('b', { predicted: '2026-01-10' }),
+    ];
+    expect(depSegments(rows, [dep('a', 'b'), dep('a', 'b')], '2026-01-01', 10)).toHaveLength(1);
   });
 });

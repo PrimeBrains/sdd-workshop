@@ -10,6 +10,7 @@ import { Card, EstimatePill, LifecyclePill, Pill, Avatar } from '../../theme/ato
 import { useMoira, useRoster } from '../../moira/hooks';
 import { actorLabel, labelOf } from '../../moira/labels';
 import { LIFECYCLE_JA } from '../../moira/glossary';
+import { predecessorsOf } from './gantt-geometry';
 import type { Actor, Event, LifecycleState, NodeId } from '../../moira/engine';
 
 const FORWARD: LifecycleState[] = ['ready', 'implementing', 'implemented', 'accepted'];
@@ -23,7 +24,7 @@ function Field({ k, v, tone, testid }: { k: string; v: React.ReactNode; tone?: s
   );
 }
 
-export function Inspector({ node }: { node: NodeId | null }) {
+export function Inspector({ node, onSelect }: { node: NodeId | null; onSelect?: (node: NodeId) => void }) {
   const { projected, derived, appendEvent, nextStamp, asOf } = useMoira();
   const { all: roster, me } = useRoster();
   const [pending, setPending] = useState<{ ev: Event; desc: string } | null>(null);
@@ -39,6 +40,7 @@ export function Inspector({ node }: { node: NodeId | null }) {
   if (n === undefined) return null;
   const fc = derived.forecast.find((f) => f.node === node);
   const ac = derived.acByNode.find((a) => a.node === node)?.ac ?? 0;
+  const predecessors = predecessorsOf(projected.dependencyEdges, node); // issue #29
   const completed = n.lifecycle === 'implemented' || n.lifecycle === 'accepted';
   const agreed = n.estimateState === 'agreed';
 
@@ -163,6 +165,40 @@ export function Inspector({ node }: { node: NodeId | null }) {
           tone={overdue || forecastBehind ? EVM.crit : EVM.ink}
           testid="field:predicted"
         />
+        {/* predecessors (issue #29) — the `from` end of each dependency edge into
+            this node; click to jump to it when selection is wired. */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, padding: '3px 0', fontSize: 12, alignItems: 'flex-start' }}>
+          <span style={{ color: EVM.ink3, whiteSpace: 'nowrap' }}>先行タスク</span>
+          <span data-testid="field:predecessors" style={{ display: 'flex', flexWrap: 'wrap', gap: 4, justifyContent: 'flex-end' }}>
+            {predecessors.length === 0 ? (
+              <span className="mono" style={{ color: EVM.ink3 }}>—</span>
+            ) : (
+              predecessors.map((e) => (
+                <button
+                  key={e.from}
+                  onClick={() => onSelect?.(e.from)}
+                  disabled={onSelect === undefined}
+                  title={`先行: ${labelOf(e.from)}（${e.policy}）`}
+                  style={{
+                    fontSize: 11,
+                    border: `1px solid ${EVM.rule}`,
+                    background: EVM.paperWarm,
+                    color: EVM.ink2,
+                    borderRadius: 6,
+                    padding: '1px 7px',
+                    cursor: onSelect === undefined ? 'default' : 'pointer',
+                    maxWidth: 180,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {labelOf(e.from)}
+                </button>
+              ))
+            )}
+          </span>
+        </div>
       </div>
 
       {/* objective in-flight signals (date/cost only) + mandated visible gaps */}

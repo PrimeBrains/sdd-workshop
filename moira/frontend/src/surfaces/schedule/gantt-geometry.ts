@@ -74,6 +74,76 @@ export function nominalDays(row: GanttRow): number {
   return Math.max(1, Math.ceil(est));
 }
 
+// ---- date-axis ticks (issue #28) --------------------------------------------
+// The header previously showed month boundaries only, which is too coarse to
+// read a week-scale plan. buildAxisTicks emits month labels (always), week
+// boundaries (Monday-anchored, ISO week) and — opt-in — every day boundary.
+// Pure display geometry (date → x); no metric. Kept here so it is unit-testable
+// without a DOM.
+
+export type AxisTickKind = 'month' | 'week' | 'day';
+
+export interface AxisTick {
+  x: number; // px offset from the track's left edge
+  kind: AxisTickKind;
+  label: string | null; // month: "N月"; week: "M/D"; day: null (gridline only)
+}
+
+export interface AxisTickOptions {
+  weeks: boolean;
+  days: boolean;
+}
+
+export function buildAxisTicks(
+  start: IsoDate,
+  totalDays: number,
+  dayW: number,
+  opts: AxisTickOptions,
+): AxisTick[] {
+  const trackW = totalDays * dayW;
+  const ticks: AxisTick[] = [];
+
+  // months — the 1st of each month inside the window (label + boundary)
+  {
+    const startD = new Date(`${start}T00:00:00Z`);
+    const d = new Date(Date.UTC(startD.getUTCFullYear(), startD.getUTCMonth(), 1));
+    for (let i = 0; i < 240; i += 1) {
+      const iso = d.toISOString().slice(0, 10);
+      const x = daysBetween(start, iso) * dayW;
+      if (x > trackW) break;
+      if (x >= 0) ticks.push({ x, kind: 'month', label: `${d.getUTCMonth() + 1}月` });
+      d.setUTCMonth(d.getUTCMonth() + 1);
+    }
+  }
+
+  // weeks — the first Monday on/after start, then every 7 days (ISO week start)
+  if (opts.weeks) {
+    const dow = new Date(`${start}T00:00:00Z`).getUTCDay(); // 0=Sun … 6=Sat
+    const toMonday = (8 - dow) % 7; // 0 when start is already a Monday
+    let iso = addDaysIso(start, toMonday);
+    for (let i = 0; i < 520; i += 1) {
+      const x = daysBetween(start, iso) * dayW;
+      if (x > trackW) break;
+      if (x >= 0) {
+        const wd = new Date(`${iso}T00:00:00Z`);
+        ticks.push({ x, kind: 'week', label: `${wd.getUTCMonth() + 1}/${wd.getUTCDate()}` });
+      }
+      iso = addDaysIso(iso, 7);
+    }
+  }
+
+  // days — every calendar-day boundary (opt-in; gridlines only, no labels)
+  if (opts.days) {
+    for (let n = 0; n <= totalDays; n += 1) {
+      const x = n * dayW;
+      if (x > trackW) break;
+      ticks.push({ x, kind: 'day', label: null });
+    }
+  }
+
+  return ticks;
+}
+
 function classify(completed: boolean, frozenSlot: IsoDate | null, predicted: IsoDate | null): SlotState {
   if (completed && frozenSlot !== null) return 'scheduled-complete';
   if (completed && frozenSlot === null) return 'complete-unscheduled';
@@ -236,6 +306,83 @@ export function orderSiblings(
     done.add(pick);
     out.push(pick);
     for (const t of succ.get(pick) ?? []) indeg.set(t, indeg.get(t)! - 1);
+  }
+  return out;
+}
+
+// ---- dependency connectors & predecessors (issue #29) -----------------------
+// The dependency edges already reach the surface (used for orderSiblings); here
+// we turn them into (a) a per-node predecessor list for the Inspector and (b)
+// finish-to-start connector geometry for the Gantt overlay. Both are pure and
+// display-only: an edge is drawn ONLY when both ends are visible leaf rows that
+// carry a bar (predicted ?? frozenSlot). Edges to filtered-out / non-leaf /
+// unscheduled nodes are silently skipped — nothing to attach a line to.
+
+export interface DepSegment {
+  from: NodeId;
+  to: NodeId;
+  fromRow: number; // predecessor row index (y = fromRow*ROW_H + ROW_H/2)
+  toRow: number; // successor row index
+  fromX: number; // predecessor bar RIGHT edge (its completion x)
+  toX: number; // successor bar LEFT edge (its start x)
+  onCp: boolean; // both ends on the critical path (issue #16) → emphasise
+}
+
+/** Predecessors of `node` — the `from` end of every dependency edge whose `to`
+ * is `node`, first-occurrence order, deduped. Returns the edges so the caller
+ * keeps the policy (accepted/implemented). Pure. */
+export function predecessorsOf(
+  edges: readonly DependencyEdge[],
+  node: NodeId,
+): DependencyEdge[] {
+  const seen = new Set<NodeId>();
+  const out: DependencyEdge[] = [];
+  for (const e of edges) {
+    if (e.to !== node || seen.has(e.from)) continue;
+    seen.add(e.from);
+    out.push(e);
+  }
+  return out;
+}
+
+/** Finish-to-start connector geometry for the visible rows. Pure. */
+export function depSegments(
+  rows: readonly GanttRow[],
+  edges: readonly DependencyEdge[],
+  start: IsoDate,
+  dayW: number,
+  cpSet: ReadonlySet<NodeId> = new Set(),
+): DepSegment[] {
+  const index = new Map<NodeId, number>();
+  rows.forEach((r, i) => index.set(r.node, i));
+  const completionX = (r: GanttRow): number | null => {
+    const ref = r.predicted ?? r.frozenSlot;
+    return ref === null ? null : daysBetween(start, ref) * dayW;
+  };
+  const seen = new Set<string>();
+  const out: DepSegment[] = [];
+  for (const e of edges) {
+    const key = `${e.from} ${e.to}`;
+    if (seen.has(key)) continue; // dedupe (fold pushes, never dedupes)
+    seen.add(key);
+    const fi = index.get(e.from);
+    const ti = index.get(e.to);
+    if (fi === undefined || ti === undefined) continue; // an end is not visible
+    const fr = rows[fi]!;
+    const tr = rows[ti]!;
+    if (!fr.isLeaf || !tr.isLeaf) continue; // bars live on leaves only
+    const fx = completionX(fr);
+    const tx = completionX(tr);
+    if (fx === null || tx === null) continue; // an end has no bar to attach to
+    out.push({
+      from: e.from,
+      to: e.to,
+      fromRow: fi,
+      toRow: ti,
+      fromX: fx,
+      toX: tx - nominalDays(tr) * dayW,
+      onCp: cpSet.has(e.from) && cpSet.has(e.to),
+    });
   }
   return out;
 }

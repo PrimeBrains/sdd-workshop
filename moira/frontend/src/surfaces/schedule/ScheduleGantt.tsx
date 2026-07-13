@@ -10,16 +10,45 @@
 //       C complete-unscheduled → NOT on lightning; PV-excluded hatch band (R-S6)
 //   - colour = predicted vs frozenSlot divergence (R-S7), not progress%
 
+import { useRef, useState } from 'react';
 import { EVM } from '../../theme/tokens';
 import { Avatar } from '../../theme/atoms';
-import type { IsoDate, NodeId } from '../../moira/engine';
-import { daysBetween, divergence, nominalDays, type DivTone, type GanttModel } from './gantt-geometry';
+import type { DependencyEdge, IsoDate, NodeId } from '../../moira/engine';
+import {
+  buildAxisTicks,
+  daysBetween,
+  depSegments,
+  divergence,
+  nominalDays,
+  type DivTone,
+  type GanttModel,
+} from './gantt-geometry';
 
 const ROW_H = 26;
 const HEAD_H = 30;
-const LABEL_W = 250;
+const DEFAULT_LABEL_W = 250; // task-name column width (issue #26)
+const MIN_LABEL_W = 140;
+const MAX_LABEL_W = 640;
+const LABEL_W_KEY = 'moira.schedule.labelW';
 
 const EMPTY_SET: ReadonlySet<NodeId> = new Set();
+const EMPTY_EDGES: readonly DependencyEdge[] = [];
+
+function clampLabelW(w: number): number {
+  return Math.min(MAX_LABEL_W, Math.max(MIN_LABEL_W, Math.round(w)));
+}
+function readLabelW(): number {
+  try {
+    const v = Number(localStorage.getItem(LABEL_W_KEY));
+    if (Number.isFinite(v) && v >= MIN_LABEL_W && v <= MAX_LABEL_W) return v;
+  } catch { /* localStorage unavailable (node/test) */ }
+  return DEFAULT_LABEL_W;
+}
+function writeLabelW(w: number): void {
+  try {
+    localStorage.setItem(LABEL_W_KEY, String(w));
+  } catch { /* localStorage unavailable (node/test) */ }
+}
 
 interface Props {
   model: GanttModel;
@@ -33,6 +62,12 @@ interface Props {
    */
   cpSet?: ReadonlySet<NodeId>;
   dayW?: number;
+  /** Dependency edges (issue #29) — drawn as finish-to-start connectors when
+   * `showDeps`. Pass projected.dependencyEdges as-is. */
+  edges?: readonly DependencyEdge[];
+  showWeeks?: boolean; // week gridlines (issue #28) — default on
+  showDays?: boolean; // day gridlines (issue #28) — default off
+  showDeps?: boolean; // dependency connectors (issue #29) — default off
 }
 
 const divColor: Record<DivTone, string> = {
@@ -41,26 +76,55 @@ const divColor: Record<DivTone, string> = {
   none: EVM.ink3,
 };
 
-export function ScheduleGantt({ model, asOf, selected, onSelect, cpSet = EMPTY_SET, dayW = 18 }: Props) {
+export function ScheduleGantt({
+  model,
+  asOf,
+  selected,
+  onSelect,
+  cpSet = EMPTY_SET,
+  dayW = 18,
+  edges = EMPTY_EDGES,
+  showWeeks = true,
+  showDays = false,
+  showDeps = false,
+}: Props) {
   const { rows, start, totalDays } = model;
   const trackW = totalDays * dayW;
   const xOf = (d: IsoDate) => daysBetween(start, d) * dayW;
   const baseX = xOf(asOf);
   const rowsH = rows.length * ROW_H;
 
-  // month ticks (1st of each month inside the window)
-  const ticks: Array<{ x: number; label: string }> = [];
-  {
-    const startD = new Date(`${start}T00:00:00Z`);
-    const d = new Date(Date.UTC(startD.getUTCFullYear(), startD.getUTCMonth(), 1));
-    for (let i = 0; i < 24; i += 1) {
-      const iso = d.toISOString().slice(0, 10);
-      const x = daysBetween(start, iso) * dayW;
-      if (x > trackW) break;
-      if (x >= 0) ticks.push({ x, label: `${d.getUTCMonth() + 1}月` });
-      d.setUTCMonth(d.getUTCMonth() + 1);
-    }
-  }
+  // resizable task-name column (issue #26) — width is component state, persisted
+  // per browser; a drag handle on the column boundary sets it (dbl-click resets).
+  const [labelW, setLabelW] = useState<number>(readLabelW);
+  const drag = useRef<{ startX: number; startW: number; latest: number } | null>(null);
+  const onResizeDown = (e: React.PointerEvent) => {
+    drag.current = { startX: e.clientX, startW: labelW, latest: labelW };
+    e.currentTarget.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  };
+  const onResizeMove = (e: React.PointerEvent) => {
+    const d = drag.current;
+    if (d === null) return;
+    const next = clampLabelW(d.startW + (e.clientX - d.startX));
+    d.latest = next;
+    setLabelW(next);
+  };
+  const endResize = (e: React.PointerEvent) => {
+    const d = drag.current;
+    if (d === null) return;
+    drag.current = null;
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
+    writeLabelW(d.latest);
+  };
+  const resetResize = () => {
+    setLabelW(DEFAULT_LABEL_W);
+    writeLabelW(DEFAULT_LABEL_W);
+  };
+
+  // date-axis ticks (issue #28) & dependency connectors (issue #29)
+  const ticks = buildAxisTicks(start, totalDays, dayW, { weeks: showWeeks, days: showDays });
+  const segments = showDeps ? depSegments(rows, edges, start, dayW, cpSet) : [];
 
   // parent spans: descendants are the contiguous rows of greater depth (DFS order)
   const spanOf = (i: number): { x1: number; x2: number } | null => {
@@ -98,7 +162,7 @@ export function ScheduleGantt({ model, asOf, selected, onSelect, cpSet = EMPTY_S
 
   return (
     <div style={{ overflowX: 'auto' }}>
-      <div style={{ position: 'relative', width: LABEL_W + trackW, minWidth: '100%' }}>
+      <div style={{ position: 'relative', width: labelW + trackW, minWidth: '100%' }}>
         {/* header */}
         <div
           style={{
@@ -111,15 +175,30 @@ export function ScheduleGantt({ model, asOf, selected, onSelect, cpSet = EMPTY_S
             zIndex: 4,
           }}
         >
-          <div style={{ width: LABEL_W, flex: '0 0 auto', display: 'flex', alignItems: 'flex-end', padding: '0 8px 4px', fontSize: 10.5, color: EVM.ink3, fontWeight: 600 }}>
+          <div style={{ width: labelW, flex: '0 0 auto', display: 'flex', alignItems: 'flex-end', padding: '0 8px 4px', fontSize: 10.5, color: EVM.ink3, fontWeight: 600, borderRight: `1px solid ${EVM.ruleSoft}` }}>
             ノード（有効木）／担当
           </div>
           <div style={{ position: 'relative', flex: '1 1 auto' }}>
-            {ticks.map((t) => (
-              <div key={t.x} style={{ position: 'absolute', left: t.x, bottom: 4, fontSize: 10, color: EVM.ink3, borderLeft: `1px solid ${EVM.ruleSoft}`, paddingLeft: 3, height: HEAD_H - 6 }}>
-                {t.label}
-              </div>
-            ))}
+            {ticks.map((t) =>
+              t.kind === 'day' ? null : (
+                <div
+                  key={`${t.kind}-${t.x}`}
+                  style={{
+                    position: 'absolute',
+                    left: t.x,
+                    bottom: 4,
+                    fontSize: t.kind === 'month' ? 10 : 9,
+                    color: t.kind === 'month' ? EVM.ink3 : EVM.ink4,
+                    borderLeft: `1px solid ${t.kind === 'month' ? EVM.ruleSoft : EVM.rule}`,
+                    paddingLeft: 3,
+                    height: t.kind === 'month' ? HEAD_H - 6 : HEAD_H - 15,
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {t.label}
+                </div>
+              ),
+            )}
           </div>
         </div>
 
@@ -155,7 +234,7 @@ export function ScheduleGantt({ model, asOf, selected, onSelect, cpSet = EMPTY_S
                 {/* label column */}
                 <div
                   style={{
-                    width: LABEL_W,
+                    width: labelW,
                     flex: '0 0 auto',
                     display: 'flex',
                     alignItems: 'center',
@@ -163,6 +242,7 @@ export function ScheduleGantt({ model, asOf, selected, onSelect, cpSet = EMPTY_S
                     paddingLeft: 8 + r.depth * 14,
                     paddingRight: 8,
                     overflow: 'hidden',
+                    borderRight: `1px solid ${EVM.ruleSoft}`,
                   }}
                 >
                   <span style={{ color: EVM.ink4, fontSize: 10 }}>{r.isLeaf ? '·' : '▸'}</span>
@@ -281,12 +361,48 @@ export function ScheduleGantt({ model, asOf, selected, onSelect, cpSet = EMPTY_S
             );
           })}
 
-          {/* SVG overlay: base line + lightning + markers */}
+          {/* SVG overlay: gridlines + dependency connectors + base line + lightning + markers */}
           <svg
             width={trackW}
             height={rowsH}
-            style={{ position: 'absolute', left: LABEL_W, top: 0, pointerEvents: 'none', overflow: 'visible' }}
+            style={{ position: 'absolute', left: labelW, top: 0, pointerEvents: 'none', overflow: 'visible' }}
           >
+            {/* date-axis gridlines (issue #28) — drawn FIRST so bars/asOf/lightning
+                paint over them; month > week > day in weight */}
+            {ticks.map((t) => (
+              <line
+                key={`grid-${t.kind}-${t.x}`}
+                x1={t.x}
+                x2={t.x}
+                y1={0}
+                y2={rowsH}
+                stroke={EVM.ink3}
+                strokeWidth={1}
+                opacity={t.kind === 'month' ? 0.18 : t.kind === 'week' ? 0.12 : 0.06}
+              />
+            ))}
+            {/* dependency connectors (issue #29) — finish→start elbows, opt-in.
+                Arrowhead points into the successor bar's left edge; edges on the
+                critical path are emphasised (issue #16 colour). */}
+            {showDeps &&
+              segments.map((s) => {
+                const y1 = s.fromRow * ROW_H + ROW_H / 2;
+                const y2 = s.toRow * ROW_H + ROW_H / 2;
+                const midX = Math.max(s.fromX + 8, s.toX - 8);
+                const color = s.onCp ? EVM.crit : EVM.ink3;
+                return (
+                  <g key={`dep-${s.from}-${s.to}`} opacity={s.onCp ? 0.9 : 0.55}>
+                    <path
+                      d={`M ${s.fromX} ${y1} H ${midX} V ${y2} H ${s.toX}`}
+                      fill="none"
+                      stroke={color}
+                      strokeWidth={s.onCp ? 1.6 : 1.2}
+                      strokeDasharray="4 3"
+                    />
+                    <path d={`M ${s.toX} ${y2} l -5 -3 l 0 6 z`} fill={color} />
+                  </g>
+                );
+              })}
             {/* asOf base line */}
             <line x1={baseX} x2={baseX} y1={0} y2={rowsH} stroke="rgba(91,142,193,0.5)" strokeWidth={1} strokeDasharray="3 3" />
             <rect x={baseX - 20} y={-2} width={40} height={13} rx={3} fill={EVM.brandSoft} />
@@ -306,6 +422,27 @@ export function ScheduleGantt({ model, asOf, selected, onSelect, cpSet = EMPTY_S
             ))}
           </svg>
         </div>
+
+        {/* task-name column resizer (issue #26) — drag to widen, dbl-click resets */}
+        <div
+          data-testid="gantt-col-resizer"
+          onPointerDown={onResizeDown}
+          onPointerMove={onResizeMove}
+          onPointerUp={endResize}
+          onPointerCancel={endResize}
+          onDoubleClick={resetResize}
+          title="ドラッグでタスク名列の幅を変更 ／ ダブルクリックで既定に戻す"
+          style={{
+            position: 'absolute',
+            left: labelW - 3,
+            top: 0,
+            width: 6,
+            height: HEAD_H + rowsH,
+            cursor: 'col-resize',
+            zIndex: 6,
+            touchAction: 'none',
+          }}
+        />
       </div>
 
       {/* legend */}
@@ -315,6 +452,7 @@ export function ScheduleGantt({ model, asOf, selected, onSelect, cpSet = EMPTY_S
         <span style={{ color: EVM.behind }}>● 遅れ（予測 &gt; 凍結）</span>
         <span style={{ color: EVM.ahead }}>● 先行（予測 &lt; 凍結）</span>
         <span>○ 未完=基準日上 / ●塗り=完了は凍結slot位置</span>
+        {showDeps && <span>⇢ 依存（先行→後続・破線）</span>}
         <span style={{ color: EVM.crit }}>▨ PV不算入（完了・未スケジュール）</span>
         {cpSet.size > 0 && (
           <span

@@ -3,7 +3,7 @@
 // a time-less lane (P0/R-U9). SPI is shown ONLY paired with scheduleCoverage and
 // de-rated (R-S6) — never as whole-project progress.
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { EVM } from '../../theme/tokens';
 import { Bar, Card, Pill, SectionTitle } from '../../theme/atoms';
 import { useMoira } from '../../moira/hooks';
@@ -20,6 +20,9 @@ export function ScheduleTimeSurface() {
   const { projected, derived, asOf, criticalPath } = useMoira();
   const [filter, setFilter] = useState<RowFilter>(DEFAULT_ROW_FILTER);
   const [selected, setSelected] = useState<NodeId | null>(null);
+  const [showWeeks, setShowWeeks] = useState(true); // issue #28 — week gridlines (default on)
+  const [showDays, setShowDays] = useState(false); // issue #28 — day gridlines (default off)
+  const [showDeps, setShowDeps] = useState(false); // issue #29 — dependency lines (default off)
 
   const model = useMemo(() => buildGanttModel(projected, derived, filter), [projected, derived, filter]);
   const options = useMemo(() => assigneeOptions(projected), [projected]);
@@ -115,18 +118,87 @@ export function ScheduleTimeSurface() {
 
         {/* gantt */}
         <Card pad={10}>
-          <SectionTitle hint="凍結ベースライン(PMB) ＋ 生きた予測(EAC)">Gantt</SectionTitle>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
+            <SectionTitle hint="凍結ベースライン(PMB) ＋ 生きた予測(EAC)">Gantt</SectionTitle>
+            <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ fontSize: 11, color: EVM.ink3 }}>表示</span>
+              <GanttToggle testid="grid-weeks" on={showWeeks} onClick={() => setShowWeeks((v) => !v)}>
+                週境界
+              </GanttToggle>
+              <GanttToggle testid="grid-days" on={showDays} onClick={() => setShowDays((v) => !v)}>
+                日境界
+              </GanttToggle>
+              <GanttToggle testid="dep-toggle" on={showDeps} onClick={() => setShowDeps((v) => !v)}>
+                依存線
+              </GanttToggle>
+            </div>
+          </div>
           {model.rows.length === 0 ? (
             <div data-testid="filter-empty" style={{ fontSize: 12, color: EVM.ink3, padding: '18px 6px' }}>
               条件に合う行がありません。
             </div>
           ) : (
-            <ScheduleGantt model={model} asOf={asOf} selected={selected} onSelect={setSelected} cpSet={cpSet} />
+            <ScheduleGantt
+              model={model}
+              asOf={asOf}
+              selected={selected}
+              onSelect={setSelected}
+              cpSet={cpSet}
+              edges={projected.dependencyEdges}
+              showWeeks={showWeeks}
+              showDays={showDays}
+              showDeps={showDeps}
+            />
           )}
         </Card>
       </div>
 
-      <Inspector node={selected} />
+      {/* task detail — sticky so it follows vertical scroll of a long Gantt (issue #27) */}
+      <div
+        style={{
+          position: 'sticky',
+          top: 16,
+          alignSelf: 'flex-start',
+          flex: '0 0 auto',
+          maxHeight: 'calc(100vh - 96px)',
+          overflowY: 'auto',
+        }}
+      >
+        <Inspector node={selected} onSelect={setSelected} />
+      </div>
     </div>
+  );
+}
+
+/** Small on/off pill for the Gantt display toggles (issues #28/#29). */
+function GanttToggle({
+  children,
+  on,
+  onClick,
+  testid,
+}: {
+  children: ReactNode;
+  on: boolean;
+  onClick: () => void;
+  testid: string;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      data-testid={testid}
+      aria-pressed={on}
+      style={{
+        fontSize: 11,
+        border: `1px solid ${on ? EVM.brandDeep : EVM.rule}`,
+        background: on ? EVM.brandSoft : EVM.paperWarm,
+        color: on ? EVM.brandDeep : EVM.ink2,
+        borderRadius: 999,
+        padding: '3px 10px',
+        cursor: 'pointer',
+        fontWeight: on ? 600 : 400,
+      }}
+    >
+      {children}
+    </button>
   );
 }
