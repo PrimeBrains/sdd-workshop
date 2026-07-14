@@ -22,6 +22,12 @@ const wrap = (node: React.ReactNode) =>
     </MoiraProvider>,
   );
 
+// Extract the inline style of the (first) element carrying a given data-testid.
+// React server-renders props in insertion order (data-testid before style), so a
+// non-greedy scan up to the style attr on the same tag is stable.
+const styleFor = (html: string, testid: string): string =>
+  new RegExp(`data-testid="${testid}"[^>]*?style="([^"]*)"`).exec(html)?.[1] ?? '';
+
 beforeEach(() => resetLabelsForTests()); // demo-label fallback active (module state leaks)
 
 describe('schedule-time UX additions', () => {
@@ -40,6 +46,35 @@ describe('schedule-time UX additions', () => {
     // header sticks at top:0); top:16px is its signature.
     expect(html).toContain('position:sticky');
     expect(html).toContain('top:16px');
+  });
+
+  it('#30/#31: the Gantt is a two-axis internal scroll box (frozen-pane container)', () => {
+    const html = wrap(<App />);
+    // bounding the height gives the sticky date header a vertical scroll container
+    // to stick against; overflow:auto also carries the horizontal scroll for #30.
+    const scroll = styleFor(html, 'gantt-scroll');
+    expect(scroll).toContain('overflow:auto');
+    expect(scroll).toContain('max-height:max('); // max(260px, calc(100vh - 300px))
+  });
+
+  it('#31: the date-header row sticks to the top (position:sticky; top:0)', () => {
+    const html = wrap(<App />);
+    // React server-renders a zero-valued offset as `top:0` (no px; px is only added
+    // to non-zero numbers, e.g. the Inspector's top:16px above).
+    const header = styleFor(html, 'gantt-date-header');
+    expect(header).toContain('position:sticky');
+    expect(header).toContain('top:0');
+  });
+
+  it('#30: the frozen corner sticks left (position:sticky; left:0) — left column stays visible', () => {
+    const html = wrap(<App />);
+    // the task-name/assignee column freezes on horizontal scroll; the header corner
+    // is its top-left anchor (opaque bg so ticks sliding under it are covered).
+    const corner = styleFor(html, 'gantt-corner');
+    expect(corner).toContain('position:sticky');
+    expect(corner).toContain('left:0');
+    // and at least one body label cell shares the same sticky-left signature.
+    expect(html).toContain('left:0');
   });
 
   it('#28: week gridlines are drawn by default (dashed asOf plus solid gridlines)', () => {

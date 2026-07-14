@@ -9,6 +9,8 @@
 //       B incomplete         → marker on the asOf line (nothing earned yet)
 //       C complete-unscheduled → NOT on lightning; PV-excluded hatch band (R-S6)
 //   - colour = predicted vs frozenSlot divergence (R-S7), not progress%
+//   - frozen panes (issues #30/#31): the chart is a two-axis internal scroll box so
+//     the task-name/assignee column sticks left and the date header sticks top.
 
 import { useRef, useState } from 'react';
 import { EVM } from '../../theme/tokens';
@@ -161,291 +163,332 @@ export function ScheduleGantt({
   }
 
   return (
-    <div style={{ overflowX: 'auto' }}>
-      <div style={{ position: 'relative', width: labelW + trackW, minWidth: '100%' }}>
-        {/* header */}
-        <div
-          style={{
-            display: 'flex',
-            height: HEAD_H,
-            borderBottom: `1px solid ${EVM.rule}`,
-            position: 'sticky',
-            top: 0,
-            background: EVM.card,
-            zIndex: 4,
-          }}
-        >
-          <div style={{ width: labelW, flex: '0 0 auto', display: 'flex', alignItems: 'flex-end', padding: '0 8px 4px', fontSize: 10.5, color: EVM.ink3, fontWeight: 600, borderRight: `1px solid ${EVM.ruleSoft}` }}>
-            ノード（有効木）／担当
+    <div>
+      {/* two-axis internal scroll box (issues #30/#31): bounding the height gives the
+          sticky date header a vertical scroll container to stick against, and the
+          same overflow box lets the label column stick left on horizontal scroll. */}
+      <div
+        data-testid="gantt-scroll"
+        style={{ overflow: 'auto', maxHeight: 'max(260px, calc(100vh - 300px))' }}
+      >
+        <div style={{ position: 'relative', width: labelW + trackW, minWidth: '100%' }}>
+          {/* task-name column resizer (issue #26) — drag to widen, dbl-click resets.
+              A zero-size sticky anchor placed FIRST (its natural flow position is the
+              top-left origin) stays pinned to the frozen column boundary during
+              horizontal/vertical scroll (issues #30/#31); the child spans the full
+              height as a grab strip. Placed last, its natural position would be the
+              content BOTTOM, so sticky-top would only pin it after scrolling down. */}
+          <div style={{ position: 'sticky', top: 0, left: 0, width: 0, height: 0, zIndex: 7 }}>
+            <div
+              data-testid="gantt-col-resizer"
+              onPointerDown={onResizeDown}
+              onPointerMove={onResizeMove}
+              onPointerUp={endResize}
+              onPointerCancel={endResize}
+              onDoubleClick={resetResize}
+              title="ドラッグでタスク名列の幅を変更 ／ ダブルクリックで既定に戻す"
+              style={{
+                position: 'absolute',
+                left: labelW - 3,
+                top: 0,
+                width: 6,
+                height: HEAD_H + rowsH,
+                cursor: 'col-resize',
+                zIndex: 7,
+                touchAction: 'none',
+              }}
+            />
           </div>
-          <div style={{ position: 'relative', flex: '1 1 auto' }}>
-            {ticks.map((t) =>
-              t.kind === 'day' ? null : (
-                <div
-                  key={`${t.kind}-${t.x}`}
-                  style={{
-                    position: 'absolute',
-                    left: t.x,
-                    bottom: 4,
-                    fontSize: t.kind === 'month' ? 10 : 9,
-                    color: t.kind === 'month' ? EVM.ink3 : EVM.ink4,
-                    borderLeft: `1px solid ${t.kind === 'month' ? EVM.ruleSoft : EVM.rule}`,
-                    paddingLeft: 3,
-                    height: t.kind === 'month' ? HEAD_H - 6 : HEAD_H - 15,
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  {t.label}
-                </div>
-              ),
-            )}
-          </div>
-        </div>
-
-        {/* rows */}
-        <div style={{ position: 'relative' }}>
-          {rows.map((r, i) => {
-            const selectedRow = r.node === selected;
-            const isAgent = r.kind === 'agent';
-            // dim done rows always; dim ancestor-scaffolding rows harder (issue #8)
-            const opacity = r.contextOnly ? 0.5 : r.completed ? 0.55 : 1;
-            const onCp = cpSet.has(r.node);
-            return (
-              <div
-                key={r.node}
-                data-testid={`gantt-row:${r.node}`}
-                data-context-only={r.contextOnly ? 'true' : undefined}
-                data-critical-path={onCp ? 'true' : undefined}
-                className="evm-row"
-                onClick={() => onSelect(r.node)}
-                title={r.contextOnly ? '絞り込みの文脈として表示（祖先）' : undefined}
-                style={{
-                  display: 'flex',
-                  height: ROW_H,
-                  alignItems: 'center',
-                  cursor: 'pointer',
-                  opacity,
-                  background: selectedRow ? EVM.brandWash : i % 2 === 0 ? EVM.card : EVM.paperWarm,
-                  borderBottom: `1px solid ${EVM.ruleSoft}`,
-                  outline: selectedRow ? `1.5px solid ${EVM.brandDeep}` : 'none',
-                  outlineOffset: -1,
-                }}
-              >
-                {/* label column */}
-                <div
-                  style={{
-                    width: labelW,
-                    flex: '0 0 auto',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 6,
-                    paddingLeft: 8 + r.depth * 14,
-                    paddingRight: 8,
-                    overflow: 'hidden',
-                    borderRight: `1px solid ${EVM.ruleSoft}`,
-                  }}
-                >
-                  <span style={{ color: EVM.ink4, fontSize: 10 }}>{r.isLeaf ? '·' : '▸'}</span>
-                  <span
+          {/* header — sticks top (issue #31) */}
+          <div
+            data-testid="gantt-date-header"
+            style={{
+              display: 'flex',
+              height: HEAD_H,
+              borderBottom: `1px solid ${EVM.rule}`,
+              position: 'sticky',
+              top: 0,
+              background: EVM.card,
+              zIndex: 4,
+            }}
+          >
+            {/* frozen corner: sticks top AND left (issues #30/#31); opaque bg + z above
+                the track ticks so labels sliding under it are covered */}
+            <div
+              data-testid="gantt-corner"
+              style={{
+                width: labelW,
+                flex: '0 0 auto',
+                position: 'sticky',
+                left: 0,
+                zIndex: 2,
+                display: 'flex',
+                alignItems: 'flex-end',
+                padding: '0 8px 4px',
+                fontSize: 10.5,
+                color: EVM.ink3,
+                fontWeight: 600,
+                background: EVM.card,
+                borderRight: `1px solid ${EVM.ruleSoft}`,
+              }}
+            >
+              ノード（有効木）／担当
+            </div>
+            <div style={{ position: 'relative', flex: '1 1 auto' }}>
+              {ticks.map((t) =>
+                t.kind === 'day' ? null : (
+                  <div
+                    key={`${t.kind}-${t.x}`}
                     style={{
-                      fontSize: 11.5,
-                      fontWeight: r.isLeaf ? 400 : 600,
-                      color: r.lifecycle === 'cancelled' ? EVM.ink4 : EVM.ink,
+                      position: 'absolute',
+                      left: t.x,
+                      bottom: 4,
+                      fontSize: t.kind === 'month' ? 10 : 9,
+                      color: t.kind === 'month' ? EVM.ink3 : EVM.ink4,
+                      borderLeft: `1px solid ${t.kind === 'month' ? EVM.ruleSoft : EVM.rule}`,
+                      paddingLeft: 3,
+                      height: t.kind === 'month' ? HEAD_H - 6 : HEAD_H - 15,
                       whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
                     }}
                   >
-                    {r.label}
-                  </span>
-                  {r.assignee !== null && (
-                    <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4 }}>
-                      <Avatar actor={r.assignee} />
-                    </span>
-                  )}
-                </div>
+                    {t.label}
+                  </div>
+                ),
+              )}
+            </div>
+          </div>
 
-                {/* track column */}
-                <div style={{ position: 'relative', flex: '1 1 auto', height: '100%' }}>
-                  {/* parent span line */}
-                  {!r.isLeaf &&
-                    (() => {
-                      const sp = spanOf(i);
-                      if (sp === null) return null;
-                      return (
-                        <div
-                          style={{
-                            position: 'absolute',
-                            left: sp.x1,
-                            width: Math.max(2, sp.x2 - sp.x1),
-                            top: ROW_H / 2 - 1,
-                            height: 2,
-                            background: EVM.ink3,
-                          }}
-                        />
-                      );
-                    })()}
-
-                  {/* frozen PMB band (dashed) */}
-                  {r.isLeaf && r.frozenSlot !== null && (
-                    <div
-                      title={`基準完了日（ベースライン） ${r.frozenSlot}`}
+          {/* rows */}
+          <div style={{ position: 'relative' }}>
+            {rows.map((r, i) => {
+              const selectedRow = r.node === selected;
+              const isAgent = r.kind === 'agent';
+              // dim done rows always; dim ancestor-scaffolding rows harder (issue #8)
+              const opacity = r.contextOnly ? 0.5 : r.completed ? 0.55 : 1;
+              const onCp = cpSet.has(r.node);
+              // row background — reused by the sticky-left label cell so it stays
+              // opaque over the track when scrolled horizontally (issue #30).
+              const rowBg = selectedRow ? EVM.brandWash : i % 2 === 0 ? EVM.card : EVM.paperWarm;
+              return (
+                <div
+                  key={r.node}
+                  data-testid={`gantt-row:${r.node}`}
+                  data-context-only={r.contextOnly ? 'true' : undefined}
+                  data-critical-path={onCp ? 'true' : undefined}
+                  className="evm-row"
+                  onClick={() => onSelect(r.node)}
+                  title={r.contextOnly ? '絞り込みの文脈として表示（祖先）' : undefined}
+                  style={{
+                    display: 'flex',
+                    height: ROW_H,
+                    alignItems: 'center',
+                    cursor: 'pointer',
+                    opacity,
+                    background: rowBg,
+                    borderBottom: `1px solid ${EVM.ruleSoft}`,
+                    outline: selectedRow ? `1.5px solid ${EVM.brandDeep}` : 'none',
+                    outlineOffset: -1,
+                  }}
+                >
+                  {/* label column — sticks left (issue #30) */}
+                  <div
+                    style={{
+                      width: labelW,
+                      flex: '0 0 auto',
+                      position: 'sticky',
+                      left: 0,
+                      zIndex: 2,
+                      background: rowBg,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      paddingLeft: 8 + r.depth * 14,
+                      paddingRight: 8,
+                      overflow: 'hidden',
+                      borderRight: `1px solid ${EVM.ruleSoft}`,
+                    }}
+                  >
+                    <span style={{ color: EVM.ink4, fontSize: 10 }}>{r.isLeaf ? '·' : '▸'}</span>
+                    <span
                       style={{
-                        position: 'absolute',
-                        left: xOf(r.frozenSlot) - nominalDays(r) * dayW,
-                        width: nominalDays(r) * dayW,
-                        top: 4,
-                        height: ROW_H - 8,
-                        borderRadius: 3,
-                        border: `1px dashed ${EVM.ink4}`,
-                        background: EVM.ruleSoft,
-                      }}
-                    />
-                  )}
-
-                  {/* live EAC bar (solid); critical-path nodes get an outline (issue #16) */}
-                  {r.isLeaf && r.predicted !== null && (
-                    <div
-                      title={
-                        onCp
-                          ? `生きた予測 完了 ${r.predicted} ／ クリティカルパス上（critical path = dependency longest chain・依存のつながりで最長の経路。同一担当者の詰まりによる律速は含みません）`
-                          : `生きた予測 完了 ${r.predicted}`
-                      }
-                      style={{
-                        position: 'absolute',
-                        left: xOf(r.predicted) - nominalDays(r) * dayW,
-                        width: nominalDays(r) * dayW,
-                        top: 6,
-                        height: ROW_H - 12,
-                        borderRadius: 3,
-                        outline: onCp ? `2px solid ${EVM.crit}` : 'none',
-                        outlineOffset: 1.5,
-                        border: `1.5px solid ${isAgent ? EVM.agent : EVM.brandDeep}`,
-                        background: r.completed
-                          ? isAgent
-                            ? '#dfe4d2'
-                            : EVM.brandSoft
-                          : isAgent
-                            ? 'repeating-linear-gradient(135deg,#e7ebdd 0 4px,#fbf9f2 4px 8px)'
-                            : EVM.card,
-                      }}
-                    />
-                  )}
-
-                  {/* state C: completed but frozenSlot = null → PV-excluded gap */}
-                  {r.isLeaf && r.slotState === 'complete-unscheduled' && (
-                    <div
-                      title="完了・未スケジュール（PVに算入されません）"
-                      style={{
-                        position: 'absolute',
-                        left: Math.max(0, baseX - nominalDays(r) * dayW),
-                        width: nominalDays(r) * dayW,
-                        top: 5,
-                        height: ROW_H - 10,
-                        borderRadius: 3,
-                        border: `1px solid ${EVM.crit}`,
-                        background: 'repeating-linear-gradient(45deg,#f1d5c8 0 4px,#fbf9f2 4px 8px)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: 8.5,
-                        color: EVM.crit,
+                        fontSize: 11.5,
+                        fontWeight: r.isLeaf ? 400 : 600,
+                        color: r.lifecycle === 'cancelled' ? EVM.ink4 : EVM.ink,
                         whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
                       }}
                     >
-                      PV不算入
-                    </div>
-                  )}
+                      {r.label}
+                    </span>
+                    {r.assignee !== null && (
+                      <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <Avatar actor={r.assignee} />
+                      </span>
+                    )}
+                  </div>
+
+                  {/* track column */}
+                  <div style={{ position: 'relative', flex: '1 1 auto', height: '100%' }}>
+                    {/* parent span line */}
+                    {!r.isLeaf &&
+                      (() => {
+                        const sp = spanOf(i);
+                        if (sp === null) return null;
+                        return (
+                          <div
+                            style={{
+                              position: 'absolute',
+                              left: sp.x1,
+                              width: Math.max(2, sp.x2 - sp.x1),
+                              top: ROW_H / 2 - 1,
+                              height: 2,
+                              background: EVM.ink3,
+                            }}
+                          />
+                        );
+                      })()}
+
+                    {/* frozen PMB band (dashed) */}
+                    {r.isLeaf && r.frozenSlot !== null && (
+                      <div
+                        title={`基準完了日（ベースライン） ${r.frozenSlot}`}
+                        style={{
+                          position: 'absolute',
+                          left: xOf(r.frozenSlot) - nominalDays(r) * dayW,
+                          width: nominalDays(r) * dayW,
+                          top: 4,
+                          height: ROW_H - 8,
+                          borderRadius: 3,
+                          border: `1px dashed ${EVM.ink4}`,
+                          background: EVM.ruleSoft,
+                        }}
+                      />
+                    )}
+
+                    {/* live EAC bar (solid); critical-path nodes get an outline (issue #16) */}
+                    {r.isLeaf && r.predicted !== null && (
+                      <div
+                        title={
+                          onCp
+                            ? `生きた予測 完了 ${r.predicted} ／ クリティカルパス上（critical path = dependency longest chain・依存のつながりで最長の経路。同一担当者の詰まりによる律速は含みません）`
+                            : `生きた予測 完了 ${r.predicted}`
+                        }
+                        style={{
+                          position: 'absolute',
+                          left: xOf(r.predicted) - nominalDays(r) * dayW,
+                          width: nominalDays(r) * dayW,
+                          top: 6,
+                          height: ROW_H - 12,
+                          borderRadius: 3,
+                          outline: onCp ? `2px solid ${EVM.crit}` : 'none',
+                          outlineOffset: 1.5,
+                          border: `1.5px solid ${isAgent ? EVM.agent : EVM.brandDeep}`,
+                          background: r.completed
+                            ? isAgent
+                              ? '#dfe4d2'
+                              : EVM.brandSoft
+                            : isAgent
+                              ? 'repeating-linear-gradient(135deg,#e7ebdd 0 4px,#fbf9f2 4px 8px)'
+                              : EVM.card,
+                        }}
+                      />
+                    )}
+
+                    {/* state C: completed but frozenSlot = null → PV-excluded gap */}
+                    {r.isLeaf && r.slotState === 'complete-unscheduled' && (
+                      <div
+                        title="完了・未スケジュール（PVに算入されません）"
+                        style={{
+                          position: 'absolute',
+                          left: Math.max(0, baseX - nominalDays(r) * dayW),
+                          width: nominalDays(r) * dayW,
+                          top: 5,
+                          height: ROW_H - 10,
+                          borderRadius: 3,
+                          border: `1px solid ${EVM.crit}`,
+                          background: 'repeating-linear-gradient(45deg,#f1d5c8 0 4px,#fbf9f2 4px 8px)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: 8.5,
+                          color: EVM.crit,
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        PV不算入
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
 
-          {/* SVG overlay: gridlines + dependency connectors + base line + lightning + markers */}
-          <svg
-            width={trackW}
-            height={rowsH}
-            style={{ position: 'absolute', left: labelW, top: 0, pointerEvents: 'none', overflow: 'visible' }}
-          >
-            {/* date-axis gridlines (issue #28) — drawn FIRST so bars/asOf/lightning
-                paint over them; month > week > day in weight */}
-            {ticks.map((t) => (
-              <line
-                key={`grid-${t.kind}-${t.x}`}
-                x1={t.x}
-                x2={t.x}
-                y1={0}
-                y2={rowsH}
-                stroke={EVM.ink3}
-                strokeWidth={1}
-                opacity={t.kind === 'month' ? 0.18 : t.kind === 'week' ? 0.12 : 0.06}
-              />
-            ))}
-            {/* dependency connectors (issue #29) — finish→start elbows, opt-in.
-                Arrowhead points into the successor bar's left edge; edges on the
-                critical path are emphasised (issue #16 colour). */}
-            {showDeps &&
-              segments.map((s) => {
-                const y1 = s.fromRow * ROW_H + ROW_H / 2;
-                const y2 = s.toRow * ROW_H + ROW_H / 2;
-                const midX = Math.max(s.fromX + 8, s.toX - 8);
-                const color = s.onCp ? EVM.crit : EVM.ink3;
-                return (
-                  <g key={`dep-${s.from}-${s.to}`} opacity={s.onCp ? 0.9 : 0.55}>
-                    <path
-                      d={`M ${s.fromX} ${y1} H ${midX} V ${y2} H ${s.toX}`}
-                      fill="none"
-                      stroke={color}
-                      strokeWidth={s.onCp ? 1.6 : 1.2}
-                      strokeDasharray="4 3"
-                    />
-                    <path d={`M ${s.toX} ${y2} l -5 -3 l 0 6 z`} fill={color} />
-                  </g>
-                );
-              })}
-            {/* asOf base line */}
-            <line x1={baseX} x2={baseX} y1={0} y2={rowsH} stroke="rgba(91,142,193,0.5)" strokeWidth={1} strokeDasharray="3 3" />
-            <rect x={baseX - 20} y={-2} width={40} height={13} rx={3} fill={EVM.brandSoft} />
-            <text x={baseX} y={8} textAnchor="middle" style={{ fontSize: 9, fill: EVM.brandDeep }}>基準日</text>
-            {/* lightning */}
-            {path !== '' && <path d={path} fill="none" stroke={EVM.ink3} strokeWidth={1.5} opacity={0.55} />}
-            {pts.map((p, k) => (
-              <circle
-                key={k}
-                cx={p.x}
-                cy={p.y}
-                r={3}
-                fill={p.filled ? divColor[p.tone] : EVM.card}
-                stroke={divColor[p.tone]}
-                strokeWidth={1.5}
-              />
-            ))}
-          </svg>
+            {/* SVG overlay: gridlines + dependency connectors + base line + lightning + markers */}
+            <svg
+              width={trackW}
+              height={rowsH}
+              style={{ position: 'absolute', left: labelW, top: 0, pointerEvents: 'none', overflow: 'visible' }}
+            >
+              {/* date-axis gridlines (issue #28) — drawn FIRST so bars/asOf/lightning
+                  paint over them; month > week > day in weight */}
+              {ticks.map((t) => (
+                <line
+                  key={`grid-${t.kind}-${t.x}`}
+                  x1={t.x}
+                  x2={t.x}
+                  y1={0}
+                  y2={rowsH}
+                  stroke={EVM.ink3}
+                  strokeWidth={1}
+                  opacity={t.kind === 'month' ? 0.18 : t.kind === 'week' ? 0.12 : 0.06}
+                />
+              ))}
+              {/* dependency connectors (issue #29) — finish→start elbows, opt-in.
+                  Arrowhead points into the successor bar's left edge; edges on the
+                  critical path are emphasised (issue #16 colour). */}
+              {showDeps &&
+                segments.map((s) => {
+                  const y1 = s.fromRow * ROW_H + ROW_H / 2;
+                  const y2 = s.toRow * ROW_H + ROW_H / 2;
+                  const midX = Math.max(s.fromX + 8, s.toX - 8);
+                  const color = s.onCp ? EVM.crit : EVM.ink3;
+                  return (
+                    <g key={`dep-${s.from}-${s.to}`} opacity={s.onCp ? 0.9 : 0.55}>
+                      <path
+                        d={`M ${s.fromX} ${y1} H ${midX} V ${y2} H ${s.toX}`}
+                        fill="none"
+                        stroke={color}
+                        strokeWidth={s.onCp ? 1.6 : 1.2}
+                        strokeDasharray="4 3"
+                      />
+                      <path d={`M ${s.toX} ${y2} l -5 -3 l 0 6 z`} fill={color} />
+                    </g>
+                  );
+                })}
+              {/* asOf base line */}
+              <line x1={baseX} x2={baseX} y1={0} y2={rowsH} stroke="rgba(91,142,193,0.5)" strokeWidth={1} strokeDasharray="3 3" />
+              <rect x={baseX - 20} y={-2} width={40} height={13} rx={3} fill={EVM.brandSoft} />
+              <text x={baseX} y={8} textAnchor="middle" style={{ fontSize: 9, fill: EVM.brandDeep }}>基準日</text>
+              {/* lightning */}
+              {path !== '' && <path d={path} fill="none" stroke={EVM.ink3} strokeWidth={1.5} opacity={0.55} />}
+              {pts.map((p, k) => (
+                <circle
+                  key={k}
+                  cx={p.x}
+                  cy={p.y}
+                  r={3}
+                  fill={p.filled ? divColor[p.tone] : EVM.card}
+                  stroke={divColor[p.tone]}
+                  strokeWidth={1.5}
+                />
+              ))}
+            </svg>
+          </div>
         </div>
-
-        {/* task-name column resizer (issue #26) — drag to widen, dbl-click resets */}
-        <div
-          data-testid="gantt-col-resizer"
-          onPointerDown={onResizeDown}
-          onPointerMove={onResizeMove}
-          onPointerUp={endResize}
-          onPointerCancel={endResize}
-          onDoubleClick={resetResize}
-          title="ドラッグでタスク名列の幅を変更 ／ ダブルクリックで既定に戻す"
-          style={{
-            position: 'absolute',
-            left: labelW - 3,
-            top: 0,
-            width: 6,
-            height: HEAD_H + rowsH,
-            cursor: 'col-resize',
-            zIndex: 6,
-            touchAction: 'none',
-          }}
-        />
       </div>
 
-      {/* legend */}
+      {/* legend — kept OUTSIDE the scroll box so it stays visible below the chart */}
       <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', padding: '8px 4px 2px', fontSize: 10.5, color: EVM.ink3 }}>
         <span>破線帯=計画（PMB・基準完了日）</span>
         <span>実線バー=生きた予測（EAC）</span>
