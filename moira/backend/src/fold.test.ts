@@ -200,4 +200,87 @@ describe('fold engine', () => {
       expect(s2.childrenOf.has('B')).toBe(false);
     });
   });
+
+  // issue #37 §4.2#1: NaN/±Infinity amounts must not silently poison AC.
+  it('rejects a non-finite cost (A6/§2.8: NaN slips a plain `<0` guard)', () => {
+    const state = fold([
+      ...new Log().decompose('F', [{ node: 'a' }]).all(),
+      { kind: 'cost', id: 'c1', ts: 10, actor: human('h1'), node: 'a', amount: 5 },
+      { kind: 'cost', id: 'c2', ts: 11, actor: human('h1'), node: 'a', amount: Number.NaN },
+      { kind: 'cost', id: 'c3', ts: 12, actor: human('h1'), node: 'a', amount: Number.POSITIVE_INFINITY },
+    ]);
+    expect(state.nodes.get('a')?.ownCost).toBe(5); // both non-finite appends are refused
+    expect(state.structuralErrors.filter((e) => e.includes('non-finite cost'))).toHaveLength(2);
+  });
+
+  // issue #37 §4.2#5: a policy-named remove only clears the matching edge; an
+  // un-named remove keeps removing ALL (from,to) edges (byte-identical replay
+  // of every pre-#37 log, since no past remove event ever set `policy`).
+  describe('relate remove is policy-scoped when the event names one (issue #37 §4.2#5)', () => {
+    it('an un-named remove clears every (from,to) edge regardless of policy (unchanged default)', () => {
+      const state = fold(
+        new Log()
+          .decompose('F', [{ node: 'a' }, { node: 'b' }])
+          .dep('a', 'b', 'accepted')
+          .dep('a', 'b', 'implemented')
+          .all(),
+      );
+      expect(state.dependencyEdges).toHaveLength(2); // duplicates ARE representable pre-#37
+      const removed = fold([
+        ...new Log()
+          .decompose('F', [{ node: 'a' }, { node: 'b' }])
+          .dep('a', 'b', 'accepted')
+          .dep('a', 'b', 'implemented')
+          .all(),
+        {
+          kind: 'relate', id: 'r1', ts: 100, actor: human('h1'),
+          op: 'remove', from: 'a', to: 'b', edgeKind: 'dependency',
+        },
+      ]);
+      expect(removed.dependencyEdges).toHaveLength(0);
+    });
+
+    it('a policy-named remove only clears the matching edge, leaving the other policy intact', () => {
+      const state = fold([
+        ...new Log()
+          .decompose('F', [{ node: 'a' }, { node: 'b' }])
+          .dep('a', 'b', 'accepted')
+          .dep('a', 'b', 'implemented')
+          .all(),
+        {
+          kind: 'relate', id: 'r1', ts: 100, actor: human('h1'),
+          op: 'remove', from: 'a', to: 'b', edgeKind: 'dependency', policy: 'accepted',
+        },
+      ]);
+      expect(state.dependencyEdges).toEqual([{ from: 'a', to: 'b', policy: 'implemented' }]);
+    });
+  });
+
+  // issue #37 §4.2#8: frozenBudget only carries meaning while estimateState ===
+  // 'agreed' (every current consumer gates its read that way) — a revert
+  // (agreed→proposed, R-E3) must clear it, else a later re-decompose's fresh
+  // latestEstimate is silently shadowed by the STALE frozen value in any
+  // consumer that reads frozenBudget unconditionally at leaf granularity
+  // (computePlannedCost — planned-cost.ts:84 — is exactly such a consumer; it
+  // documents "a proposed leaf falls back to latestEstimate", which this test
+  // proves actually held only because frozenBudget used to stay null).
+  it('clears frozenBudget on an R-E3 revert (agreed→proposed) so a later re-decompose is not shadowed', () => {
+    const state = fold(
+      new Log()
+        .decompose('F', [{ node: 'a', estimate: 3 }]) // ts=1
+        .agree('a', 10) // ts=2 — explicit frozenBudget, independent of the estimate
+        // ts=2.5: between the agree (ts=2) and the next chained call's auto ts=3,
+        // so the revert lands in between without disturbing the Log's own seq.
+        .raw({
+          kind: 'transition', id: 't002b', ts: 2.5, actor: human('h1'), node: 'a',
+          machine: 'estimate-agreement', to: 'proposed', reason: 're-estimate',
+        })
+        .decompose('F', [{ node: 'a', estimate: 5 }]) // ts=3 — fresh draft, not yet re-agreed
+        .all(),
+    );
+    const a = state.nodes.get('a')!;
+    expect(a.estimateState).toBe('proposed');
+    expect(a.frozenBudget).toBeNull(); // no stale 10 left behind
+    expect(a.latestEstimate).toBe(5); // the fresh draft is what a leaf-level reader now sees
+  });
 });

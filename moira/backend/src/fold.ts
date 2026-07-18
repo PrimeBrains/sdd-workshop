@@ -190,6 +190,19 @@ export function fold(events: readonly Event[]): ProjectedState {
             }
             // Re-estimation returns to proposed until re-agreed (R-E3 MODEL:272).
             n.estimateState = 'proposed';
+            // frozenBudget carries meaning ONLY while estimateState === 'agreed'
+            // — every current consumer (ev.ts/pv.ts/landing.ts/milestone-rollup.ts)
+            // reads it behind an `estimateState === 'agreed'` guard. Clear it here
+            // so a stale pre-revert value can never shadow a fresher
+            // latestEstimate for a consumer that reads frozenBudget at leaf
+            // granularity WITHOUT that guard (computePlannedCost —
+            // planned-cost.ts:84 — issue #37 / analysis §4.2#8: a proposed leaf
+            // is documented to fall back to latestEstimate, which silently broke
+            // the moment frozenBudget stayed non-null after a revert). The next
+            // agreement always recomputes frozenBudget from scratch (line ~173
+            // above) regardless of this clear, so this is pure defense against
+            // the proposed-but-stale window — never a second source of truth.
+            n.frozenBudget = null;
           }
         }
         break;
@@ -221,8 +234,21 @@ export function fold(events: readonly Event[]): ProjectedState {
               (e) => !(e.from === ev.from && e.to === ev.to),
             );
           } else {
+            // Policy-scoped remove (issue #37 / analysis §4.2#5): when the
+            // remove event NAMES a policy, only the edge carrying that exact
+            // policy is removed — leaving any other-policy edge between the
+            // same pair intact. This is an ADDITIVE extension: no past remove
+            // event ever set `policy` (the CLI didn't wire it through before),
+            // so `ev.policy === undefined` always short-circuits to true and
+            // preserves the original "remove ALL (from,to) edges" behavior
+            // byte-for-byte — replayed golden logs are unaffected.
             state.dependencyEdges = state.dependencyEdges.filter(
-              (e) => !(e.from === ev.from && e.to === ev.to),
+              (e) =>
+                !(
+                  e.from === ev.from &&
+                  e.to === ev.to &&
+                  (ev.policy === undefined || e.policy === ev.policy)
+                ),
             );
           }
         }
@@ -232,6 +258,17 @@ export function fold(events: readonly Event[]): ProjectedState {
       case 'cost': {
         // Accumulative, deduped by id (§2.8 MODEL:141).
         if (state.seenCostIds.has(ev.id)) break;
+        // Non-finite amounts (NaN/±Infinity) are a write-layer input-mistake
+        // signature — e.g. `Number("5o") === NaN` slips past a plain `<0` guard
+        // and would otherwise NaN-poison every downstream AC/CPI aggregate
+        // (issue #37 / analysis §4.2#1). Rejected the same visible way as the
+        // negative-amount guard immediately below.
+        if (!Number.isFinite(ev.amount)) {
+          state.structuralErrors.push(
+            `A6/§2.8: non-finite cost ${ev.amount} on '${ev.node}' — rejected (amount must be a finite number)`,
+          );
+          break;
+        }
         // Amounts are non-negative (§2.8 v20 / A6: negative spent attention-time
         // does not exist; there deliberately is NO correction event — §7#19).
         if (ev.amount < 0) {

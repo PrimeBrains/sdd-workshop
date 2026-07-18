@@ -139,6 +139,31 @@ describe('planned-cost tree rollup (issue #34a)', () => {
     expect(total).toBe(5);
   });
 
+  // issue #37 §4.2#8: this is the concrete harm channel behind the frozenBudget-
+  // clear-on-revert fix in fold.ts. computePlannedCost's leaf branch reads
+  // `frozenBudget ?? latestEstimate` UNCONDITIONALLY (no estimateState guard,
+  // unlike ev.ts/pv.ts/landing.ts) — so before the fix, a revert that left
+  // frozenBudget=10 stale would make this return 10 forever, even after a
+  // fresh re-decompose drafts a smaller/larger latestEstimate=5. Pinned here so
+  // a future regression in fold's revert handling is caught at the consumer
+  // that actually reads the stale value, not just at the fold level.
+  it('an R-E3 revert then a fresh re-decompose reports the NEW draft estimate, not the stale frozen budget (issue #37 §4.2#8)', () => {
+    const state = fold(
+      new Log()
+        .decompose('F', [{ node: 'a', estimate: 3 }]) // ts=1
+        .agree('a', 10) // ts=2
+        .raw({
+          kind: 'transition', id: 't002b', ts: 2.5, actor: human('h1'), node: 'a',
+          machine: 'estimate-agreement', to: 'proposed', reason: 're-estimate',
+        })
+        .decompose('F', [{ node: 'a', estimate: 5 }]) // ts=3
+        .all(),
+    );
+    expect(state.nodes.get('a')?.estimateState).toBe('proposed');
+    const { total } = computePlannedCost(state);
+    expect(total).toBe(5); // NOT 10 — the stale frozenBudget must not shadow the fresh draft
+  });
+
   it('sums per structural root, robust for a forest (mirrors ac.ts total)', () => {
     const state = fold(
       new Log()

@@ -22,6 +22,7 @@ import {
   validateMembersImport,
 } from './xlsx/members-import.js';
 import { runAdapter } from './adapter/index.js';
+import { confirmDestructive } from './confirm.js';
 import { CliError } from './errors.js';
 import {
   agreeEvent,
@@ -244,9 +245,38 @@ function cmdAssign(rest: string[]): void {
   const assignee = parseActor(to);
   const reviewer = str(values.reviewer) !== undefined ? parseActor(str(values.reviewer)!) : undefined;
   const slot = str(values.slot);
+  if (slot !== undefined && !isIsoDate(slot)) {
+    throw new CliError(`invalid --slot: ${slot} (expected YYYY-MM-DD)`);
+  }
+  // §2.5 terminality (issue #37 item 3 consistency): assignEvent's lifecycle
+  // `to` defaults to 'ready' — an assign on a cancelled node would otherwise
+  // silently pull it back OUT of its terminal state, the exact same hole
+  // cmdLifecycle closes below for start/done/accept/cancel.
+  const before = fold(repo.loadEvents()).nodes.get(node);
+  if (before?.lifecycle === 'cancelled') {
+    throw new CliError(
+      `${node} は cancelled（終端）— assign は拒否されます（§2.5）。誤 cancel の場合は新規ノードとして再作成する（正典の回復路）`,
+    );
+  }
   const opts: { reviewer?: Actor; frozenSlot?: string } = {};
   if (reviewer !== undefined) opts.reviewer = reviewer;
-  if (slot !== undefined) opts.frozenSlot = slot;
+  // First-scheduling-only freeze (§3② MODEL:194-195, fold.ts:156-158): a slot
+  // on an ALREADY-frozen node is silently ignored by fold — issue #37 item 1
+  // (analysis §3.1#1) is precisely that the CLI used to print a bare success
+  // line regardless, so a second `--slot` looked like a correction that
+  // actually did nothing. Warn honestly instead; the event is still appended
+  // (append-only — the attempt stays in the log) and the assignee change
+  // (latest-wins, legitimate) still goes through.
+  let slotNote = '';
+  if (slot !== undefined) {
+    opts.frozenSlot = slot;
+    if (before?.frozenSlot != null) {
+      err(`warning: ${node} は初回凍結済みのため slot は無効（凍結値: ${before.frozenSlot}）`);
+      slotNote = ` slot ${slot}（無効・凍結値 ${before.frozenSlot} のまま）`;
+    } else {
+      slotNote = ` slot ${slot}`;
+    }
+  }
   const ev = assignEvent(realStamper()(), meActor(cfg), node, assignee, opts);
   repo.appendEvents([ev]);
   repo.setActorLabel(assignee.id, assignee.id);
@@ -254,16 +284,54 @@ function cmdAssign(rest: string[]): void {
   out(
     `→ assigned ${node} to ${assignee.kind}:${assignee.id}` +
       `${reviewer === undefined ? '' : ` (reviewer ${reviewer.id})`}` +
-      `${slot === undefined ? '' : ` slot ${slot}`} [human commit]`,
+      `${slotNote} [human commit]`,
   );
 }
 
-function cmdLifecycle(rest: string[], to: LifecycleState, verb: string): void {
-  const { values, positionals } = parse(rest, { actor: { type: 'string' }, reason: { type: 'string' } });
+const LIFECYCLE_STATES = new Set<LifecycleState>([
+  'pending', 'ready', 'implementing', 'implemented', 'accepted', 'cancelled',
+]);
+
+async function cmdLifecycle(rest: string[], to: LifecycleState, verb: string): Promise<void> {
+  const { values, positionals } = parse(rest, {
+    actor: { type: 'string' },
+    reason: { type: 'string' },
+    yes: { type: 'boolean', short: 'y' },
+  });
   const node = positionals[0];
-  if (node === undefined) throw new CliError(`usage: moira ${verb} <id> [--actor <who>]`);
+  if (node === undefined) throw new CliError(`usage: moira ${verb} <id> [--actor <who>] [--yes|-y]`);
+  // Defense-in-depth (issue #37 item 3b): the CLI hardcodes `to` per verb, so a
+  // machine/to mismatch (e.g. an estimate value leaking into a lifecycle
+  // transition) cannot actually occur through this write path today — this
+  // guard documents that invariant and catches it if a future refactor ever
+  // makes `to` dynamic.
+  if (!LIFECYCLE_STATES.has(to)) throw new CliError(`internal: invalid lifecycle target '${to}'`);
   const repo = requireRepo();
   const cfg = repo.loadConfig();
+  // §2.5 terminality (issue #37 item 3a): cancelled is terminal — fold accepts
+  // ANY transition unconditionally (fold.ts:142-158 is intentionally lax, for
+  // past-log compatibility), so this write-layer check is the only place that
+  // enforces "no re-transition FROM cancelled". Forward-skips (ready→implemented,
+  // §7#13(b)) and honest backward moves (implemented→implementing, P5) are NOT
+  // touched — only cancelled's terminal edge is closed.
+  const current = fold(repo.loadEvents()).nodes.get(node)?.lifecycle;
+  if (current === 'cancelled') {
+    throw new CliError(
+      `${node} は cancelled（終端）— これ以上の遷移は拒否されます（§2.5）。誤 cancel の場合は新規ノードとして再作成する（正典の回復路）`,
+    );
+  }
+  // Destructive-command confirmation (issue #37 item 7): cancel/done only —
+  // start/accept never prompt. Non-TTY (pipes/agents/CI/this repo's own tests)
+  // always passes through unconfirmed (confirm.ts's hard constraint).
+  if (verb === 'cancel' || verb === 'done') {
+    const proceed = await confirmDestructive(`${node} を ${verb} にする — よろしいですか？`, {
+      yes: values.yes === true,
+    });
+    if (!proceed) {
+      err(`中止しました（${node} は変更されていません）`);
+      return;
+    }
+  }
   const actor = str(values.actor) !== undefined ? parseActor(str(values.actor)!) : meActor(cfg);
   const reason = str(values.reason);
   const ev =
@@ -274,6 +342,11 @@ function cmdLifecycle(rest: string[], to: LifecycleState, verb: string): void {
   out(`• ${node} → ${to}`);
 }
 
+// Above this: a single cost entry judged unusually large (input-mistake smell,
+// e.g. a MD/hour unit slip) — warned, never rejected (§4 (a) is append-only,
+// never blocks a true value; the human decides).
+const COST_ANOMALY_THRESHOLD_MD = 5;
+
 function cmdCost(rest: string[]): void {
   const { values, positionals } = parse(rest, { actor: { type: 'string' } });
   const node = positionals[0];
@@ -281,10 +354,33 @@ function cmdCost(rest: string[]): void {
   if (node === undefined || amountStr === undefined) throw new CliError('usage: moira cost <id> <md>');
   const repo = requireRepo();
   const cfg = repo.loadConfig();
+  const amount = Number(amountStr);
+  // issue #37 item 2(a): `Number("5o")` is NaN, which slips past a plain `<0`
+  // guard (NaN<0 is false) and would NaN-poison every downstream AC/CPI
+  // aggregate (analysis §3.1#2). Rejected here — before any append — the same
+  // way isIsoDate rejects a malformed date elsewhere in this file.
+  if (!Number.isFinite(amount)) {
+    throw new CliError(`invalid amount: "${amountStr}" は有効な数値ではありません（例: 0.5）`);
+  }
+  // issue #37 item 2(b): a typo'd node id would otherwise silently mint a
+  // ghost node (fold.ts's `ensure()` auto-creates any id it sees) and book
+  // cost onto it with no visible signal. Require the id to already be known to
+  // the log (via `moira add`/decompose) before crediting cost to it.
+  const state = fold(repo.loadEvents());
+  if (!state.nodes.has(node)) {
+    throw new CliError(
+      `unknown node: "${node}" はイベントログに現れません（幽霊ノードへの計上を防止 — 先に moira add で作成するか、ID の打ち間違いを確認）`,
+    );
+  }
+  // issue #37 item 2(c): anomaly warning, not a rejection (negative amounts
+  // stay fold's job — A6/§2.8, unchanged by this task).
+  if (amount > COST_ANOMALY_THRESHOLD_MD) {
+    err(`warning: ${node} への 1 回の計上 ${amount} MD は大きめです（入力ミスの可能性を確認 — 単位の取り違え等）`);
+  }
   const actor = str(values.actor) !== undefined ? parseActor(str(values.actor)!) : meActor(cfg);
-  const ev = costEvent(realStamper()(), actor, node, Number(amountStr));
+  const ev = costEvent(realStamper()(), actor, node, amount);
   repo.appendEvents([ev]);
-  out(`$ cost ${node} += ${amountStr} MD`);
+  out(`$ cost ${node} += ${amount} MD`);
 }
 
 function cmdRelate(rest: string[]): void {
@@ -303,6 +399,23 @@ function cmdRelate(rest: string[]): void {
   const edgeKind = (str(values.kind) ?? 'dependency') as 'dependency' | 'supersede';
   const op = values.remove === true ? 'remove' : 'add';
   const policy = str(values.policy) as 'accepted' | 'implemented' | undefined;
+  // issue #37 item 6(a): fold NEVER dedups relate/add (fold.ts just pushes —
+  // analysis §3.1 "落とし穴: 辺は重複を許し"), so a repeated `moira relate`
+  // used to silently mint a second edge for the same pair with no signal.
+  // Reject a would-be exact duplicate up front — `--remove` first is the way
+  // to change an edge's policy, matching item 6(b)'s policy-scoped remove.
+  if (op === 'add') {
+    const state = fold(repo.loadEvents());
+    const existing =
+      edgeKind === 'supersede'
+        ? state.supersedeEdges.some((e) => e.from === from && e.to === to)
+        : state.dependencyEdges.some((e) => e.from === from && e.to === to);
+    if (existing) {
+      throw new CliError(
+        `${edgeKind} 辺 '${from}'→'${to}' は既に存在します（重複 add は拒否 — policy を変えたい場合は先に \`moira relate ${from} ${to} --kind ${edgeKind} --remove\`）`,
+      );
+    }
+  }
   const ev = relateEvent(realStamper()(), meActor(cfg), op, from, to, edgeKind, policy);
   repo.appendEvents([ev]);
   out(`⇄ ${op} ${edgeKind} ${from} → ${to}`);
@@ -316,10 +429,17 @@ function cmdCapacity(rest: string[]): void {
   if (who === undefined || date === undefined || cStr === undefined) {
     throw new CliError('usage: moira capacity <who> <YYYY-MM-DD> <c 0..1> [--reason ...]');
   }
+  // issue #37 item 5: symmetric with `member add --capacity`'s existing
+  // isFinite/[0,1] check (commands.ts cmdMemberAdd) — this second capacity
+  // input path had neither a date-shape nor a range check (analysis §3.1 table
+  // "日付形式・[0,1] 範囲とも未検証").
+  if (!isIsoDate(date)) throw new CliError(`invalid date: ${date} (expected YYYY-MM-DD)`);
+  const c = Number(cStr);
+  if (!Number.isFinite(c) || c < 0 || c > 1) throw new CliError(`c must be a number in [0,1]: ${cStr}`);
   const repo = requireRepo();
-  const entry = capacityEntry(realStamper()(), who, date, Number(cStr), str(values.reason) ?? 'manual');
+  const entry = capacityEntry(realStamper()(), who, date, c, str(values.reason) ?? 'manual');
   repo.appendCapacity([entry]);
-  out(`c(${who}, ${date}) = ${cStr} [human commit]`);
+  out(`c(${who}, ${date}) = ${c} [human commit]`);
 }
 
 function cmdDeadline(rest: string[]): void {
@@ -560,7 +680,10 @@ async function cmdTemplate(rest: string[]): Promise<void> {
 }
 
 async function cmdImport(rest: string[]): Promise<void> {
-  const { positionals } = parse(rest, { 'dry-run': { type: 'boolean' } });
+  // This pre-parse only peeks the subcommand (`wbs`|`members`) — it must still
+  // declare every option the two subcommands accept (parseArgs rejects unknown
+  // flags even when we only read `positionals` back out).
+  const { positionals } = parse(rest, { 'dry-run': { type: 'boolean' }, update: { type: 'boolean' } });
   const kind = positionals[0];
   if (kind === 'members') return cmdImportMembers(rest);
   if (kind !== 'wbs') {
@@ -570,13 +693,23 @@ async function cmdImport(rest: string[]): Promise<void> {
 }
 
 async function cmdImportWbs(rest: string[]): Promise<void> {
-  const { values, positionals } = parse(rest, { 'dry-run': { type: 'boolean' } });
+  const { values, positionals } = parse(rest, {
+    'dry-run': { type: 'boolean' },
+    update: { type: 'boolean' },
+  });
   const file = positionals[1];
-  if (file === undefined) throw new CliError('usage: moira import wbs <file.xlsx> [--dry-run]');
+  if (file === undefined) throw new CliError('usage: moira import wbs <file.xlsx> [--dry-run] [--update]');
   if (!existsSync(file)) throw new CliError(`file not found: ${file}`);
 
   const repo = requireRepo();
   const cfg = repo.loadConfig();
+  // issue #37 item 4 (analysis §4.2#6): --update opens the diff-reimport path —
+  // existing ids are no longer a hard error; planWbsEvents applies only what
+  // changed (見積 latest-wins re-decompose, new predecessors, changed
+  // assignee/slot) and never re-punches actuals/transitions/cost a node
+  // already carries. Without the flag, behavior is UNCHANGED: an existing id
+  // is still a hard validation error (re-import unsupported, the pre-#37 default).
+  const update = values.update === true;
 
   const wb = new ExcelJS.Workbook();
   await wb.xlsx.readFile(file);
@@ -585,8 +718,12 @@ async function cmdImportWbs(rest: string[]): Promise<void> {
 
   // parse → validate: collect ALL errors, write nothing if any.
   const { rows, errors: parseErrors } = parseWbsSheet(ws);
-  const projected = fold(repo.loadEvents());
-  const validateErrors = validateWbs(rows, projected, cfg.projectRoot, today());
+  const priorEvents = repo.loadEvents();
+  const projected = fold(priorEvents);
+  const validateErrors = validateWbs(rows, projected, cfg.projectRoot, today(), {
+    allowExisting: update,
+    priorEvents,
+  });
   const errors = [...parseErrors, ...validateErrors];
   if (errors.length > 0) {
     for (const e of errors) err(`  error: ${e}`);
@@ -603,11 +740,17 @@ async function cmdImportWbs(rest: string[]): Promise<void> {
   const startDate = cfg.startDate ?? today();
   const slots = packSchedule(rows, capStore.lookup(), startDate);
   const stamp = realStamper(); // ONE shared stamper for the whole import
-  const { events, nodeLabels, warnings } = planWbsEvents(rows, slots, cfg, meActor(cfg), stamp);
+  // `projected` is passed unconditionally: when `update` is false, validateWbs
+  // has already rejected any row whose id exists in the log, so no row can hit
+  // planWbsEvents's diff branch anyway — passing it is a no-op in that case.
+  const { events, nodeLabels, warnings } = planWbsEvents(rows, slots, cfg, meActor(cfg), stamp, projected);
   for (const w of warnings) err(`  warning: ${w}`);
 
   if (values['dry-run'] === true) {
     out(`(dry-run) ${rows.length} 行 → ${events.length} イベント。何も書き込みません。`);
+    if (update) {
+      out('  --update: 下記の行別種別一覧はシート上の記入内容の概観です — 実際に発行されるのは上のイベント数（差分のみ）。');
+    }
     for (const r of rows) {
       const slot = slots.get(r.id);
       const kinds = [
@@ -641,7 +784,10 @@ async function cmdImportWbs(rest: string[]): Promise<void> {
   }
   if (Object.keys(actorLabels).length > 0) repo.setActorLabels(actorLabels);
 
-  out(`Imported ${rows.length} 行 → ${events.length} イベント（1 回の追記）。`);
+  out(
+    `Imported ${rows.length} 行 → ${events.length} イベント（1 回の追記）。` +
+      (update ? '（--update: 既存 ID は差分のみ適用）' : ''),
+  );
   out('確認: moira show   /   moira log');
 }
 
@@ -1020,9 +1166,14 @@ usage: moira [--dir <log-home>] <command> ...
   moira add <id> [--estimate <md>] [--parent <id>] [--label "..."] [--actor <who>]
   moira agree <id> [--budget <md>]                 (human commit: estimate agreement)
   moira assign <id> --to <who> [--reviewer <who>] [--slot <date>]   (human commit)
-  moira start|done|accept|cancel <id> [--actor <who>]
+    --slot は初回スケジューリングのみ凍結（§3②）。2 回目以降は警告のみで無効（assignee 変更は通る）。
+  moira start|done|accept|cancel <id> [--actor <who>] [--yes|-y]
+    cancel/done は TTY 対話時のみ確認あり（非TTY・パイプ・エージェント・--yes/-y は無確認で通す）。
+    cancelled は終端 — cancelled ノードへの以後の遷移・assign は拒否（誤 cancel の回復路は新規ノード再作成）。
   moira cost <id> <md> [--actor <who>]
+    入力は有限数のみ・既存ログに現れないノード id は拒否（幽霊ノード防止）・1 回 5MD 超は警告のみ。
   moira relate <from> <to> [--kind dependency|supersede] [--policy ...] [--remove]
+    add: 同一 (from,to,kind) の既存辺があれば拒否。remove --policy: 指定 policy の辺のみ削除（無指定は全件、従来どおり）。
   moira capacity <who> <YYYY-MM-DD> <c> [--reason ...]   (human commit)
   moira deadline [<YYYY-MM-DD>] [--target <YYYY-MM-DD>] [--reason ...]   (human commit: R-T6)
   moira milestone                                        (list resolved milestones)
@@ -1035,7 +1186,9 @@ usage: moira [--dir <log-home>] <command> ...
   moira member add <id> --label <name> [--capacity <0..1>] [--kind human|agent]   (roster upsert)
   moira member list                                     (show the roster)
   moira template wbs|members [--out <file.xlsx>]         (blank workbook for bulk import)
-  moira import wbs <file.xlsx> [--dry-run]               (bulk-load a filled WBS in one append)
+  moira import wbs <file.xlsx> [--dry-run] [--update]    (bulk-load a filled WBS in one append)
+    --update: 既存 ID を許容し差分のみ適用（見積変更は再 decompose・実績/遷移/cost の重複発行はしない）。
+      無指定時は従来どおり既存 ID はエラー（再インポート非対応）。
   moira import members <file.xlsx> [--dry-run]           (bulk-load roster + 個人休 + 祝日)
   moira show [--asOf <date>] [--startDate <date>] [--json]
   moira report [--asOf <date>] [--prev <date>] [--days <n>] [--json] [--out <file>] [--save-dir <dir>]
