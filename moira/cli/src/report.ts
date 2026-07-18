@@ -24,11 +24,14 @@ import type {
   DerivedState,
   Event,
   IsoDate,
+  MilestoneDefinition,
+  MilestoneRollupRow,
   NodeId,
 } from 'moira-backend';
 import {
   computeFeatureRollup,
   computeLandingCurve,
+  computeMilestoneRollup,
   derive,
   sortEvents,
 } from 'moira-backend';
@@ -47,6 +50,12 @@ export interface ReportOptions {
   startDate?: IsoDate;
   /** Current latest-wins reference dates (deadline is asked of TODAY's dates). */
   dates: ReferenceDates;
+  /**
+   * Resolved milestones (issue #35; store.ts resolveMilestones). Omitted/empty
+   * → the "## マイルストーン別" section is suppressed entirely (existing
+   * optional-section discipline, same as an empty `features`/`series`).
+   */
+  milestones?: readonly MilestoneDefinition[];
 }
 
 /** One as-of point of the pair-read metric set. */
@@ -84,6 +93,9 @@ export interface ReportJson {
   activity: ActivityRow[];
   queues: { humanReview: NodeId[]; agentWork: NodeId[]; unassigned: NodeId[] };
   features: ReportFeatureRow[];
+  /** Per-milestone EVM + landing read (issue #35). Empty when no milestone is
+   *  defined — the text renderer suppresses the section entirely in that case. */
+  milestones: MilestoneRollupRow[];
   landing: {
     landed: boolean; // no incomplete effective leaves remain
     landingDate: IsoDate | null; // D_pred (MODEL:234) — null = visible gap, not a guess
@@ -160,6 +172,18 @@ export function buildReport(events: readonly Event[], opts: ReportOptions): Repo
     };
   });
 
+  // Milestone rollup (issue #35): subset EVM + landing read over each
+  // milestone's node-id bundle, at `asOf`. Reuses `now.forecast` — the SAME
+  // single derive() leveler run above — rather than re-leveling a subset (see
+  // milestone-rollup.ts's file-header rationale). No section when no
+  // milestone is defined (existing optional-section discipline).
+  const milestones: MilestoneRollupRow[] =
+    opts.milestones !== undefined && opts.milestones.length > 0
+      ? computeMilestoneRollup(prefixByDay(sorted, opts.asOf), opts.milestones, now.forecast, {
+          asOf: opts.asOf,
+        })
+      : [];
+
   // Landing vs reference dates — the canonical D_pred from computeLandingCurve
   // (NOT a hand-rolled max over forecast rows: the leveler also levels completed
   // leaves, so their phantom predictions would dishonestly push the max out).
@@ -196,6 +220,7 @@ export function buildReport(events: readonly Event[], opts: ReportOptions): Repo
       unassigned: now.unassignedBacklog,
     },
     features,
+    milestones,
     landing: {
       landed: curve.landed,
       landingDate: curve.landingDate,
@@ -279,6 +304,21 @@ export function formatReportText(
     for (const f of r.features) {
       lines.push(
         `  | ${name(f.feature)} | ${sign(f.deltaEvAbs)} | ${trim(f.evAbs)} | ${pct(f.evPercent)} | ${f.completedLeafCount}/${f.leafCount} |`,
+      );
+    }
+  }
+
+  if (r.milestones.length > 0) {
+    lines.push('', '## マイルストーン別（名前 + 構成ノード束 — 期日/バッファは持たない）');
+    lines.push('  | milestone | EV% | EV_abs | SPI | CPI | BAC | 予定終了(基準) | 予測終了 | ボトルネック葉 |');
+    lines.push('  |---|---|---|---|---|---|---|---|---|');
+    for (const m of r.milestones) {
+      const bottleneck =
+        m.bottleneckLeaf === null
+          ? '-'
+          : `${name(m.bottleneckLeaf)}${m.bottleneckOnCriticalPath ? ' ★critical path' : ''}`;
+      lines.push(
+        `  | ${m.milestone} | ${pct(m.evPercent)} | ${trim(m.evAbs)} | ${fmt(m.spi)} | ${fmt(m.cpi)} | ${trim(m.bac)} | ${m.plannedEnd ?? '(未定)'} | ${m.forecastEnd ?? '(予測不能)'} | ${bottleneck} |`,
       );
     }
   }

@@ -4,11 +4,13 @@
 import { createContext } from 'react';
 import type {
   CapacityEntry,
+  CapacityLookup,
   CriticalPath,
   DerivedState,
   Event,
   IsoDate,
   LandingCurve,
+  PlannedCostResult,
   ProjectedState,
 } from './engine';
 
@@ -27,11 +29,24 @@ export interface MoiraState {
   landing: LandingCurve;
   /** P7 dependency longest chain (issue #16) — derived HERE, never in a surface. */
   criticalPath: CriticalPath;
+  /** planned-cost tree rollup (issue #34a) — derived HERE (from `projected`,
+   *  independent of derive()/DerivedState), never recomputed in a surface. */
+  plannedCost: PlannedCostResult;
   /** R-T6 reference dates (boot-time fixture values; a reload re-resolves them). */
   deadline: IsoDate | null;
   targetDate: IsoDate | null;
   /** viewpoint actor id (fixture `me`, from `.moira/config.json`) — null unless served by `moira ui` (issue #12). */
   me: string | null;
+  /** org calendar (weekends + JP holidays) as the c(i,d) fallback (issue #32),
+   *  from fixture `orgCalendarEnabled` (.moira/config.json `orgCalendar.enabled`).
+   *  UNSET/absent fixture value → treated as enabled (default-on). */
+  orgCalendarEnabled: boolean;
+  /** the ONE c(i,d) lookup every derivation above shares (R-S2) — over the
+   *  committed `capacityEntries` tier with the org-calendar fallback already
+   *  applied. Surfaces read c(i,d) display values through THIS (never build a
+   *  second lookup locally), so a surface's display can never disagree with
+   *  what derive()/landing actually computed from (issue #32 drill-down fix). */
+  capacityOf: CapacityLookup;
 
   appendEvent: (event: Event) => void;
   appendCapacity: (entry: CapacityEntry) => void;
@@ -41,6 +56,14 @@ export interface MoiraState {
    * derivation chain re-runs exactly as for appends (R-S2: one derivation).
    */
   replaceSnapshot: (events: readonly Event[], capacity: readonly CapacityEntry[]) => void;
+  /**
+   * Update the org-calendar setting from a fresh RAW fixture value (mirrors
+   * `initialOrgCalendarEnabled` — pass the fixture's `orgCalendarEnabled`
+   * unresolved). The `!== false` default-on resolution happens HERE (store.tsx),
+   * the same single place the initial mount resolves it — a caller must never
+   * re-derive the boolean itself (issue #32 drill-down live-update fix).
+   */
+  setOrgCalendarEnabled: (raw: boolean | undefined) => void;
   setAsOf: (asOf: IsoDate) => void;
   /** next (ts, id) for a frontend-authored append — monotonic over the log. */
   nextStamp: () => { id: string; ts: number };

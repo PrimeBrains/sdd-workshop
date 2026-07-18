@@ -71,13 +71,13 @@ describe('computePersonOverlap', () => {
   it('marks same-day scheduling across two projects as an overlap date', () => {
     const a = mkProject('A', '案件A', [mkNode({ id: 'a1', assignee: human('alice') })], {
       derived: {
-        forecast: [{ node: 'a1', predictedCompletion: '2026-07-03', frozenSlot: '2026-07-03' }],
+        forecast: [{ node: 'a1', predictedCompletion: '2026-07-03', predictedStart: '2026-07-03', frozenSlot: '2026-07-03' }],
         humanReviewQueue: [],
       },
     });
     const b = mkProject('B', '案件B', [mkNode({ id: 'b1', assignee: human('alice') })], {
       derived: {
-        forecast: [{ node: 'b1', predictedCompletion: '2026-07-03', frozenSlot: null }],
+        forecast: [{ node: 'b1', predictedCompletion: '2026-07-03', predictedStart: '2026-07-03', frozenSlot: null }],
         humanReviewQueue: [],
       },
     });
@@ -151,7 +151,7 @@ describe('computePersonOverlap', () => {
   it('scheduled dates outside the window are clipped', () => {
     const a = mkProject('A', '案件A', [mkNode({ id: 'a1', assignee: human('alice') })], {
       derived: {
-        forecast: [{ node: 'a1', predictedCompletion: '2026-12-31', frozenSlot: '2026-07-02' }],
+        forecast: [{ node: 'a1', predictedCompletion: '2026-12-31', predictedStart: '2026-12-31', frozenSlot: '2026-07-02' }],
         humanReviewQueue: [],
       },
     });

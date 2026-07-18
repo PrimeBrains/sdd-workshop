@@ -14,7 +14,6 @@ import {
   alphaOf,
   hasCapacityEntry,
   latestEntry,
-  makeCapacityLookup,
   nextCapacityTs,
 } from '../../moira/capacity';
 import { addDaysIso, daysBetween } from '../schedule/gantt-geometry';
@@ -45,9 +44,14 @@ const dayLabel = (d: IsoDate) => {
 };
 
 export function CapacitySurface() {
-  const { capacityEntries, appendCapacity, previewCapacity, derived, asOf } = useMoira();
+  const { capacityEntries, appendCapacity, previewCapacity, derived, asOf, capacityOf, orgCalendarEnabled } =
+    useMoira();
   const { humans } = useRoster();
-  const lookup = useMemo(() => makeCapacityLookup(capacityEntries), [capacityEntries]);
+  // Reuses the ONE lookup the store already built for derive()/landing (issue
+  // #32 fix): the org-calendar fallback (weekends/JP holidays → 0) is baked in
+  // there, so this heatmap can never show/seed a different value than what was
+  // actually derived. No second `makeCapacityLookup` closure here.
+  const lookup = capacityOf;
 
   // The date window is DERIVED (no hard-coded sprint): candidate days = asOf ∪
   // every capacity entry date ∪ every forecast frozenSlot/predicted. Then clamp
@@ -78,7 +82,11 @@ export function CapacitySurface() {
   const selectCell = (humanId: string, date: IsoDate) => {
     setSel({ humanId, date });
     const cur = latestEntry(capacityEntries, humanId, date);
-    setValue(cur?.capacity ?? 1.0);
+    // No explicit entry → seed the editor from the SAME lookup the heatmap
+    // shows (org-calendar-derated), not a blanket 1.0 — otherwise "追記する"
+    // on an unedited holiday/weekend cell would silently overwrite c=0 with
+    // c=1.0 (issue #32 drill-down fix).
+    setValue(cur?.capacity ?? lookup(humanId, date));
     setReason((cur && kindOf(cur.reason)) || 'temporary-reduction');
     setMemo('');
     setPreview(null);
@@ -204,7 +212,7 @@ export function CapacitySurface() {
                         <td key={d} style={{ padding: 0 }}>
                           <button
                             onClick={() => selectCell(h.id, d)}
-                            title={`${actorLabel(h)} ${d}: c=${c}${hasCapacityEntry(capacityEntries, h.id, d) ? '（明示）' : '（未指定=1.0仮定）'}`}
+                            title={`${actorLabel(h)} ${d}: c=${c}${hasCapacityEntry(capacityEntries, h.id, d) ? '（明示）' : `（未指定=${c}仮定）`}`}
                             className="mono"
                             style={{
                               width: '100%',
@@ -231,7 +239,9 @@ export function CapacitySurface() {
             </table>
           </div>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 8, fontSize: 10.5, color: EVM.ink3 }}>
-            <span>淡色破線=未指定（1.0仮定）</span>
+            <span>
+              淡色破線=未指定（{orgCalendarEnabled ? '組織カレンダー仮定：休日=0 / 平日=1.0' : '1.0仮定'}）
+            </span>
             <span style={{ color: '#3c6b22' }}>■ 契約</span>
             <span style={{ color: '#8a6c1a' }}>▨ 一時減 / 祝日</span>
             <span style={{ color: EVM.crit }}>■ c=0（休暇/祝日）</span>

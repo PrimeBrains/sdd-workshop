@@ -16,7 +16,9 @@ import { usePortfolio, useMoira } from '../moira/hooks';
 import { setUserLabels } from '../moira/labels';
 import { setRoster } from '../moira/roster';
 import { MoiraProvider } from '../moira/store';
+import type { CapacityEntry, Event, IsoDate } from '../moira/engine';
 import type { PortfolioProjectData } from '../moira/portfolio-context';
+import type { RosterMember } from '../moira/roster';
 import { PortfolioOverview } from '../surfaces/portfolio/PortfolioOverview';
 import { PersonView } from '../surfaces/portfolio/PersonView';
 
@@ -87,17 +89,9 @@ export function PortfolioShell() {
               この案件はライブ更新で読めなくなりました（ポートフォリオへ戻って確認してください）。
             </div>
           ) : (
-            <MoiraProvider
-              key={proj.key}
-              initialEvents={proj.events}
-              initialCapacity={proj.capacityEntries}
-              initialAsOf={asOf}
-              initialDeadline={proj.deadline}
-              initialTargetDate={proj.targetDate}
-            >
-              <DrillSyncBridge project={proj} />
+            <DrilldownProvider project={proj} asOf={asOf}>
               <App />
-            </MoiraProvider>
+            </DrilldownProvider>
           )}
         </div>
       </div>
@@ -222,22 +216,96 @@ export function PortfolioShell() {
 }
 
 /**
+ * Mounts the single-project `MoiraProvider` over ONE home's drilled slice —
+ * separated from PortfolioShell's render so it takes `children` (App in
+ * production, a probe in tests) rather than hard-coding `<App />`, which lets a
+ * test assert what the provider's CONTEXT resolves to without simulating the
+ * drill-down click (renderToStaticMarkup has no event handling).
+ *
+ * `initialOrgCalendarEnabled={project.orgCalendarEnabled}` is the fix for the
+ * bug where a case's own org-calendar setting (issue #32) fell off between the
+ * portfolio list and this drill-down: MoiraProvider is the one place that
+ * resolves `undefined`/`false`/`true` via `!== false` (store.tsx), so this
+ * passes the RAW per-project value through unresolved — never re-derives it
+ * here, which could drift from that single discipline. `key={project.key}`
+ * deliberately does NOT include this setting, so a live fixture refetch that
+ * only flips org-calendar (no project swap) does not remount and lose
+ * drill-down UI state — DrillSyncBridge's `setOrgCalendarEnabled` below is the
+ * update path for that case instead.
+ */
+export function DrilldownProvider({
+  project,
+  asOf,
+  children,
+}: {
+  project: PortfolioProjectData;
+  asOf: IsoDate;
+  children: ReactNode;
+}) {
+  return (
+    <MoiraProvider
+      key={project.key}
+      initialEvents={project.events}
+      initialCapacity={project.capacityEntries}
+      initialAsOf={asOf}
+      initialDeadline={project.deadline}
+      initialTargetDate={project.targetDate}
+      initialOrgCalendarEnabled={project.orgCalendarEnabled}
+    >
+      <DrillSyncBridge project={project} />
+      {children}
+    </MoiraProvider>
+  );
+}
+
+/** The side-effect ports one drilled project-slice push goes through —
+ *  separated from the React effect so "what a live update applies" is testable
+ *  without a DOM (mirrors live.tsx's `LiveBridgeIo`/`createLiveRefetcher`,
+ *  issue #6 pattern). */
+export interface DrillSyncIo {
+  applyLabels: (nodeLabels?: Record<string, string>, actorLabels?: Record<string, string>) => void;
+  applyRoster: (members?: readonly RosterMember[], me?: string) => void;
+  replaceSnapshot: (events: readonly Event[], capacity: readonly CapacityEntry[]) => void;
+  setOrgCalendarEnabled: (raw: boolean | undefined) => void;
+}
+
+/**
+ * One project-slice push into an already-mounted drill-down MoiraProvider:
+ * registries first (labels/roster), then the two log tiers, then the
+ * org-calendar setting — the THREE things a portfolio live-fixture refetch can
+ * change for the drilled project (issue #32 update-path fix: the setting used
+ * to only reach the provider at INITIAL mount via `initialOrgCalendarEnabled`,
+ * never on a later refetch, so list vs. drill-down could disagree after a
+ * live config change). `setOrgCalendarEnabled` gets the RAW value — the
+ * `!== false` default-on resolution stays centralized in store.tsx, never
+ * re-derived here.
+ */
+export function applyDrilldownSlice(project: PortfolioProjectData, io: DrillSyncIo): void {
+  io.applyLabels(project.nodeLabels, project.actorLabels);
+  io.applyRoster(project.members, undefined);
+  io.replaceSnapshot(project.events, project.capacityEntries);
+  io.setOrgCalendarEnabled(project.orgCalendarEnabled);
+}
+
+/**
  * Keeps a drilled single-project view following portfolio live updates: when
  * the portfolio fixture is refetched, push the project's fresh slice into the
- * mounted MoiraProvider (registries first, then the snapshot swap — the
- * live.tsx ordering). Renders nothing.
+ * mounted MoiraProvider via `applyDrilldownSlice`. Renders nothing.
  */
 function DrillSyncBridge({ project }: { project: PortfolioProjectData }) {
-  const { replaceSnapshot } = useMoira();
+  const { replaceSnapshot, setOrgCalendarEnabled } = useMoira();
   const lastRef = useRef(project);
   useEffect(() => {
     // Initial mount: MoiraProvider was already seeded via initial* props and the
     // click handler installed the registries — only LATER slices need pushing.
     if (lastRef.current === project) return;
     lastRef.current = project;
-    setUserLabels(project.nodeLabels, project.actorLabels);
-    setRoster(project.members, undefined);
-    replaceSnapshot(project.events, project.capacityEntries);
-  }, [project, replaceSnapshot]);
+    applyDrilldownSlice(project, {
+      applyLabels: setUserLabels,
+      applyRoster: setRoster,
+      replaceSnapshot,
+      setOrgCalendarEnabled,
+    });
+  }, [project, replaceSnapshot, setOrgCalendarEnabled]);
   return null;
 }

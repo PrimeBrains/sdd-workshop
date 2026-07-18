@@ -28,6 +28,12 @@ const wrap = (node: React.ReactNode) =>
 const styleFor = (html: string, testid: string): string =>
   new RegExp(`data-testid="${testid}"[^>]*?style="([^"]*)"`).exec(html)?.[1] ?? '';
 
+// Extract the (first) text node directly inside the element carrying a given
+// data-testid — for the planned-metrics cells (issue #34), which render a bare
+// string child with no nested markup.
+const textFor = (html: string, testid: string): string =>
+  new RegExp(`data-testid="${testid}"[^>]*>([^<]*)<`).exec(html)?.[1] ?? '';
+
 beforeEach(() => resetLabelsForTests()); // demo-label fallback active (module state leaks)
 
 describe('schedule-time UX additions', () => {
@@ -121,5 +127,98 @@ describe('schedule-time UX additions', () => {
     expect(segs.length).toBeGreaterThan(0);
     expect(on).toContain('依存（先行→後続・破線）'); // legend appears
     expect(on).toContain('stroke-dasharray="4 3"'); // a finish→start connector is drawn
+  });
+
+  it('#34: the label pane renders 3 fixed planned-metrics columns (工数/開始/終了) with real values for a scheduled+agreed leaf', () => {
+    const html = wrap(<App />);
+    expect(textFor(html, 'gantt-col-head:cost')).toBe('工数');
+    expect(textFor(html, 'gantt-col-head:start')).toBe('開始');
+    expect(textFor(html, 'gantt-col-head:end')).toBe('終了');
+
+    // req-1: agreed (frozenBudget=4), scheduled 2026-06-02, live-forecast 2026-05-25
+    // (demo-data.ts + org-calendar-derated capacity) — real (non-placeholder)
+    // values must render, not '—'.
+    expect(textFor(html, 'gantt-col:cost:req-1')).toBe('4');
+    expect(textFor(html, 'gantt-col:start:req-1')).toBe('5/20');
+    expect(textFor(html, 'gantt-col:end:req-1')).toBe('5/25');
+  });
+
+  it('#34: a parent row shows the rolled-up plannedCost (Σ children, not a leaf/placeholder value) and a planned date span', () => {
+    const html = wrap(<App />);
+    // F1 is a root feature (demo-data.ts) — its rollup must be a real, non-'—' value.
+    expect(textFor(html, 'gantt-col:cost:F1')).not.toBe('—');
+    expect(textFor(html, 'gantt-col:cost:F1')).not.toBe('');
+    expect(textFor(html, 'gantt-col:start:F1')).not.toBe('—');
+    expect(textFor(html, 'gantt-col:end:F1')).not.toBe('—');
+  });
+
+  it('#34: an unscheduled/unestimated leaf renders the "—" placeholder, not a stray value', () => {
+    const html = wrap(<App />);
+    // hotfix: agreed + completed but NEVER scheduled → frozenSlot null (demo-data.ts
+    // "third state" comment). No frozenSlot/predictedStart ⇒ plannedStart is null.
+    expect(textFor(html, 'gantt-col:start:hotfix')).toBe('—');
+  });
+
+  // Regression (found in independent review): raising MIN_LABEL_W 140→220 (issue
+  // #34) made readLabelW() DISCARD any saved width in [140,219] as "invalid",
+  // silently reverting a user's resize back to DEFAULT_LABEL_W (250) instead of
+  // clamping it into the new range. `vitest.config.ts` runs this suite under
+  // `environment: 'node'` (no real localStorage), so the fix's try/catch around
+  // `localStorage.getItem` normally always throws and falls through to the
+  // default — these tests install a minimal fake `localStorage` for their
+  // duration (restored after) so the saved-value branch is actually exercised.
+  describe('#34 fix: a saved label width outside the raised MIN_LABEL_W is clamped, not discarded', () => {
+    const withFakeLocalStorage = (saved: string, run: () => void): void => {
+      const store: Record<string, string> = { 'moira.schedule.labelW': saved };
+      const fake = {
+        getItem: (k: string) => (k in store ? store[k] : null),
+        setItem: (k: string, v: string) => {
+          store[k] = v;
+        },
+        removeItem: (k: string) => {
+          delete store[k];
+        },
+        clear: () => {
+          for (const k of Object.keys(store)) delete store[k];
+        },
+        key: () => null,
+        length: 0,
+      } as unknown as Storage;
+      const hadOwn = Object.prototype.hasOwnProperty.call(globalThis, 'localStorage');
+      const original = (globalThis as { localStorage?: Storage }).localStorage;
+      (globalThis as { localStorage?: Storage }).localStorage = fake;
+      try {
+        run();
+      } finally {
+        if (hadOwn) (globalThis as { localStorage?: Storage }).localStorage = original;
+        else delete (globalThis as { localStorage?: Storage }).localStorage;
+      }
+    };
+
+    it('a pre-issue-#34 saved width (180px, once valid) is clamped UP to the new MIN_LABEL_W (220), not reset to DEFAULT_LABEL_W (250)', () => {
+      withFakeLocalStorage('180', () => {
+        const html = wrap(<App />);
+        const corner = styleFor(html, 'gantt-corner');
+        expect(corner).toContain('width:220px');
+      });
+    });
+
+    it('a saved width still inside range (300px) is kept as-is, not re-clamped', () => {
+      withFakeLocalStorage('300', () => {
+        const html = wrap(<App />);
+        const corner = styleFor(html, 'gantt-corner');
+        expect(corner).toContain('width:300px');
+      });
+    });
+
+    it('no saved value at all still falls back to DEFAULT_LABEL_W (250), not MIN_LABEL_W', () => {
+      withFakeLocalStorage('', () => {
+        // simulate "never saved" by removing the key rather than an empty string
+        (globalThis as unknown as { localStorage: Storage }).localStorage.removeItem('moira.schedule.labelW');
+        const html = wrap(<App />);
+        const corner = styleFor(html, 'gantt-corner');
+        expect(corner).toContain('width:250px');
+      });
+    });
   });
 });

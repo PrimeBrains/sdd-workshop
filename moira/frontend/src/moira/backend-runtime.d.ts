@@ -64,8 +64,49 @@ declare module '@backend/derivations/critical-path.js' {
   export function computeCriticalPath(events: readonly Event[]): CriticalPath;
 }
 
+declare module '@backend/org-calendar.js' {
+  import type { CapacityLookup, IsoDate } from '@backend/types';
+  export interface BusinessDayOptions {
+    /** Holiday set override (tests). Defaults to the committed JP data. */
+    holidays?: ReadonlySet<string>;
+    /** Coverage range of the holiday set (tests). */
+    coverage?: { from: string; to: string };
+    /** Sink for the out-of-coverage warning; default silent. */
+    warn?: (msg: string) => void;
+  }
+  export function isWeekend(d: IsoDate): boolean;
+  export function isBusinessDay(d: IsoDate, opts?: BusinessDayOptions): boolean;
+  /** A CapacityLookup fallback (issue #32): business days get DEFAULT_CAPACITY,
+   *  weekends/holidays get 0. Pass to CapacityStore.capacityOf/lookup or (here)
+   *  makeCapacityLookup as `fallback`. */
+  export function orgCalendarFallback(opts?: BusinessDayOptions): CapacityLookup;
+}
+
 declare module '@backend/fixtures/tiny-project.js' {
   import type { Event } from '@backend/types';
   export const tinyProjectEvents: readonly Event[];
   export const TINY_AS_OF: string;
+}
+
+declare module '@backend/derivations/planned-cost.js' {
+  import type { NodeId, ProjectedState } from '@backend/types';
+  export interface PlannedCostRow {
+    node: NodeId;
+    plannedCost: number;
+  }
+  export interface PlannedCostResult {
+    /** Σ plannedCost over root nodes (== root's rollup for a single tree, robust for a forest). */
+    total: number;
+    byNode: PlannedCostRow[];
+  }
+  /** Post-order tree rollup of planned BUDGET (issue #34a): leaf = frozenBudget
+   *  ?? latestEstimate ?? 0 (0 if cancelled/superseded); parent = Σ children. */
+  export function computePlannedCost(state: ProjectedState): PlannedCostResult;
+}
+
+declare module '@backend/leveler.js' {
+  import type { NodeId, ProjectedState } from '@backend/types';
+  /** Nominal bar-length in days from the estimate (leveler's own duration
+   *  function) — the single source the frontend's display geometry mirrors. */
+  export function nominalDurationDays(state: ProjectedState, id: NodeId): number;
 }

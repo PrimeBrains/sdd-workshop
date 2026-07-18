@@ -4,24 +4,37 @@
 //   dates.json    deadline / target-date second tier (R-T6 MODEL:233-240;
 //                 append-only, reason-stamped, timestamped — R-U14-isomorphic,
 //                 project-level single via latest-ts resolution)
+//   milestones.json  milestone (name + constituent node-id bundle) second tier
+//                 (issue #35). Same append-only/reason-stamped/timestamped/
+//                 latest-ts-wins discipline as dates.json — but keyed per
+//                 MILESTONE NAME (many milestones can coexist, unlike the
+//                 project-level single deadline/target). Deliberately NO date
+//                 or buffer field: MODEL §7#12 explicitly deferred that: a
+//                 milestone's "end" is DERIVED (see backend
+//                 derivations/milestone-rollup.ts), never a stored input.
 //   labels.json   presentation-only display labels (NOT model data)
 //   members.json  the ROSTER — who exists to be assigned/scheduled (issue #11).
 //                 A separate storage tier, NOT events and NOT a calendar concept:
 //                 the engine still sees only c(i,d) (D-16/D-30). Used to seed the
 //                 UI roster so no name the user never supplied leaks into a view.
-//   config.json   projectRoot / me / default asOf
+//   config.json   projectRoot / me / default asOf / orgCalendar.enabled (#32)
 // Uses the engine's EventStore/CapacityStore for load+save (deterministic order).
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { CapacityStore, EventStore } from 'moira-backend';
-import type { CapacityEntry, Event } from 'moira-backend';
+import type { CapacityEntry, Event, MilestoneDefinition, NodeId } from 'moira-backend';
 
 export interface MoiraConfig {
   projectRoot: string;
   me: string;
   asOf?: string;
   startDate?: string;
+  /** Org calendar (weekends + JP holidays) as the capacity fallback (issue #32).
+   *  UNSET → enabled (default-on): `cfg.orgCalendar?.enabled !== false` is the
+   *  read discipline everywhere this is consulted. `moira config org-calendar
+   *  off` is the only way to disable it. */
+  orgCalendar?: { enabled: boolean };
 }
 
 export interface Labels {
@@ -90,11 +103,48 @@ export function resolveReferenceDates(
   };
 }
 
+/**
+ * A milestone (issue #35) — a NAME + a constituent node-id bundle only.
+ * Deliberately NO date/buffer field (MODEL §7#12 explicitly deferred that;
+ * adding one here would require a canon amendment). Stored as an append-only,
+ * reason-stamped, timestamped history — isomorphic to ReferenceDateEntry, but
+ * keyed per milestone NAME (many milestones coexist; latest-ts wins PER NAME,
+ * not project-level single).
+ */
+export interface MilestoneEntry {
+  milestone: string;
+  nodes: NodeId[];
+  reason: string;
+  ts: number;
+}
+
+/**
+ * Latest-ts entry wins per milestone name (ties: the later entry, same rule as
+ * resolveReferenceDates/CapacityStore). A redefinition with an EMPTY `nodes`
+ * is a dissolution: the milestone is dropped from the resolved list entirely
+ * (never surfaced as a visible empty-bundle row) — matching `moira milestone
+ * remove`'s discipline.
+ */
+export function resolveMilestones(entries: readonly MilestoneEntry[]): MilestoneDefinition[] {
+  const latest = new Map<string, MilestoneEntry>();
+  for (const e of entries) {
+    const cur = latest.get(e.milestone);
+    if (cur === undefined || e.ts >= cur.ts) latest.set(e.milestone, e);
+  }
+  const defs: MilestoneDefinition[] = [];
+  for (const e of latest.values()) {
+    if (e.nodes.length === 0) continue; // dissolved — R-U14-isomorphic append kept, but not surfaced
+    defs.push({ name: e.milestone, nodes: e.nodes });
+  }
+  return defs.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
+}
+
 export class MoiraRepo {
   readonly dir: string;
   readonly eventsPath: string;
   readonly capacityPath: string;
   readonly datesPath: string;
+  readonly milestonesPath: string;
   readonly labelsPath: string;
   readonly membersPath: string;
   readonly configPath: string;
@@ -104,6 +154,7 @@ export class MoiraRepo {
     this.eventsPath = join(this.dir, 'events.json');
     this.capacityPath = join(this.dir, 'capacity.json');
     this.datesPath = join(this.dir, 'dates.json');
+    this.milestonesPath = join(this.dir, 'milestones.json');
     this.labelsPath = join(this.dir, 'labels.json');
     this.membersPath = join(this.dir, 'members.json');
     this.configPath = join(this.dir, 'config.json');
@@ -118,6 +169,7 @@ export class MoiraRepo {
     if (!existsSync(this.eventsPath)) writeFileSync(this.eventsPath, '[]\n', 'utf8');
     if (!existsSync(this.capacityPath)) writeFileSync(this.capacityPath, '[]\n', 'utf8');
     if (!existsSync(this.datesPath)) writeFileSync(this.datesPath, '[]\n', 'utf8');
+    if (!existsSync(this.milestonesPath)) writeFileSync(this.milestonesPath, '[]\n', 'utf8');
     if (!existsSync(this.labelsPath)) this.writeLabels({ nodeLabels: {}, actorLabels: {} });
     if (!existsSync(this.membersPath)) writeFileSync(this.membersPath, '[]\n', 'utf8');
     this.writeConfig(config);
@@ -163,6 +215,16 @@ export class MoiraRepo {
   appendDateEntries(entries: readonly ReferenceDateEntry[]): void {
     const all = [...this.loadDateEntries(), ...entries];
     writeFileSync(this.datesPath, `${JSON.stringify(all, null, 2)}\n`, 'utf8');
+  }
+
+  // --- milestones (name+node-bundle second tier; append-only, latest-ts wins per name — issue #35) ---
+  loadMilestoneEntries(): MilestoneEntry[] {
+    if (!existsSync(this.milestonesPath)) return [];
+    return JSON.parse(readFileSync(this.milestonesPath, 'utf8')) as MilestoneEntry[];
+  }
+  appendMilestoneEntries(entries: readonly MilestoneEntry[]): void {
+    const all = [...this.loadMilestoneEntries(), ...entries];
+    writeFileSync(this.milestonesPath, `${JSON.stringify(all, null, 2)}\n`, 'utf8');
   }
 
   // --- labels (presentation-only) ---

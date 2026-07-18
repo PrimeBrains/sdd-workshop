@@ -29,9 +29,32 @@ import {
 const ROW_H = 26;
 const HEAD_H = 30;
 const DEFAULT_LABEL_W = 250; // task-name column width (issue #26)
-const MIN_LABEL_W = 140;
+// raised from 140 (issue #34): the label column now also carries the 3 fixed
+// planned-metrics cells (132px total), so the floor keeps the name section legible.
+const MIN_LABEL_W = 220;
 const MAX_LABEL_W = 640;
 const LABEL_W_KEY = 'moira.schedule.labelW';
+
+// planned metrics sub-columns (issue #34) — fixed-width, non-resizable (v1),
+// carved out of the (resizable) label column. Header + row cells share these
+// same widths so the two rows line up.
+const COST_COL_W = 48;
+const DATE_COL_W = 42;
+
+/** Short M/D date label (matches buildAxisTicks' week-tick convention — the
+ * codebase's existing compact date format; the Gantt's label pane has no room
+ * for a full ISO date). */
+function fmtShortDate(iso: IsoDate): string {
+  const d = new Date(`${iso}T00:00:00Z`);
+  return `${d.getUTCMonth() + 1}/${d.getUTCDate()}`;
+}
+
+/** Planned cost (MD), same toFixed(0) convention as the other MD rollups
+ * (LandingChart's BAC, HealthSurface's EV/PV/AC). null → '—' (existing
+ * placeholder convention, e.g. Inspector's Field). */
+function fmtCost(v: number | null): string {
+  return v === null ? '—' : v.toFixed(0);
+}
 
 const EMPTY_SET: ReadonlySet<NodeId> = new Set();
 const EMPTY_EDGES: readonly DependencyEdge[] = [];
@@ -41,8 +64,16 @@ function clampLabelW(w: number): number {
 }
 function readLabelW(): number {
   try {
-    const v = Number(localStorage.getItem(LABEL_W_KEY));
-    if (Number.isFinite(v) && v >= MIN_LABEL_W && v <= MAX_LABEL_W) return v;
+    const raw = localStorage.getItem(LABEL_W_KEY);
+    // No saved preference at all → DEFAULT_LABEL_W (not clampLabelW(0), which
+    // would land on MIN_LABEL_W and silently invent a "saved" width no user
+    // ever chose). A saved value out of the CURRENT [MIN,MAX] range (e.g. a
+    // pre-issue-#34 140–219px width, before MIN_LABEL_W was raised 140→220) is
+    // CLAMPED into range, not discarded to the default — the user's resize
+    // intent (narrower/wider than default) still holds, just bounded.
+    if (raw === null) return DEFAULT_LABEL_W;
+    const v = Number(raw);
+    if (Number.isFinite(v)) return clampLabelW(v);
   } catch { /* localStorage unavailable (node/test) */ }
   return DEFAULT_LABEL_W;
 }
@@ -213,7 +244,9 @@ export function ScheduleGantt({
             }}
           >
             {/* frozen corner: sticks top AND left (issues #30/#31); opaque bg + z above
-                the track ticks so labels sliding under it are covered */}
+                the track ticks so labels sliding under it are covered. Split into the
+                (resizable) name section + 3 fixed planned-metrics sub-headers (issue
+                #34), matching the row label cell's layout below so columns line up. */}
             <div
               data-testid="gantt-corner"
               style={{
@@ -224,7 +257,6 @@ export function ScheduleGantt({
                 zIndex: 2,
                 display: 'flex',
                 alignItems: 'flex-end',
-                padding: '0 8px 4px',
                 fontSize: 10.5,
                 color: EVM.ink3,
                 fontWeight: 600,
@@ -232,7 +264,27 @@ export function ScheduleGantt({
                 borderRight: `1px solid ${EVM.ruleSoft}`,
               }}
             >
-              ノード（有効木）／担当
+              <div style={{ flex: '1 1 auto', minWidth: 0, padding: '0 8px 4px', overflow: 'hidden' }}>
+                ノード（有効木）／担当
+              </div>
+              <div
+                data-testid="gantt-col-head:cost"
+                style={{ flex: '0 0 auto', width: COST_COL_W, padding: '0 4px 4px', textAlign: 'right' }}
+              >
+                工数
+              </div>
+              <div
+                data-testid="gantt-col-head:start"
+                style={{ flex: '0 0 auto', width: DATE_COL_W, padding: '0 4px 4px', textAlign: 'right' }}
+              >
+                開始
+              </div>
+              <div
+                data-testid="gantt-col-head:end"
+                style={{ flex: '0 0 auto', width: DATE_COL_W, padding: '0 8px 4px', textAlign: 'right' }}
+              >
+                終了
+              </div>
             </div>
             <div style={{ position: 'relative', flex: '1 1 auto' }}>
               {ticks.map((t) =>
@@ -290,7 +342,9 @@ export function ScheduleGantt({
                     outlineOffset: -1,
                   }}
                 >
-                  {/* label column — sticks left (issue #30) */}
+                  {/* label column — sticks left (issue #30). Internally split into the
+                      (resizable) name section + 3 fixed planned-metrics cells (issue #34:
+                      予定工数・予定開始・予定終了) — ONE sticky boundary still, per #30/#31. */}
                   <div
                     style={{
                       width: labelW,
@@ -301,31 +355,85 @@ export function ScheduleGantt({
                       background: rowBg,
                       display: 'flex',
                       alignItems: 'center',
-                      gap: 6,
-                      paddingLeft: 8 + r.depth * 14,
-                      paddingRight: 8,
-                      overflow: 'hidden',
                       borderRight: `1px solid ${EVM.ruleSoft}`,
                     }}
                   >
-                    <span style={{ color: EVM.ink4, fontSize: 10 }}>{r.isLeaf ? '·' : '▸'}</span>
-                    <span
+                    <div
                       style={{
-                        fontSize: 11.5,
-                        fontWeight: r.isLeaf ? 400 : 600,
-                        color: r.lifecycle === 'cancelled' ? EVM.ink4 : EVM.ink,
-                        whiteSpace: 'nowrap',
+                        flex: '1 1 auto',
+                        minWidth: 0,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        paddingLeft: 8 + r.depth * 14,
+                        paddingRight: 8,
                         overflow: 'hidden',
-                        textOverflow: 'ellipsis',
                       }}
                     >
-                      {r.label}
-                    </span>
-                    {r.assignee !== null && (
-                      <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4 }}>
-                        <Avatar actor={r.assignee} />
+                      <span style={{ color: EVM.ink4, fontSize: 10 }}>{r.isLeaf ? '·' : '▸'}</span>
+                      <span
+                        style={{
+                          fontSize: 11.5,
+                          fontWeight: r.isLeaf ? 400 : 600,
+                          color: r.lifecycle === 'cancelled' ? EVM.ink4 : EVM.ink,
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                        }}
+                      >
+                        {r.label}
                       </span>
-                    )}
+                      {r.assignee !== null && (
+                        <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <Avatar actor={r.assignee} />
+                        </span>
+                      )}
+                    </div>
+                    <span
+                      data-testid={`gantt-col:cost:${r.node}`}
+                      title={r.plannedCost === null ? undefined : `予定工数（合計） ${r.plannedCost} MD`}
+                      className="mono"
+                      style={{
+                        flex: '0 0 auto',
+                        width: COST_COL_W,
+                        padding: '0 4px',
+                        textAlign: 'right',
+                        fontSize: 10.5,
+                        color: r.plannedCost === null ? EVM.ink4 : EVM.ink2,
+                      }}
+                    >
+                      {fmtCost(r.plannedCost)}
+                    </span>
+                    <span
+                      data-testid={`gantt-col:start:${r.node}`}
+                      title={r.plannedStart === null ? undefined : `予定開始 ${r.plannedStart}`}
+                      className="mono"
+                      style={{
+                        flex: '0 0 auto',
+                        width: DATE_COL_W,
+                        padding: '0 4px',
+                        textAlign: 'right',
+                        fontSize: 10.5,
+                        color: r.plannedStart === null ? EVM.ink4 : EVM.ink2,
+                      }}
+                    >
+                      {r.plannedStart === null ? '—' : fmtShortDate(r.plannedStart)}
+                    </span>
+                    <span
+                      data-testid={`gantt-col:end:${r.node}`}
+                      title={r.plannedEnd === null ? undefined : `予定終了 ${r.plannedEnd}`}
+                      className="mono"
+                      style={{
+                        flex: '0 0 auto',
+                        width: DATE_COL_W,
+                        padding: '0 8px 0 4px',
+                        textAlign: 'right',
+                        fontSize: 10.5,
+                        color: r.plannedEnd === null ? EVM.ink4 : EVM.ink2,
+                      }}
+                    >
+                      {r.plannedEnd === null ? '—' : fmtShortDate(r.plannedEnd)}
+                    </span>
                   </div>
 
                   {/* track column */}

@@ -12,6 +12,12 @@ function predict(log: Log, capacityOf: CapacityLookup, startDate: string) {
   return level(state, eff, capacityOf, startDate).predicted;
 }
 
+function levelResult(log: Log, capacityOf: CapacityLookup, startDate: string) {
+  const state = fold(log.all());
+  const eff = computeEffectiveSet(state);
+  return level(state, eff, capacityOf, startDate);
+}
+
 const alice = human('alice');
 
 describe('P7 greedy c-leveling (MODEL:183-191)', () => {
@@ -88,5 +94,71 @@ describe('P7 greedy c-leveling (MODEL:183-191)', () => {
     );
     expect(p.get('a')).toBe('2026-01-06');
     expect(p.get('b')).toBe('2026-01-08'); // cannot overlap 'a' on alice's days
+  });
+});
+
+describe('predictedStart (issue #34c — first-worked-day, not the raw dependency start)', () => {
+  it('skips a c=0 day AT the dependency-derived start: predictedStart is the first day capacity was actually consumed', () => {
+    // start (dependency-derived) == 2026-01-05, but that day is a calendar hole
+    // (c=0). Publishing `start` as-is would be dishonest (MODEL:196 — a
+    // calendar hole is a schedule GAP, work does not begin there).
+    const capacityOf: CapacityLookup = (_h, d) => (d === '2026-01-05' ? 0 : 1.0);
+    const r = levelResult(
+      new Log().decompose('F', [{ node: 'a', estimate: 2 }]).agree('a', 2).assign('a', alice),
+      capacityOf,
+      '2026-01-05',
+    );
+    expect(r.predicted.get('a')).toBe('2026-01-07'); // 05 skipped (hole), 06+07 worked
+    expect(r.predictedStart.get('a')).toBe('2026-01-06'); // NOT 2026-01-05
+  });
+
+  it('skips days another task already saturated (same mechanism, no calendar hole needed)', () => {
+    // Two tasks on the same human with the same dependency-derived start: the
+    // greedy fill processes 'a' first (consumes 01-05..01-06 fully), so 'b's
+    // loop must skip those two already-used days before it can start.
+    const r = levelResult(
+      new Log()
+        .decompose('F', [{ node: 'a', estimate: 2 }, { node: 'b', estimate: 2 }])
+        .agree('a', 2)
+        .agree('b', 2)
+        .assign('a', alice)
+        .assign('b', alice),
+      defaultCapacityLookup,
+      '2026-01-05',
+    );
+    expect(r.predicted.get('a')).toBe('2026-01-06');
+    expect(r.predictedStart.get('a')).toBe('2026-01-05'); // 'a' runs immediately, no skip
+    expect(r.predicted.get('b')).toBe('2026-01-08');
+    expect(r.predictedStart.get('b')).toBe('2026-01-07'); // NOT 2026-01-05 (already used by 'a')
+  });
+
+  it('agent tasks are not leveled: predictedStart equals the dependency-derived start', () => {
+    const r = levelResult(
+      new Log().decompose('F', [{ node: 'ag', estimate: 3 }]).agree('ag', 3).assign('ag', agent('bot')),
+      defaultCapacityLookup,
+      '2026-01-05',
+    );
+    expect(r.predicted.get('ag')).toBe('2026-01-07');
+    expect(r.predictedStart.get('ag')).toBe('2026-01-05');
+  });
+
+  it('a zero-estimate human task never consumes capacity — predictedStart equals start (documented spec: no first-worked-day exists)', () => {
+    const r = levelResult(
+      new Log().decompose('F', [{ node: 'a', estimate: 0 }]).agree('a', 0).assign('a', alice),
+      defaultCapacityLookup,
+      '2026-01-05',
+    );
+    expect(r.predicted.get('a')).toBe('2026-01-05');
+    expect(r.predictedStart.get('a')).toBe('2026-01-05');
+  });
+
+  it('unscheduled (no assignee): predictedStart is null, symmetric with predicted', () => {
+    const r = levelResult(
+      new Log().decompose('F', [{ node: 'a', estimate: 2 }]).agree('a', 2), // never assigned
+      defaultCapacityLookup,
+      '2026-01-05',
+    );
+    expect(r.predicted.get('a')).toBeNull();
+    expect(r.predictedStart.get('a')).toBeNull();
   });
 });

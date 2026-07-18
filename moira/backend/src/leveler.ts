@@ -31,6 +31,16 @@ import type { EffectiveSet } from './derivations/effective-set.js';
 export interface LevelResult {
   /** predicted completion per effective leaf; null if not schedulable. */
   predicted: Map<NodeId, IsoDate | null>;
+  /**
+   * Predicted START per effective leaf (issue #34c); null under the same
+   * conditions as `predicted`. For a leveled human task this is the FIRST day
+   * the greedy fill loop actually consumed capacity (avail > EPSILON) — NOT
+   * the dependency-derived earliest-start, which the loop may skip past (a
+   * c=0 day, or a day another task already saturated). For an agent task
+   * (not leveled) and for a zero-estimate task (no capacity ever consumed)
+   * this equals the dependency-derived earliest-start.
+   */
+  predictedStart: Map<NodeId, IsoDate | null>;
 }
 
 const MAX_DAYS = 3650; // guard against an all-zero-capacity run
@@ -124,6 +134,7 @@ export function level(
   }
 
   const predicted = new Map<NodeId, IsoDate | null>();
+  const predictedStart = new Map<NodeId, IsoDate | null>();
   // Per-human remaining capacity per date, consumed across all that human's tasks.
   const usedCapacity = new Map<string, number>();
   const capKey = (human: string, date: IsoDate): string => `${human}|${date}`;
@@ -132,6 +143,7 @@ export function level(
     const n = state.nodes.get(id);
     if (n === undefined || n.assignee === null) {
       predicted.set(id, null);
+      predictedStart.set(id, null);
       continue;
     }
 
@@ -151,24 +163,31 @@ export function level(
       // agent (no successor) still extends the derived completion (R-T2 / P7).
       const days = Math.max(1, Math.ceil(est));
       predicted.set(id, addDays(start, days - 1));
+      predictedStart.set(id, start); // agents are not leveled — dependency start stands
       continue;
     }
 
     // Human: greedy resource-leveled fill, capped at c(i,d) per day.
     const human = n.assignee.id;
     if (est <= EPSILON) {
+      // Zero-estimate task never consumes capacity, so no "first worked day"
+      // exists to report — the dependency-derived start stands (documented,
+      // tested: leveler.test.ts).
       predicted.set(id, start);
+      predictedStart.set(id, start);
       continue;
     }
     let remaining = est;
     let day = start;
     let completion: IsoDate | null = null;
+    let firstWorkedDay: IsoDate | null = null;
     for (let guard = 0; guard < MAX_DAYS; guard += 1) {
       const cap = capacityOf(human, day);
       const key = capKey(human, day);
       const used = usedCapacity.get(key) ?? 0;
       const avail = cap - used;
       if (avail > EPSILON) {
+        if (firstWorkedDay === null) firstWorkedDay = day;
         const take = Math.min(avail, remaining);
         usedCapacity.set(key, used + take);
         remaining -= take;
@@ -180,12 +199,15 @@ export function level(
       day = addDays(day, 1);
     }
     predicted.set(id, completion);
+    predictedStart.set(id, firstWorkedDay);
   }
 
-  // Effective leaves that were not schedulable get a null forecast.
+  // Effective leaves that were not schedulable get a null forecast (and,
+  // symmetrically, a null predicted start).
   for (const id of eff.effectiveLeaves) {
     if (!predicted.has(id)) predicted.set(id, null);
+    if (!predictedStart.has(id)) predictedStart.set(id, null);
   }
 
-  return { predicted };
+  return { predicted, predictedStart };
 }

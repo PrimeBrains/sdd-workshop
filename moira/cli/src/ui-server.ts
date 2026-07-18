@@ -46,6 +46,10 @@ export interface UiFixture {
   /** R-T6 reference dates, latest-wins-resolved from .moira/dates.json (issue #13). */
   deadline?: IsoDate;
   targetDate?: IsoDate;
+  /** org calendar (weekends + JP holidays) as the c(i,d) fallback (issue #32),
+   *  from .moira/config.json `orgCalendar.enabled`. UNSET/absent → treat as
+   *  enabled (default-on), same `!== false` read discipline as the CLI. */
+  orgCalendarEnabled?: boolean;
   /** true only when served by `moira ui` — tells the app to open the SSE bridge. */
   live?: boolean;
 }
@@ -64,6 +68,11 @@ export interface PortfolioUiProject {
   members: readonly Member[];
   deadline?: IsoDate;
   targetDate?: IsoDate;
+  /** org calendar (weekends + JP holidays) as the c(i,d) fallback (issue #32),
+   *  from THIS project's OWN .moira/config.json `orgCalendar.enabled` — each
+   *  home in a portfolio carries its own independent setting, same `!== false`
+   *  read discipline as the single-project UiFixture. Absent on a loadError row. */
+  orgCalendarEnabled?: boolean;
   /** Why this home could not be read (broken pointer / missing home / parse
    *  failure). When set, the data fields above are empty placeholders. */
   loadError?: string;

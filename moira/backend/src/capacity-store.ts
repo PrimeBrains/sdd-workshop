@@ -23,22 +23,30 @@ export class CapacityStore {
   }
 
   /**
-   * c(i,d): the latest-ts entry for (human, date); default 1.0 if none.
-   * c=0 is in-domain (holidays/leave; MODEL:34) — only the ABSENCE of an entry
-   * defaults to 1.0.
+   * c(i,d): the latest-ts entry for (human, date); an explicit entry always
+   * wins. Only the ABSENCE of an entry falls through to `fallback` (default:
+   * the flat 1.0 default — backward compatible). Pass `orgCalendarFallback()`
+   * (org-calendar.ts) to make unspecified weekends/holidays resolve to 0
+   * instead of a blanket 1.0 (issue #32).
+   * c=0 is in-domain (holidays/leave; MODEL:34) — an EXPLICIT entry of 0 is
+   * never overridden by the fallback.
    */
-  capacityOf(humanId: string, date: IsoDate): number {
+  capacityOf(
+    humanId: string,
+    date: IsoDate,
+    fallback: CapacityLookup = () => DEFAULT_CAPACITY,
+  ): number {
     let best: CapacityEntry | undefined;
     for (const e of this.entries) {
       if (e.humanId !== humanId || e.date !== date) continue;
       if (best === undefined || e.ts >= best.ts) best = e;
     }
-    return best === undefined ? DEFAULT_CAPACITY : best.capacity;
+    return best === undefined ? fallback(humanId, date) : best.capacity;
   }
 
-  /** Bind `capacityOf` as a plain function for the leveler. */
-  lookup(): CapacityLookup {
-    return (humanId, date) => this.capacityOf(humanId, date);
+  /** Bind `capacityOf` as a plain function for the leveler; `fallback` passes through. */
+  lookup(fallback: CapacityLookup = () => DEFAULT_CAPACITY): CapacityLookup {
+    return (humanId, date) => this.capacityOf(humanId, date, fallback);
   }
 
   all(): CapacityEntry[] {

@@ -6,7 +6,7 @@
 //   curl -s https://holidays-jp.github.io/api/v1/date.json
 //
 // then paste the date keys below (ascending) and bump the coverage range.
-// Dates OUTSIDE the range are handled by business-days.ts: it warns once on
+// Dates OUTSIDE the range are handled by org-calendar.ts: it warns once on
 // stderr and falls back to weekend-only skipping — a visible gap, never a
 // silent wrong answer.
 

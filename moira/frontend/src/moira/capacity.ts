@@ -1,23 +1,33 @@
 // c(i,d) lookup plumbing for the frontend in-memory capacity tier.
 //
 // This is NOT a derivation — it is the input accessor the leveler consumes. It
-// mirrors backend/src/capacity-store.ts:30-37 exactly (latest-ts wins per
-// (human, date); ABSENCE defaults to 1.0; c=0 is in-domain). Re-implemented here
-// (rather than importing CapacityStore, which carries node:fs) because it is a
-// 6-line data lookup, not a metric computation.
+// mirrors backend/src/capacity-store.ts:30-37/47-50 exactly (latest-ts wins per
+// (human, date); an EXPLICIT entry always wins; ABSENCE falls through to
+// `fallback`, default the flat 1.0 default — backward compatible; c=0 is
+// in-domain). Re-implemented here (rather than importing CapacityStore, which
+// carries node:fs) because it is a 6-line data lookup, not a metric computation.
 
 import type { CapacityEntry, CapacityLookup, IsoDate } from './engine';
 
 export const DEFAULT_CAPACITY = 1.0;
 
-export function makeCapacityLookup(entries: readonly CapacityEntry[]): CapacityLookup {
+/**
+ * `fallback` mirrors CapacityStore.capacityOf's fallback param (issue #32):
+ * pass `orgCalendarFallback()` (engine.ts) to make unspecified weekends/JP
+ * holidays resolve to 0 instead of a blanket 1.0. Omitted → the flat 1.0
+ * default, byte-identical to the pre-#32 behavior.
+ */
+export function makeCapacityLookup(
+  entries: readonly CapacityEntry[],
+  fallback: CapacityLookup = () => DEFAULT_CAPACITY,
+): CapacityLookup {
   return (humanId: string, date: IsoDate): number => {
     let best: CapacityEntry | undefined;
     for (const e of entries) {
       if (e.humanId !== humanId || e.date !== date) continue;
       if (best === undefined || e.ts >= best.ts) best = e;
     }
-    return best === undefined ? DEFAULT_CAPACITY : best.capacity;
+    return best === undefined ? fallback(humanId, date) : best.capacity;
   };
 }
 

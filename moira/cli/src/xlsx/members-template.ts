@@ -56,7 +56,12 @@ export function buildMembersTemplate(): ExcelJS.Workbook {
   say('個人カレンダー.日付*', 'YYYY-MM-DD（Excel の日付セルでも可）。');
   say('個人カレンダー.稼働率*', '0〜1。0＝その日は休み。');
   say('個人カレンダー.理由', '任意メモ（監査に残る）。');
-  say('祝日.日付*', 'YYYY-MM-DD。名簿の human 全員がその日 c=0 に展開される。');
+  say(
+    '祝日.日付*',
+    'YYYY-MM-DD。名簿の human 全員がその日 c=0 に展開される。標準の土日・日本の祝日は組織カレンダーで' +
+      '自動的に非稼働になるため（issue #32、moira config org-calendar で on/off）、ここには会社独自の' +
+      '休業日（夏季休業・創立記念日など）のみ記載を推奨。',
+  );
   say('祝日.名称', '任意。');
   say('', '');
   say('既知の限界（v1）', '');

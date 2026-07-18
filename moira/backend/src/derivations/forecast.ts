@@ -22,6 +22,7 @@ export function computeForecast(
     rows.push({
       node: id,
       predictedCompletion: level.predicted.get(id) ?? null,
+      predictedStart: level.predictedStart.get(id) ?? null,
       frozenSlot: n.frozenSlot,
     });
   }

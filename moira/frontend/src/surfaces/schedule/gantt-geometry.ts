@@ -4,6 +4,7 @@
 // arithmetic is calendar geometry (date → x) and effective-tree depth — both are
 // the projections allowed by UI-DESIGN-BRIEF §0.
 
+import { nominalDurationDays } from '../../moira/engine';
 import type {
   Actor,
   ActorKind,
@@ -13,6 +14,7 @@ import type {
   IsoDate,
   LifecycleState,
   NodeId,
+  PlannedCostResult,
   ProjectedState,
 } from '../../moira/engine';
 import { labelOf } from '../../moira/labels';
@@ -57,6 +59,22 @@ export interface GanttRow {
   completed: boolean;
   slotState: SlotState;
   contextOnly: boolean; // kept only as ancestor scaffolding of a matched leaf (issue #8)
+  /** leveler's nominal bar-length in days (issue #34) — computed ONCE here via
+   *  the backend's nominalDurationDays (single source; no local re-derivation). */
+  nominalDurationDays: number;
+  /** planned (budget) cost — a projection of computePlannedCost's byNode map
+   *  (issue #34a). Leaf and parent both read the SAME map entry: the backend
+   *  already rolled the tree up (Σ children), so no frontend re-summing. null
+   *  when no PlannedCostResult was supplied to buildGanttModel. */
+  plannedCost: number | null;
+  /** planned start (issue #34): leaf = predictedStart (first day the leveler
+   *  actually consumed capacity) ?? an approximation (frozenSlot minus the
+   *  nominal duration) ?? null. Parent = min over descendant plannedStart
+   *  (dateSpanOf, display-only projection — no metric recomputation). */
+  plannedStart: IsoDate | null;
+  /** planned end (issue #34): leaf = predicted (live forecast completion) ??
+   *  frozenSlot (frozen baseline). Parent = max over descendant plannedEnd. */
+  plannedEnd: IsoDate | null;
 }
 
 export interface GanttModel {
@@ -66,12 +84,14 @@ export interface GanttModel {
   totalDays: number;
 }
 
-/** Nominal bar length in days from the estimate — DISPLAY geometry only
- * (mirrors leveler.durationDays; the authoritative signal is the completion
- * date marker, not the bar length). */
+/** Nominal bar length in days — DISPLAY geometry only (the authoritative
+ * signal is the completion date marker, not the bar length). A thin accessor
+ * over the row's `nominalDurationDays` field, which buildGanttModel computes
+ * ONCE via the backend's nominalDurationDays (issue #34: single source, no
+ * local formula re-derivation — a prior local reimplementation used to live
+ * here and could drift from the leveler's own duration function). */
 export function nominalDays(row: GanttRow): number {
-  const est = row.latestEstimate ?? row.frozenBudget ?? 1;
-  return Math.max(1, Math.ceil(est));
+  return row.nominalDurationDays;
 }
 
 // ---- date-axis ticks (issue #28) --------------------------------------------
@@ -387,13 +407,41 @@ export function depSegments(
   return out;
 }
 
+// ---- planned span rollup (issue #34) -----------------------------------------
+// A parent row's plannedStart/plannedEnd is the min/max over its descendants'
+// (already-resolved) plannedStart/plannedEnd — display-only min/max, not a sum,
+// so this stays on the frontend side of the UI-DESIGN-BRIEF §0 line. Same
+// contiguous-descendant-block shape as ScheduleGantt's local `spanOf` (rows are
+// DFS-preorder, so a parent's whole subtree is the contiguous run of strictly
+// greater depth that follows it) — kept here, pure & unit-testable without a DOM.
+
+export function dateSpanOf(
+  rows: readonly GanttRow[],
+  i: number,
+): { start: IsoDate | null; end: IsoDate | null } {
+  const parent = rows[i]!;
+  let start: IsoDate | null = null;
+  let end: IsoDate | null = null;
+  for (let j = i + 1; j < rows.length && rows[j]!.depth > parent.depth; j += 1) {
+    const r = rows[j]!;
+    if (r.plannedStart !== null) start = start === null ? r.plannedStart : minIso(start, r.plannedStart);
+    if (r.plannedEnd !== null) end = end === null ? r.plannedEnd : maxIso(end, r.plannedEnd);
+  }
+  return { start, end };
+}
+
 export function buildGanttModel(
   projected: ProjectedState,
   derived: DerivedState,
   filter: RowFilter,
+  plannedCost?: PlannedCostResult,
 ): GanttModel {
   const forecast = new Map(derived.forecast.map((f) => [f.node, f]));
   const acMap = new Map(derived.acByNode.map((a) => [a.node, a.ac]));
+  // computePlannedCost's byNode is ALREADY a tree rollup (leaf = frozenBudget ??
+  // latestEstimate ?? 0; parent = Σ children) — this is a pure Map projection,
+  // used verbatim for both leaf and parent rows below (no re-summing here).
+  const plannedCostMap = new Map((plannedCost?.byNode ?? []).map((r) => [r.node, r.plannedCost]));
   const supersededOld = new Set(projected.supersedeEdges.map((e) => e.to));
   const effective = (id: NodeId): boolean => {
     const n = projected.nodes.get(id);
@@ -411,7 +459,23 @@ export function buildGanttModel(
     const fc = forecast.get(id);
     const frozenSlot = fc?.frozenSlot ?? null;
     const predicted = fc?.predictedCompletion ?? null;
+    const predictedStart = fc?.predictedStart ?? null;
     const completed = n.lifecycle === 'implemented' || n.lifecycle === 'accepted';
+    const nomDays = nominalDurationDays(projected, id);
+
+    // Planned start/end (issue #34) — leaf rows only here; forecast rows only
+    // exist for effective LEAVES (computeForecast), so a non-leaf id never has
+    // an `fc` and would resolve to null/null anyway. Parent plannedStart/End is
+    // filled in the post-pass below (dateSpanOf over the already-emitted
+    // descendant block), same reason ScheduleGantt's spanOf reads descendant
+    // rows directly instead of a (nonexistent) parent forecast entry.
+    // start fallback: no live predictedStart yet ⇒ approximate from the frozen
+    // baseline completion minus the nominal duration (same offset the frozen
+    // PMB bar's rendering already uses: xOf(frozenSlot) - nominalDays*dayW).
+    const plannedStart = isLeaf
+      ? (predictedStart ?? (frozenSlot !== null ? addDaysIso(frozenSlot, -nomDays) : null))
+      : null;
+    const plannedEnd = isLeaf ? (predicted ?? frozenSlot) : null;
 
     // Pass 1: emit EVERY effective node (contextOnly:false). Filtering happens
     // in a second pass so the date window below stays filter-independent.
@@ -433,6 +497,10 @@ export function buildGanttModel(
       completed,
       slotState: classify(completed, frozenSlot, predicted),
       contextOnly: false,
+      nominalDurationDays: nomDays,
+      plannedCost: plannedCostMap.get(id) ?? null,
+      plannedStart,
+      plannedEnd,
     });
     if (frozenSlot !== null) dates.push(frozenSlot);
     if (predicted !== null) dates.push(predicted);
@@ -444,6 +512,17 @@ export function buildGanttModel(
     .filter((id) => projected.nodes.get(id)?.parent == null && effective(id))
     .filter((id) => (projected.childrenOf.get(id) ?? []).length > 0);
   for (const r of orderSiblings(roots, projected.dependencyEdges)) visit(r, 0);
+
+  // Post-pass: fill non-leaf plannedStart/plannedEnd via dateSpanOf. rows[] is
+  // DFS-preorder, so every descendant of row i sits at a HIGHER index than i —
+  // walking backwards guarantees a parent's own descendants (leaf or nested
+  // parent) are already resolved by the time we reach it.
+  for (let i = rows.length - 1; i >= 0; i -= 1) {
+    const r = rows[i]!;
+    if (r.isLeaf) continue;
+    const span = dateSpanOf(rows, i);
+    rows[i] = { ...r, plannedStart: span.start, plannedEnd: span.end };
+  }
 
   let start = dates[0]!;
   let end = dates[0]!;

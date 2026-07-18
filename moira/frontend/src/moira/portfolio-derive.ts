@@ -4,7 +4,7 @@
 // asOf. One fold/derive/landing per home, via the single engine bridge; logs are
 // never merged (D-50).
 
-import { computeLandingCurve, derive, fold } from './engine';
+import { computeLandingCurve, derive, fold, orgCalendarFallback } from './engine';
 import type { IsoDate } from './engine';
 import { makeCapacityLookup } from './capacity';
 import type { PortfolioProject, PortfolioProjectFixture } from './portfolio-context';
@@ -16,7 +16,17 @@ export function deriveProject(p: PortfolioProjectFixture, asOf: IsoDate): Portfo
   try {
     const events = p.events ?? [];
     const capacityEntries = p.capacity ?? [];
-    const capacityOf = makeCapacityLookup(capacityEntries);
+    // Org calendar fallback (issue #32), PER PROJECT — mirrors store.tsx's
+    // single-project discipline (`initialOrgCalendarEnabled !== false`), but
+    // read from THIS project's own fixture slice, not a portfolio-wide flag:
+    // one home's org-calendar setting never leaks into another home's forecast
+    // (D-50 — homes stay independent). Generated ONCE per call and reused for
+    // BOTH derive() and computeLandingCurve() below (via the one capacityOf
+    // closure) — never a fresh orgCalendarFallback() per makeCapacityLookup
+    // call, so its "warn once" Calendar sees one stable lifetime per derivation.
+    const orgCalendarEnabled = p.orgCalendarEnabled !== false;
+    const capacityFallback = orgCalendarEnabled ? orgCalendarFallback() : undefined;
+    const capacityOf = makeCapacityLookup(capacityEntries, capacityFallback);
     const projected = fold(events);
     const derived = derive(events, { asOf, capacityOf });
     const landing = computeLandingCurve(events, { asOf, capacityOf });
@@ -32,6 +42,11 @@ export function deriveProject(p: PortfolioProjectFixture, asOf: IsoDate): Portfo
         members: p.members ?? [],
         deadline: p.deadline ?? null,
         targetDate: p.targetDate ?? null,
+        // RAW passthrough (not the resolved `orgCalendarEnabled` local above) —
+        // a drill-down provider re-applies `!== false` itself (issue #32/#23
+        // fix: the single-project drill-down was silently defaulting to
+        // enabled for homes whose OWN fixture had it disabled).
+        orgCalendarEnabled: p.orgCalendarEnabled,
         derived,
         projected,
         landing,

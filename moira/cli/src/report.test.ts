@@ -84,6 +84,17 @@ const OPTS = {
   dates: { deadline: '2026-07-10', targetDate: '2026-07-08' },
 };
 
+/** Same weekLog, but each root-child feature is ALSO defined as a milestone
+ *  (issue #35) — 'a' is completed (07-03) so M1 exercises the phantom-
+ *  prediction exclusion (its forecastEnd must come from 'b', not 'a'). */
+const OPTS_WITH_MILESTONES = {
+  ...OPTS,
+  milestones: [
+    { name: 'M1', nodes: ['f1'] },
+    { name: 'M2', nodes: ['f2'] },
+  ],
+};
+
 describe('buildReport', () => {
   const r = buildReport(weekLog(), OPTS);
 
@@ -149,6 +160,61 @@ describe('buildReport', () => {
     expect(empty.landing.daysLate).toBeNull();
     expect(empty.structuralErrors).toEqual([]);
   });
+
+  it('milestones default to [] when opts.milestones is omitted (existing calls stay unaffected)', () => {
+    expect(r.milestones).toEqual([]);
+  });
+});
+
+describe('buildReport with milestones (issue #35)', () => {
+  const r = buildReport(weekLog(), OPTS_WITH_MILESTONES);
+
+  it('rolls up each milestone’s subset EVM at asOf, reusing the SAME single derive() forecast (no re-leveling)', () => {
+    expect(r.milestones).toEqual([
+      {
+        milestone: 'M1',
+        evAbs: 2,
+        evPercent: 0.4,
+        pv: 2,
+        ac: 2,
+        bac: 5,
+        spi: 1,
+        cpi: 1,
+        leafCount: 2,
+        plannedEnd: '2026-07-08',
+        forecastEnd: '2026-07-08', // driven by 'b' — NOT 'a' (a is completed 07-03; see next test)
+        bottleneckLeaf: 'b',
+        bottleneckOnCriticalPath: false, // no dependency edge touches b in weekLog
+      },
+      {
+        milestone: 'M2',
+        evAbs: 5,
+        evPercent: 1,
+        pv: 5,
+        ac: 4,
+        bac: 5,
+        spi: 1,
+        cpi: 1.25,
+        leafCount: 1,
+        plannedEnd: '2026-07-06',
+        forecastEnd: null, // c is completed — its leveler prediction is a phantom, excluded
+        bottleneckLeaf: null,
+        bottleneckOnCriticalPath: false,
+      },
+    ]);
+  });
+
+  it('a completed leaf never paces forecastEnd even though the leveler still assigns it a date (landing.ts-isomorphic honesty)', () => {
+    const m1 = r.milestones.find((m) => m.milestone === 'M1')!;
+    // 'a' (completed 07-03, cost=2) is excluded from forecastEnd/bottleneck —
+    // only 'b' (still incomplete) can pace M1's live forecast.
+    expect(m1.bottleneckLeaf).not.toBe('a');
+  });
+
+  it('milestones is [] (section suppressed) when opts.milestones is omitted or empty', () => {
+    expect(buildReport(weekLog(), OPTS).milestones).toEqual([]);
+    expect(buildReport(weekLog(), { ...OPTS, milestones: [] }).milestones).toEqual([]);
+  });
 });
 
 describe('reportFilename', () => {
@@ -184,5 +250,23 @@ describe('formatReportText', () => {
     expect(text).toContain('| 日付 | EV_abs | EV% | 見積cov | SPI | sched cov | CPI |');
     expect(text).toContain('着地予測（P7 生きた予測・D_pred）: 2026-07-08 | forecast coverage 100%');
     expect(text).toContain('期日まで余裕: 2 日');
+  });
+
+  it('omits the "## マイルストーン別" section entirely when no milestone is defined', () => {
+    expect(text).not.toContain('## マイルストーン別');
+  });
+});
+
+describe('formatReportText with milestones (issue #35)', () => {
+  const r = buildReport(weekLog(), OPTS_WITH_MILESTONES);
+  const text = formatReportText(r, (id) => id, 'demo');
+
+  it('renders the "## マイルストーン別" table with EV%/EV_abs/SPI/CPI/BAC/plannedEnd/forecastEnd/bottleneck', () => {
+    expect(text).toContain('## マイルストーン別（名前 + 構成ノード束 — 期日/バッファは持たない）');
+    expect(text).toContain(
+      '| milestone | EV% | EV_abs | SPI | CPI | BAC | 予定終了(基準) | 予測終了 | ボトルネック葉 |',
+    );
+    expect(text).toContain('| M1 | 40% | 2 | 1.00 | 1.00 | 5 | 2026-07-08 | 2026-07-08 | b |');
+    expect(text).toContain('| M2 | 100% | 5 | 1.00 | 1.25 | 5 | 2026-07-06 | (予測不能) | - |');
   });
 });

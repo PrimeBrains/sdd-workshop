@@ -154,6 +154,14 @@ export interface AcRow {
 export interface ForecastRow {
   node: NodeId;
   predictedCompletion: IsoDate | null; // live forecast (P7) — latest estimate + current c
+  /**
+   * Live forecast start (issue #34c): the first day the leveler actually
+   * consumed capacity for this node — NOT the dependency-derived earliest-
+   * start, which can land on a c=0 / already-saturated day the greedy fill
+   * loop then skips (leveler.ts). null under the same conditions as
+   * predictedCompletion (unschedulable / not leveled to a date).
+   */
+  predictedStart: IsoDate | null;
   frozenSlot: IsoDate | null; // frozen baseline slot — so consumers can read R-S7 divergence
 }
 

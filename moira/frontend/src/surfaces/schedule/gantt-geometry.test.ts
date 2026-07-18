@@ -5,12 +5,13 @@
 // (emit) order stands — never a lexicographic id sort.
 
 import { describe, expect, it } from 'vitest';
-import { derive, fold } from '../../moira/engine';
+import { computePlannedCost, derive, fold } from '../../moira/engine';
 import type { Actor, DependencyEdge, Event, IsoDate, NodeId } from '../../moira/engine';
 import {
   assigneeOptions,
   buildAxisTicks,
   buildGanttModel,
+  dateSpanOf,
   DEFAULT_ROW_FILTER,
   depSegments,
   type GanttRow,
@@ -140,6 +141,13 @@ const row = (o: Partial<GanttRow>): GanttRow => ({
   completed: false,
   slotState: 'unscheduled-incomplete',
   contextOnly: false,
+  // mirrors nominalDurationDays' own formula (latestEstimate ?? 0, clamped ≥1)
+  // so pre-existing depSegments-style tests that only set latestEstimate keep
+  // their expected pixel widths without every call site restating it.
+  nominalDurationDays: Math.max(1, Math.ceil(o.latestEstimate ?? 0)),
+  plannedCost: null,
+  plannedStart: null,
+  plannedEnd: null,
   ...o,
 });
 const withF = (o: Partial<RowFilter>): RowFilter => ({ ...DEFAULT_ROW_FILTER, ...o });
@@ -461,5 +469,175 @@ describe('depSegments', () => {
       leaf('b', { predicted: '2026-01-10' }),
     ];
     expect(depSegments(rows, [dep('a', 'b'), dep('a', 'b')], '2026-01-01', 10)).toHaveLength(1);
+  });
+});
+
+// ---- planned metrics (issue #34) --------------------------------------------
+// 予定工数（plannedCost）・予定開始（plannedStart）・予定終了（plannedEnd）.
+// plannedCost is a pure Map projection of computePlannedCost's byNode (already a
+// backend tree rollup — no frontend re-summing). plannedStart/plannedEnd are a
+// leaf-level fallback chain plus a parent-level dateSpanOf min/max rollup.
+
+describe('dateSpanOf', () => {
+  it('returns the min plannedStart / max plannedEnd over the contiguous descendant block', () => {
+    const rows: GanttRow[] = [
+      row({ node: 'p', depth: 0, isLeaf: false }),
+      row({ node: 'c1', depth: 1, isLeaf: true, plannedStart: '2026-01-05', plannedEnd: '2026-01-08' }),
+      row({ node: 'c2', depth: 1, isLeaf: true, plannedStart: '2026-01-02', plannedEnd: '2026-01-06' }),
+    ];
+    expect(dateSpanOf(rows, 0)).toEqual({ start: '2026-01-02', end: '2026-01-08' });
+  });
+
+  it('ignores descendants whose plannedStart/plannedEnd is null', () => {
+    const rows: GanttRow[] = [
+      row({ node: 'p', depth: 0, isLeaf: false }),
+      row({ node: 'c1', depth: 1, isLeaf: true, plannedStart: null, plannedEnd: null }),
+      row({ node: 'c2', depth: 1, isLeaf: true, plannedStart: '2026-01-03', plannedEnd: '2026-01-04' }),
+    ];
+    expect(dateSpanOf(rows, 0)).toEqual({ start: '2026-01-03', end: '2026-01-04' });
+  });
+
+  it('returns null/null when every descendant is null', () => {
+    const rows: GanttRow[] = [
+      row({ node: 'p', depth: 0, isLeaf: false }),
+      row({ node: 'c1', depth: 1, isLeaf: true, plannedStart: null, plannedEnd: null }),
+    ];
+    expect(dateSpanOf(rows, 0)).toEqual({ start: null, end: null });
+  });
+
+  it('stops at the first row whose depth returns to the parent depth — a following sibling subtree is excluded', () => {
+    const rows: GanttRow[] = [
+      row({ node: 'p', depth: 0, isLeaf: false }),
+      row({ node: 'c1', depth: 1, isLeaf: true, plannedStart: '2026-01-05', plannedEnd: '2026-01-05' }),
+      row({ node: 'sibling', depth: 0, isLeaf: false }), // back to depth 0 — p's subtree ends here
+      row({ node: 'other', depth: 1, isLeaf: true, plannedStart: '2099-01-01', plannedEnd: '2099-01-01' }),
+    ];
+    expect(dateSpanOf(rows, 0)).toEqual({ start: '2026-01-05', end: '2026-01-05' });
+  });
+});
+
+describe('buildGanttModel planned metrics', () => {
+  // feat/a: assigned + scheduled + AGREED with an explicit frozenBudget=10 that
+  //   deliberately DIFFERS from its latestEstimate=4 — the plannedCost assertion
+  //   below only passes if the row reads the byNode PROJECTION (backend rollup),
+  //   not a frontend re-sum of latestEstimate. Agreed ⇒ schedulable, so the
+  //   leveler gives it a live predictedStart/predicted.
+  // feat/b: assigned + scheduled but NEVER agreed (latestEstimate=3, no
+  //   frozenBudget) ⇒ unschedulable (estimateState stays 'proposed'), so
+  //   predictedStart/predicted stay null and the leaf must fall back to its
+  //   frozenSlot.
+  const plannedEvents = (): Event[] => [
+    est('app', [{ node: 'feat' }]),
+    est('feat', [{ node: 'feat/a', estimate: 4 }, { node: 'feat/b', estimate: 3 }]),
+    schedule('feat/a', me, '2026-01-10'),
+    schedule('feat/b', ai, '2026-01-11'),
+    {
+      kind: 'transition',
+      ...stamp(),
+      actor: me,
+      node: 'feat/a',
+      machine: 'estimate-agreement',
+      to: 'agreed',
+      frozenBudget: 10,
+    },
+  ];
+  const buildPlanned = (events: Event[]) => {
+    const projected = fold(events);
+    const derived = derive(events, { asOf: '2026-01-01' });
+    const pc = computePlannedCost(projected);
+    return { projected, derived, pc, model: buildGanttModel(projected, derived, DEFAULT_ROW_FILTER, pc) };
+  };
+
+  it('plannedCost projects computePlannedCost byNode verbatim: leaf uses frozenBudget over latestEstimate, parent is the backend rollup', () => {
+    const { model } = buildPlanned(plannedEvents());
+    const byId = new Map(model.rows.map((r) => [r.node, r]));
+    expect(byId.get('feat/a')!.plannedCost).toBe(10); // frozenBudget (10) wins over latestEstimate (4)
+    expect(byId.get('feat/b')!.plannedCost).toBe(3); // unagreed leaf falls back to latestEstimate
+    // feat's rollup is 10+3=13 — NOT 4+3=7, the value a buggy Σ(latestEstimate)
+    // frontend re-implementation would produce.
+    expect(byId.get('feat')!.plannedCost).toBe(13);
+  });
+
+  it('plannedCost is null on every row when no PlannedCostResult is supplied (no silent frontend fallback sum)', () => {
+    const events = plannedEvents();
+    const projected = fold(events);
+    const derived = derive(events, { asOf: '2026-01-01' });
+    const model = buildGanttModel(projected, derived, DEFAULT_ROW_FILTER); // no 4th arg
+    expect(model.rows.length).toBeGreaterThan(0);
+    expect(model.rows.every((r) => r.plannedCost === null)).toBe(true);
+  });
+
+  it('leaf plannedStart: predictedStart (live forecast) wins over the frozenSlot fallback when both exist', () => {
+    const { model, derived } = buildPlanned(plannedEvents());
+    const a = model.rows.find((r) => r.node === 'feat/a')!;
+    const fc = derived.forecast.find((f) => f.node === 'feat/a')!;
+    expect(fc.predictedStart).not.toBeNull();
+    expect(a.plannedStart).toBe(fc.predictedStart);
+  });
+
+  it('leaf plannedStart falls back to (frozenSlot − nominalDurationDays) when predictedStart is null (unagreed ⇒ unschedulable)', () => {
+    const { model, derived } = buildPlanned(plannedEvents());
+    const b = model.rows.find((r) => r.node === 'feat/b')!;
+    const fc = derived.forecast.find((f) => f.node === 'feat/b')!;
+    expect(fc.predictedStart).toBeNull();
+    expect(fc.frozenSlot).toBe('2026-01-11');
+    expect(b.nominalDurationDays).toBe(3); // ceil(latestEstimate=3)
+    expect(b.plannedStart).toBe('2026-01-08'); // 01-11 minus 3 days
+  });
+
+  it('leaf plannedStart/plannedEnd are both null with no predictedStart/predicted/frozenSlot at all', () => {
+    const events: Event[] = [est('app3', [{ node: 'solo', estimate: 2 }])];
+    const { model } = buildPlanned(events);
+    const solo = model.rows.find((r) => r.node === 'solo')!;
+    expect(solo.plannedStart).toBeNull();
+    expect(solo.plannedEnd).toBeNull();
+  });
+
+  it('leaf plannedEnd: predicted (live forecast completion) wins over frozenSlot; falls back to frozenSlot when predicted is null', () => {
+    const { model } = buildPlanned(plannedEvents());
+    const byId = new Map(model.rows.map((r) => [r.node, r]));
+    expect(byId.get('feat/a')!.plannedEnd).toBe('2026-01-13'); // predicted, not frozenSlot 01-10
+    expect(byId.get('feat/b')!.plannedEnd).toBe('2026-01-11'); // predicted null → frozenSlot
+  });
+
+  it('parent plannedStart/plannedEnd is the min/max over descendants (dateSpanOf), reaching through a genuinely divergent predictedStart', () => {
+    // feat4/a and feat4/b share ONE human with a finish-to-start dependency, so
+    // the live leveler pushes feat4/b's predictedStart (01-14) well past its own
+    // frozenSlot (01-10, identical to feat4/a's) — this is the scenario that
+    // actually exercises the rollup pulling a value that is NOT just an echo of
+    // frozenSlot.
+    const events: Event[] = [
+      est('app4', [{ node: 'feat4' }]),
+      est('feat4', [{ node: 'feat4/a', estimate: 4 }, { node: 'feat4/b', estimate: 3 }]),
+      relate('feat4/a', 'feat4/b'),
+      schedule('feat4/a', me, '2026-01-10'),
+      schedule('feat4/b', me, '2026-01-10'),
+      {
+        kind: 'transition',
+        ...stamp(),
+        actor: me,
+        node: 'feat4/a',
+        machine: 'estimate-agreement',
+        to: 'agreed',
+        frozenBudget: 4,
+      },
+      {
+        kind: 'transition',
+        ...stamp(),
+        actor: me,
+        node: 'feat4/b',
+        machine: 'estimate-agreement',
+        to: 'agreed',
+        frozenBudget: 3,
+      },
+    ];
+    const { model, derived } = buildPlanned(events);
+    const fcB = derived.forecast.find((f) => f.node === 'feat4/b')!;
+    expect(fcB.predictedStart).toBe('2026-01-14'); // pinned: pushed past frozenSlot 01-10
+    const b = model.rows.find((r) => r.node === 'feat4/b')!;
+    expect(b.plannedStart).toBe('2026-01-14');
+    const parent = model.rows.find((r) => r.node === 'feat4')!;
+    expect(parent.plannedStart).toBe('2026-01-10'); // min(a=01-10, b=01-14)
+    expect(parent.plannedEnd).toBe('2026-01-16'); // max(a=01-13, b=01-16)
   });
 });

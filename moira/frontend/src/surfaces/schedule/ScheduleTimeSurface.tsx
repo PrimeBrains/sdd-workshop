@@ -17,14 +17,17 @@ import type { NodeId } from '../../moira/engine';
 type Kind = 'all' | 'human' | 'agent';
 
 export function ScheduleTimeSurface() {
-  const { projected, derived, asOf, criticalPath } = useMoira();
+  const { projected, derived, asOf, criticalPath, plannedCost } = useMoira();
   const [filter, setFilter] = useState<RowFilter>(DEFAULT_ROW_FILTER);
   const [selected, setSelected] = useState<NodeId | null>(null);
   const [showWeeks, setShowWeeks] = useState(true); // issue #28 — week gridlines (default on)
   const [showDays, setShowDays] = useState(false); // issue #28 — day gridlines (default off)
   const [showDeps, setShowDeps] = useState(false); // issue #29 — dependency lines (default off)
 
-  const model = useMemo(() => buildGanttModel(projected, derived, filter), [projected, derived, filter]);
+  const model = useMemo(
+    () => buildGanttModel(projected, derived, filter, plannedCost),
+    [projected, derived, filter, plannedCost],
+  );
   const options = useMemo(() => assigneeOptions(projected), [projected]);
 
   // P7 dependency longest chain (issue #16) — a read-only projection of the

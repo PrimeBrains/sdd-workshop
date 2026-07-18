@@ -7,7 +7,7 @@ import { existsSync, mkdirSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import ExcelJS from 'exceljs';
-import { CapacityStore, derive, fold } from 'moira-backend';
+import { CapacityStore, derive, fold, orgCalendarFallback } from 'moira-backend';
 import type { Actor, DeriveOptions, Event, LifecycleState } from 'moira-backend';
 import { parseActor } from './actors.js';
 import { writeWbsTemplate } from './xlsx/wbs-template.js';
@@ -46,7 +46,9 @@ import { realStamper } from './stamp.js';
 import {
   isIsoDate,
   type Member,
+  type MilestoneEntry,
   MoiraRepo,
+  resolveMilestones,
   resolveReferenceDates,
   type MoiraConfig,
   type ReferenceDateEntry,
@@ -121,11 +123,16 @@ function buildDeriveOptions(repo: MoiraRepo, asOf?: string, startDate?: string):
   const sd = startDate ?? cfg.startDate;
   if (sd !== undefined) opts.startDate = sd;
   const cap = repo.loadCapacity();
-  if (cap.length > 0) {
-    const store = new CapacityStore();
-    store.appendAll(cap);
-    opts.capacityOf = store.lookup();
-  }
+  const store = new CapacityStore();
+  store.appendAll(cap);
+  // Org calendar (issue #32): default-on — `orgCalendar.enabled` UNSET or `true`
+  // makes weekends + JP holidays fall back to 0 capacity instead of the blanket
+  // 1.0 default, so unspecified days never silently schedule work on
+  // non-working days. `store.lookup()` is always wired now (previously this
+  // branch was skipped entirely when capacity.json had zero entries, which
+  // meant "no capacity data at all" silently disabled the org calendar too).
+  const fallback = cfg.orgCalendar?.enabled !== false ? orgCalendarFallback({ warn: err }) : undefined;
+  opts.capacityOf = store.lookup(fallback);
   return opts;
 }
 
@@ -354,6 +361,115 @@ function cmdDeadline(rest: string[]): void {
     err(`warning: target (${cur.targetDate}) is after deadline (${cur.deadline}) — 構成エラー（R-T6）。バッファ/判定は N/A になります。`);
   }
   out(`deadline: ${cur.deadline ?? '(unset)'}   target: ${cur.targetDate ?? '(unset)'} [human commit]`);
+}
+
+// --- milestone commands (issue #35) -----------------------------------------
+//
+// A milestone is a NAME + a constituent node-id bundle only — no date, no
+// buffer (MODEL §7#12 explicitly deferred that; a milestone's "planned/
+// forecast end" is DERIVED, read via `moira report`, never a stored input
+// here). Same append-only/reason-stamped/timestamped/latest-ts-wins discipline
+// as `moira deadline`, but keyed per milestone name (store.ts resolveMilestones).
+
+function cmdMilestone(rest: string[]): void {
+  const sub = rest[0];
+  if (sub === 'set') return cmdMilestoneSet(rest.slice(1));
+  if (sub === 'remove') return cmdMilestoneRemove(rest.slice(1));
+  if (sub === undefined) return cmdMilestoneList(rest);
+  throw new CliError(
+    'usage: moira milestone [set <name> --nodes <id1,id2,...> [--reason ...] | remove <name> [--reason ...]]',
+  );
+}
+
+function cmdMilestoneList(rest: string[]): void {
+  parse(rest, {});
+  const repo = requireRepo();
+  const defs = resolveMilestones(repo.loadMilestoneEntries());
+  if (defs.length === 0) {
+    out('(no milestones yet — moira milestone set <name> --nodes <id1,id2,...>)');
+    return;
+  }
+  for (const m of defs) {
+    out(`  ${m.name}  (${m.nodes.length} nodes): [${m.nodes.join(', ')}]`);
+  }
+}
+
+function cmdMilestoneSet(rest: string[]): void {
+  const { values, positionals } = parse(rest, {
+    nodes: { type: 'string' },
+    reason: { type: 'string' },
+  });
+  const name = positionals[0];
+  const nodesStr = str(values.nodes);
+  if (name === undefined || nodesStr === undefined) {
+    throw new CliError('usage: moira milestone set <name> --nodes <id1,id2,...> [--reason ...]');
+  }
+  const nodes = nodesStr
+    .split(',')
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+  if (nodes.length === 0) {
+    throw new CliError(
+      'moira milestone set requires at least one node id in --nodes（解散は `moira milestone remove` を使う）',
+    );
+  }
+
+  const repo = requireRepo();
+  // Node-existence check is advisory only (a warning, not a reject): the
+  // milestone bundle can legitimately reference a node the log doesn't know
+  // about yet (typo OR not-yet-decomposed) — same "warn, human decides"
+  // discipline as R-T6's target>deadline check in cmdDeadline.
+  const state = fold(repo.loadEvents());
+  const unknown = nodes.filter((id) => !state.nodes.has(id));
+  if (unknown.length > 0) {
+    err(`warning: イベントログに現れないノード id: [${unknown.join(', ')}]`);
+  }
+
+  const reason = str(values.reason) ?? 'moira milestone set';
+  const entry: MilestoneEntry = { milestone: name, nodes, reason, ts: realStamper()().ts };
+  repo.appendMilestoneEntries([entry]);
+  out(`+ milestone ${name}  (${nodes.length} nodes): [${nodes.join(', ')}] [human commit]`);
+}
+
+function cmdMilestoneRemove(rest: string[]): void {
+  const { values, positionals } = parse(rest, { reason: { type: 'string' } });
+  const name = positionals[0];
+  if (name === undefined) {
+    throw new CliError('usage: moira milestone remove <name> [--reason ...]');
+  }
+  const repo = requireRepo();
+  const reason = str(values.reason) ?? 'moira milestone remove';
+  const entry: MilestoneEntry = { milestone: name, nodes: [], reason, ts: realStamper()().ts };
+  repo.appendMilestoneEntries([entry]);
+  out(`- milestone ${name} 解散 [human commit]`);
+}
+
+// --- config commands --------------------------------------------------------
+
+function cmdConfig(rest: string[]): void {
+  const sub = rest[0];
+  if (sub === 'org-calendar') return cmdConfigOrgCalendar(rest.slice(1));
+  throw new CliError('usage: moira config org-calendar [on|off]');
+}
+
+/** Toggle the org calendar (weekends + JP holidays) capacity fallback (issue
+ *  #32). Read-only with no arg (shows the current, default-on resolution);
+ *  `on`/`off` persists the choice into config.json's `orgCalendar.enabled`
+ *  (a plain config field, not an append-only history — unlike deadline/target). */
+function cmdConfigOrgCalendar(rest: string[]): void {
+  const repo = requireRepo();
+  const cfg = repo.loadConfig();
+  const arg = rest[0];
+  if (arg === undefined) {
+    const enabled = cfg.orgCalendar?.enabled !== false;
+    out(`org-calendar: ${enabled ? 'on' : 'off'}${cfg.orgCalendar === undefined ? ' (既定)' : ''}`);
+    return;
+  }
+  if (arg !== 'on' && arg !== 'off') {
+    throw new CliError('usage: moira config org-calendar [on|off]');
+  }
+  repo.writeConfig({ ...cfg, orgCalendar: { enabled: arg === 'on' } });
+  out(`org-calendar: ${arg}`);
 }
 
 // --- roster (members) commands --------------------------------------------
@@ -651,6 +767,7 @@ function cmdReport(rest: string[]): void {
     ...(deriveOpts.capacityOf !== undefined ? { capacityOf: deriveOpts.capacityOf } : {}),
     ...(deriveOpts.startDate !== undefined ? { startDate: deriveOpts.startDate } : {}),
     dates: resolveReferenceDates(repo.loadDateEntries()),
+    milestones: resolveMilestones(repo.loadMilestoneEntries()),
   });
 
   const asJson = values.json === true;
@@ -705,7 +822,7 @@ function cmdLog(rest: string[]): void {
  * Uniform asOf: --asOf flag > max(config.asOf across loadable homes) > today —
  * all projects derive at the SAME asOf for comparability.
  */
-function buildPortfolioFixture(portfolioPath: string, asOfFlag?: string): PortfolioUiFixture {
+export function buildPortfolioFixture(portfolioPath: string, asOfFlag?: string): PortfolioUiFixture {
   const cfg = loadPortfolioConfig(portfolioPath);
   const entries = resolvePortfolioEntries(cfg, portfolioPath);
   const projects: PortfolioUiProject[] = [];
@@ -740,6 +857,11 @@ function buildPortfolioFixture(portfolioPath: string, asOfFlag?: string): Portfo
         members: repo.loadMembers(),
         ...(dates.deadline !== undefined ? { deadline: dates.deadline } : {}),
         ...(dates.targetDate !== undefined ? { targetDate: dates.targetDate } : {}),
+        // Issue #32 portfolio wiring: EACH home's own config.json decides its own
+        // org-calendar fallback — independent of the other homes in the
+        // portfolio, same `!== false` default-on discipline as single-project
+        // `moira ui` (commands.ts:863).
+        orgCalendarEnabled: homeCfg.orgCalendar?.enabled !== false,
       });
     } catch (e2) {
       projects.push({
@@ -827,6 +949,7 @@ async function cmdUi(rest: string[]): Promise<void> {
       me: cfg.me,
       ...(dates.deadline !== undefined ? { deadline: dates.deadline } : {}),
       ...(dates.targetDate !== undefined ? { targetDate: dates.targetDate } : {}),
+      orgCalendarEnabled: cfg.orgCalendar?.enabled !== false,
       live: true,
     };
   };
@@ -902,6 +1025,13 @@ usage: moira [--dir <log-home>] <command> ...
   moira relate <from> <to> [--kind dependency|supersede] [--policy ...] [--remove]
   moira capacity <who> <YYYY-MM-DD> <c> [--reason ...]   (human commit)
   moira deadline [<YYYY-MM-DD>] [--target <YYYY-MM-DD>] [--reason ...]   (human commit: R-T6)
+  moira milestone                                        (list resolved milestones)
+  moira milestone set <name> --nodes <id1,id2,...> [--reason ...]   (human commit: define/redefine)
+  moira milestone remove <name> [--reason ...]           (human commit: 解散 — nodes を空で追記)
+    マイルストーン = 名前 + 構成ノード id 束のみ（期日・バッファは持たない — MODEL §7#12）。
+    EVM・着地予測・ボトルネックは moira report の「マイルストーン別」節で読む。
+  moira config org-calendar [on|off]
+    土日・日本の祝日を c(i,d) の既定フォールバックにするか（issue #32、既定 on）。引数なしで現在値を表示。
   moira member add <id> --label <name> [--capacity <0..1>] [--kind human|agent]   (roster upsert)
   moira member list                                     (show the roster)
   moira template wbs|members [--out <file.xlsx>]         (blank workbook for bulk import)
@@ -971,6 +1101,10 @@ export async function runCli(argv: string[]): Promise<void> {
       return cmdCapacity(rest);
     case 'deadline':
       return cmdDeadline(rest);
+    case 'milestone':
+      return cmdMilestone(rest);
+    case 'config':
+      return cmdConfig(rest);
     case 'member':
       return cmdMember(rest);
     case 'template':

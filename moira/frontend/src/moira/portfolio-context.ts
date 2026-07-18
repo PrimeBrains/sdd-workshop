@@ -31,6 +31,12 @@ export interface PortfolioProjectFixture {
   members?: readonly RosterMember[];
   deadline?: IsoDate;
   targetDate?: IsoDate;
+  /** org calendar (weekends + JP holidays) c(i,d) fallback (issue #32) — from
+   *  THIS project's OWN `.moira/config.json` `orgCalendar.enabled`. Each home in
+   *  a portfolio carries its own independent setting (never a portfolio-wide
+   *  toggle). UNSET/absent → enabled (default-on), same `!== false` discipline
+   *  as the single-project fixture (store.tsx `initialOrgCalendarEnabled`). */
+  orgCalendarEnabled?: boolean;
   /** Why this home could not be read. When set, the data fields are ignored. */
   loadError?: string;
 }
@@ -55,6 +61,12 @@ export interface PortfolioProjectData {
   members: readonly RosterMember[];
   deadline: IsoDate | null;
   targetDate: IsoDate | null;
+  /** org calendar (weekends + JP holidays) c(i,d) fallback (issue #32) — the RAW
+   *  value from this project's own fixture slice, passed through unresolved so a
+   *  drill-down `MoiraProvider` can apply the SAME `!== false` discipline itself
+   *  (store.tsx `initialOrgCalendarEnabled`) rather than re-deriving a boolean
+   *  here that could drift from that discipline. UNSET/absent → enabled. */
+  orgCalendarEnabled?: boolean;
   derived: DerivedState;
   projected: ProjectedState;
   landing: LandingCurve;

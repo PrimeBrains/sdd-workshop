@@ -44,12 +44,47 @@ describe('golden: tiny-project at asOf 2026-01-28', () => {
   });
 
   it('derives the live forecast (distinct from frozen slots — PMB vs EAC, MODEL:203)', () => {
+    // predictedStart (issue #34c): alice works req-F 01-05..08 then design-F
+    // 01-09..14 back to back (no gap, no skip → predictedStart == dependency
+    // start for both). bob's earliest-start for BOTH impl-1 and impl-2 is
+    // 01-15 (the day after design-F's 01-14 completion, their only
+    // predecessor) but the leveler processes impl-1 first (higher critical-
+    // path rank: ceil(8) > ceil(6)) and fully consumes bob's 01-15..01-22
+    // capacity; impl-2's greedy loop therefore SKIPS those 8 already-
+    // saturated days and only starts consuming capacity on 01-23 — the
+    // motivating skip case for predictedStart (dependency start 01-15 would
+    // have been dishonest).
     expect(d.forecast).toEqual([
-      { node: 'design-F', predictedCompletion: '2026-01-14', frozenSlot: '2026-01-13' },
-      { node: 'impl-1', predictedCompletion: '2026-01-22', frozenSlot: '2026-01-27' },
-      { node: 'impl-2', predictedCompletion: '2026-01-28', frozenSlot: '2026-01-31' },
-      { node: 'req-F', predictedCompletion: '2026-01-08', frozenSlot: '2026-01-05' },
-      { node: 'tasks-F', predictedCompletion: '2026-01-16', frozenSlot: '2026-01-15' },
+      {
+        node: 'design-F',
+        predictedCompletion: '2026-01-14',
+        predictedStart: '2026-01-09',
+        frozenSlot: '2026-01-13',
+      },
+      {
+        node: 'impl-1',
+        predictedCompletion: '2026-01-22',
+        predictedStart: '2026-01-15',
+        frozenSlot: '2026-01-27',
+      },
+      {
+        node: 'impl-2',
+        predictedCompletion: '2026-01-28',
+        predictedStart: '2026-01-23',
+        frozenSlot: '2026-01-31',
+      },
+      {
+        node: 'req-F',
+        predictedCompletion: '2026-01-08',
+        predictedStart: '2026-01-05',
+        frozenSlot: '2026-01-05',
+      },
+      {
+        node: 'tasks-F',
+        predictedCompletion: '2026-01-16',
+        predictedStart: '2026-01-15',
+        frozenSlot: '2026-01-15',
+      },
     ]);
   });
 

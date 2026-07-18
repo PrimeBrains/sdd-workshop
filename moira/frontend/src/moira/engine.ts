@@ -11,7 +11,12 @@ import { computeCriticalPath } from '@backend/derivations/critical-path.js';
 import type { CriticalPath } from '@backend/derivations/critical-path.js';
 import { computeLandingCurve } from '@backend/derivations/landing.js';
 import type { LandingCurve, LandingOptions, LandingPoint } from '@backend/derivations/landing.js';
+import { computePlannedCost } from '@backend/derivations/planned-cost.js';
+import type { PlannedCostResult, PlannedCostRow } from '@backend/derivations/planned-cost.js';
 import { fold } from '@backend/fold.js';
+import { nominalDurationDays } from '@backend/leveler.js';
+import { isBusinessDay, isWeekend, orgCalendarFallback } from '@backend/org-calendar.js';
+import type { BusinessDayOptions } from '@backend/org-calendar.js';
 import { tinyProjectEvents, TINY_AS_OF } from '@backend/fixtures/tiny-project.js';
 import type {
   AcRow,
@@ -34,8 +39,28 @@ import type {
   SupersedeEdge,
 } from '@backend/types';
 
-export { computeCriticalPath, computeLandingCurve, derive, fold, tinyProjectEvents, TINY_AS_OF };
-export type { CriticalPath, LandingCurve, LandingOptions, LandingPoint };
+export {
+  computeCriticalPath,
+  computeLandingCurve,
+  computePlannedCost,
+  derive,
+  fold,
+  isBusinessDay,
+  isWeekend,
+  nominalDurationDays,
+  orgCalendarFallback,
+  tinyProjectEvents,
+  TINY_AS_OF,
+};
+export type {
+  BusinessDayOptions,
+  CriticalPath,
+  LandingCurve,
+  LandingOptions,
+  LandingPoint,
+  PlannedCostResult,
+  PlannedCostRow,
+};
 export type {
   AcRow,
   ActivityRow,

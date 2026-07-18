@@ -36,6 +36,10 @@ interface MoiraFixture {
   /** R-T6 reference dates (issue #13) — latest-wins-resolved by the CLI. */
   deadline?: IsoDate;
   targetDate?: IsoDate;
+  /** org calendar (weekends + JP holidays) as the c(i,d) fallback (issue #32),
+   *  from `.moira/config.json` `orgCalendar.enabled`. Absent → enabled
+   *  (default-on), same `!== false` discipline as the CLI. */
+  orgCalendarEnabled?: boolean;
   /** set only by the `moira ui` CLI server — mounts the SSE live bridge. */
   live?: boolean;
   /** portfolio mode (issue #23, `moira ui --portfolio`): N homes juxtaposed
@@ -78,6 +82,7 @@ if (fixture?.portfolio !== undefined) {
   const initialDeadline = fixture?.deadline ?? null;
   const initialTargetDate = fixture?.targetDate ?? null;
   const initialMe = fixture?.me ?? null;
+  const initialOrgCalendarEnabled = fixture?.orgCalendarEnabled;
 
   // When ANY fixture is present a real project (or a scenario) is connected: install
   // its labels + roster and flip fixtureMode so the demo roster/labels are bypassed.
@@ -97,6 +102,7 @@ if (fixture?.portfolio !== undefined) {
         initialDeadline={initialDeadline}
         initialTargetDate={initialTargetDate}
         initialMe={initialMe}
+        initialOrgCalendarEnabled={initialOrgCalendarEnabled}
       >
         {fixture?.live === true && <LiveFixtureBridge initialAsOf={initialAsOf} />}
         <App />

@@ -15,6 +15,12 @@ export {
   computeFeatureRollup,
   type FeatureRollupRow,
 } from './derivations/feature-rollup.js';
+export {
+  computeMilestoneRollup,
+  type MilestoneDefinition,
+  type MilestoneRollupOptions,
+  type MilestoneRollupRow,
+} from './derivations/milestone-rollup.js';
 export { fold } from './fold.js';
 export { EventStore, sortEvents } from './event-store.js';
 export {
@@ -22,6 +28,21 @@ export {
   DEFAULT_CAPACITY,
   defaultCapacityLookup,
 } from './capacity-store.js';
+export {
+  isWeekend,
+  isBusinessDay,
+  orgCalendarFallback,
+  JP_HOLIDAYS,
+  JP_HOLIDAYS_FROM,
+  JP_HOLIDAYS_TO,
+  type BusinessDayOptions,
+} from './org-calendar.js';
+export { nominalDurationDays } from './leveler.js';
+export {
+  computePlannedCost,
+  type PlannedCostResult,
+  type PlannedCostRow,
+} from './derivations/planned-cost.js';
 
 export type {
   // identifiers
