@@ -107,6 +107,9 @@ export interface ReportJson {
   };
   series: ReportMetrics[];
   structuralErrors: string[];
+  /** Retroactive-append warning (issue #36) — null in normal operation
+   *  (honest silence); see buildRetroactiveWarning. */
+  retroactive: RetroactiveWarning | null;
 }
 
 // --- as-of prefix (TE03) ------------------------------------------------------
@@ -118,6 +121,187 @@ function tsDay(ts: number): IsoDate {
 
 function prefixByDay(sorted: readonly Event[], day: IsoDate): Event[] {
   return sorted.filter((e) => tsDay(e.ts) <= day);
+}
+
+// --- retroactive-append detection (issue #36) --------------------------------
+//
+// events.json's PHYSICAL order is NOT append order: every commit path
+// (cli/src/store.ts appendEvents → backend EventStore.saveJson) fully
+// re-sorts by (ts,id) on save (backend/src/event-store.ts saveJson calls
+// all() == sortEvents()), so by the time `report` re-reads the file, any
+// append-order signal has already collapsed into (ts,id) order for events
+// that passed through a normal `moira ...` write. Two complementary signals
+// remain, and they are evaluated INDEPENDENTLY (OR, not either/or per event
+// — issue #37-review item 2): a genuine realStamper id does not immunize an
+// event against ALSO having been physically spliced out of order by a hand
+// edit, so both checks always run and either one flags the record (no double
+// counting — each event contributes at most one flagged entry):
+//
+//  1. The event id itself. realStamper (cli/src/stamp.ts) derives id as
+//     `${ts.toString(36)}-${seq}-${rand}` from the SAME wall-clock instant it
+//     hands out as `ts` — EXCEPT when a caller backdates `ts` afterward while
+//     leaving the id untouched (WBS import's `at()` helper, issue #24's
+//     ts-anchoring: `{ id: s.id, ts: epoch(actualDate) }`). Decoding the id's
+//     prefix recovers the moment the event was actually appended,
+//     independent of the (possibly backdated) `ts` field — a mismatch
+//     (appended later than the ts it claims) is a retroactive record. This
+//     is the mechanism that actually fires for real `moira import wbs` runs,
+//     since the resort above erases the physical-position signal before
+//     `report` ever sees the file.
+//  2. Regardless of whether signal 1 fired, we ALSO scan the RAW on-disk
+//     order buildReport is handed (the `events` param, BEFORE sortEvents()
+//     below normalizes it): a running-(ts,id)-max scan over that order
+//     catches an entry sitting behind an already-newer one — i.e. physically
+//     spliced in out of chronological order. This is the only signal
+//     available for ids that don't match the realStamper shape (hand-edited
+//     events.json rows, a caller's own stamper — including this file's own
+//     tests), but it also catches a realStamper-shaped id whose ROW was
+//     physically moved without touching its ts/id (signal 1 alone would miss
+//     that, since appendTs == ts for such a row).
+//
+// Either signal, once found, is judged against the SAME (ts,id) semantics
+// fold already uses (I3/R-D5) — no new event kind or stored field (D-66).
+//
+// A THIRD refinement (issue #37-review item 1) governs whether a flagged
+// record is still WARNING-worthy today, independent of the above detection:
+// see the `gateAppendTs` field and buildRetroactiveWarning below.
+
+const REAL_STAMP_ID_RE = /^([0-9a-z]+)-\d{6}-[0-9a-z]{4}$/;
+
+/** Wall-clock append instant encoded in a realStamper-shaped id, or null if
+ *  the id doesn't match that shape — no signal, so no verdict (avoids false
+ *  positives on ids we can't interpret). */
+function decodeAppendTs(id: string): number | null {
+  const m = REAL_STAMP_ID_RE.exec(id);
+  const ts36 = m?.[1];
+  if (ts36 === undefined) return null;
+  const decoded = Number.parseInt(ts36, 36);
+  return Number.isFinite(decoded) ? decoded : null;
+}
+
+/** Deterministic (ts,id) comparator — the SAME total order sortEvents uses. */
+function cmpTsId(a: Event, b: Event): number {
+  if (a.ts !== b.ts) return a.ts - b.ts;
+  return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+}
+
+/** The event's subject node — same per-kind rule as the backend's activity
+ *  log projection (decompose→parent, relate→to, transition/cost→node). */
+function eventNode(e: Event): NodeId | null {
+  switch (e.kind) {
+    case 'decompose':
+      return e.parent;
+    case 'relate':
+      return e.to;
+    case 'transition':
+    case 'cost':
+      return e.node;
+    default:
+      return null;
+  }
+}
+
+interface RetroactiveEvent {
+  ts: number;
+  node: NodeId | null;
+  /**
+   * The wall-clock append instant, but ONLY when signal 1 (id-decode) is what
+   * flagged this record — null otherwise (id undecodable, or flagged solely
+   * via signal 2's physical-order scan). buildRetroactiveWarning uses this to
+   * decide whether a record is still warning-worthy TODAY (issue #37-review
+   * item 1): an id-decoded record already appended before `prev` was already
+   * folded into an earlier report and should stop nagging; a physical-order-
+   * only detection has no known append time, so it keeps warning forever
+   * (the accepted fallback — see the file-header comment above).
+   */
+  gateAppendTs: number | null;
+}
+
+/** Scan the RAW (as-loaded) event order and flag every retroactively-appended
+ *  event, via EITHER of the two signals above (independently — see the
+ *  file-header comment; issue #37-review item 2). */
+function findRetroactiveEvents(rawEvents: readonly Event[]): RetroactiveEvent[] {
+  const flagged: RetroactiveEvent[] = [];
+  let runningMax: Event | undefined;
+  for (const e of rawEvents) {
+    const appendTs = decodeAppendTs(e.id);
+    const idRetroactive = appendTs !== null && appendTs > e.ts;
+    const physicallyRetroactive =
+      runningMax !== undefined && cmpTsId(e, runningMax) < 0;
+    if (idRetroactive || physicallyRetroactive) {
+      flagged.push({
+        ts: e.ts,
+        node: eventNode(e),
+        gateAppendTs: appendTs !== null && idRetroactive ? appendTs : null,
+      });
+    }
+    if (runningMax === undefined || cmpTsId(e, runningMax) > 0) runningMax = e;
+  }
+  return flagged;
+}
+
+const RETROACTIVE_NODE_DISPLAY_LIMIT = 5;
+
+export interface RetroactiveWarning {
+  /** Retroactive records whose (semantic, possibly backdated) ts falls on or
+   *  before `prev` — the ones that actually rewrite a day the reader already
+   *  compared against — AND (issue #37-review item 1) still warning-worthy
+   *  today: an id-decoded record whose append itself happened on or before
+   *  `prev` was already folded into an earlier report and is excluded here,
+   *  even though it still counts in findRetroactiveEvents. See
+   *  buildRetroactiveWarning's docstring for the exact gate. */
+  count: number;
+  /** Oldest offending ts (epoch ms) among those records. */
+  oldestTs: number;
+  /** Up to RETROACTIVE_NODE_DISPLAY_LIMIT distinct subject nodes touched, in
+   *  first-seen order. */
+  nodes: NodeId[];
+  /** Remaining distinct nodes beyond `nodes`, 0 if none. */
+  moreNodesCount: number;
+}
+
+/**
+ * `null` when nothing is retroactive-into-the-already-reported-past — normal
+ * operation stays silent (no warning fabricated where there is nothing to
+ * warn about). A retroactive record ts'd AFTER `prev` doesn't change the Δ
+ * already reported, so it is excluded here (still counted by
+ * findRetroactiveEvents, just not warning-worthy).
+ *
+ * issue #37-review item 1: an id-decoded record (gateAppendTs !== null) is
+ * ALSO excluded once its append itself is no longer new — i.e. once the
+ * append happened on or before `prev`, it was already folded into an earlier
+ * report's Δ, and re-warning on it every single day thereafter would be a
+ * permanent false alarm on old, already-digested history (the exact defect
+ * this fix closes). Records with no known append time (gateAppendTs === null
+ * — undecodable id, or a physical-order-only detection) have no such gate:
+ * they keep warning until the underlying record is fixed, per the accepted
+ * fallback documented at findRetroactiveEvents/RetroactiveEvent above.
+ */
+function buildRetroactiveWarning(
+  rawEvents: readonly Event[],
+  prev: IsoDate,
+): RetroactiveWarning | null {
+  const relevant = findRetroactiveEvents(rawEvents).filter((e) => {
+    if (tsDay(e.ts) > prev) return false;
+    if (e.gateAppendTs !== null) return tsDay(e.gateAppendTs) > prev;
+    return true;
+  });
+  if (relevant.length === 0) return null;
+
+  const nodesSeen = new Set<NodeId>();
+  const nodes: NodeId[] = [];
+  for (const e of relevant) {
+    if (e.node === null || nodesSeen.has(e.node)) continue;
+    nodesSeen.add(e.node);
+    if (nodes.length < RETROACTIVE_NODE_DISPLAY_LIMIT) nodes.push(e.node);
+  }
+
+  return {
+    count: relevant.length,
+    oldestTs: Math.min(...relevant.map((e) => e.ts)),
+    nodes,
+    moreNodesCount: Math.max(0, nodesSeen.size - nodes.length),
+  };
 }
 
 // --- build --------------------------------------------------------------------
@@ -232,6 +416,7 @@ export function buildReport(events: readonly Event[], opts: ReportOptions): Repo
     },
     series,
     structuralErrors: now.structuralErrors,
+    retroactive: buildRetroactiveWarning(events, opts.prev),
   };
 }
 
@@ -281,6 +466,15 @@ export function formatReportText(
     `  ΔEV_abs ${sign(r.delta.evAbs)} | ΔEV% ${pctSigned(r.delta.evPercent)} | ΔPV ${sign(r.delta.pv)} | ΔAC ${sign(r.delta.ac)}`,
     `  SPI ${fmt(r.prevMetrics.spi)} → ${fmt(r.now.spi)} | CPI ${fmt(r.prevMetrics.cpi)} → ${fmt(r.now.cpi)}`,
   ];
+
+  if (r.retroactive !== null) {
+    const shown = r.retroactive.nodes.map(name).join(', ');
+    const more = r.retroactive.moreNodesCount > 0 ? ` (+他${r.retroactive.moreNodesCount}件)` : '';
+    lines.push(
+      `  ⚠ 遡及記録 ${r.retroactive.count} 件（前回営業日以前の日付への追記あり — Δ は書き換わった過去との比較）`,
+      `    対象: ${shown === '' ? '(不明)' : shown}${more} | 最古の遡及日付: ${tsDay(r.retroactive.oldestTs)}`,
+    );
+  }
 
   lines.push('', `## 期間の出来事（${r.activity.length}件）`);
   if (r.activity.length === 0) {

@@ -159,10 +159,128 @@ describe('buildReport', () => {
     expect(empty.landing.deadline).toBeNull();
     expect(empty.landing.daysLate).toBeNull();
     expect(empty.structuralErrors).toEqual([]);
+    expect(empty.retroactive).toBeNull();
   });
 
   it('milestones default to [] when opts.milestones is omitted (existing calls stay unaffected)', () => {
     expect(r.milestones).toEqual([]);
+  });
+
+  it('a clean append-only log with no reversal → retroactive is null (honest silence)', () => {
+    expect(r.retroactive).toBeNull();
+  });
+});
+
+describe('buildReport retroactive-append detection (issue #36)', () => {
+  // events.json's on-disk order is always fully re-sorted by (ts,id) on save
+  // (backend EventStore.saveJson), so the ONLY way a real `moira` write path
+  // can still show up as "physically out of order" by the time report reads
+  // it is via a hand-edited events.json — hence this test constructs the RAW
+  // array directly, out of (ts,id) order, exactly as such a hand edit would.
+  it('an event appended AFTER the log with a ts predating a business day already reported (prev) → warning with count + node', () => {
+    const events = weekLog();
+    events.push({
+      kind: 'cost',
+      id: 'e999', // physically last, but...
+      ts: Date.parse('2026-07-01T12:00:00.000Z'), // ...ts predates every event already in the array
+      actor: h1,
+      node: 'a',
+      amount: 1,
+    });
+    const r = buildReport(events, OPTS); // OPTS.prev = '2026-07-03'
+    expect(r.retroactive).not.toBeNull();
+    expect(r.retroactive!.count).toBe(1);
+    expect(r.retroactive!.nodes).toEqual(['a']);
+    expect(r.retroactive!.oldestTs).toBe(Date.parse('2026-07-01T12:00:00.000Z'));
+    expect(r.retroactive!.moreNodesCount).toBe(0);
+  });
+
+  it('an out-of-order append whose ts is NEWER than prev → no warning (nothing in the already-reported window changed)', () => {
+    const events = weekLog();
+    events.push({
+      kind: 'cost',
+      id: 'e000', // sorts before everything already appended — still a physical reversal...
+      ts: Date.parse('2026-07-06T08:00:00.000Z'), // ...but its ts (07-06) is after prev (07-03)
+      actor: h1,
+      node: 'c',
+      amount: 1,
+    });
+    const r = buildReport(events, OPTS);
+    expect(r.retroactive).toBeNull();
+  });
+
+  it('an id-decoded retroactive record appended BEFORE prev (already reported) → no warning (no permanent false alarm, issue #37-review item 1)', () => {
+    // realStamper-shaped id: appended 07-01, but its ts is backdated onto
+    // 06-30 (before the append day) — a genuine retroactive record by the
+    // id-decode signal. Crucially, the APPEND itself (07-01) is on or before
+    // `prev` (07-03): a report already run on/after 07-01 would already have
+    // folded this record's effect into its Δ, so warning about it again on
+    // every subsequent report (as the pre-fix code did, since it only
+    // compared appendTs > e.ts and never checked appendTs against prev)
+    // would be a stale, permanent false alarm.
+    const appendTs = Date.parse('2026-07-01T12:00:00.000Z');
+    const claimedTs = Date.parse('2026-06-30T12:00:00.000Z');
+    const anchored: Event = {
+      kind: 'cost',
+      id: `${appendTs.toString(36)}-000001-abcd`,
+      ts: claimedTs,
+      actor: h1,
+      node: 'a',
+      amount: 1,
+    };
+    const events = [anchored, ...weekLog()];
+    const r = buildReport(events, OPTS); // OPTS.prev = '2026-07-03', after the 07-01 append
+    expect(r.retroactive).toBeNull();
+  });
+
+  it('a realStamper-shaped id moved PHYSICALLY out of order (no backdating) is STILL caught, via the independent physical-order signal (issue #37-review item 2)', () => {
+    // The id's embedded instant matches its own ts exactly (no backdating —
+    // the id-decode signal alone would find nothing retroactive here), but
+    // the event is spliced in physically BEHIND already-newer events, i.e.
+    // exactly what a hand edit that moved an existing (legitimately-id'd) row
+    // further down the file would produce. Before the fix, realStamper-shaped
+    // ids were judged EXCLUSIVELY by the id signal, so this case slipped
+    // through undetected; the two signals must be evaluated independently.
+    const ts = Date.parse('2026-07-01T09:00:00.000Z');
+    const moved: Event = {
+      kind: 'cost',
+      id: `${ts.toString(36)}-000001-abcd`, // decodes to the SAME ts — not backdated
+      ts,
+      actor: h1,
+      node: 'a',
+      amount: 1,
+    };
+    const events = [...weekLog(), moved]; // physically LAST, chronologically EARLIEST
+    const r = buildReport(events, OPTS); // OPTS.prev = '2026-07-03'
+    expect(r.retroactive).not.toBeNull();
+    expect(r.retroactive!.count).toBe(1);
+    expect(r.retroactive!.nodes).toEqual(['a']);
+  });
+
+  it('a ts-anchored event (WBS import style, issue #24) is caught by id-decode alone, even in chronologically-correct physical position', () => {
+    // realStamper-shaped id (cli/src/stamp.ts): `${ts.toString(36)}-${seq6}-${rand4}`.
+    // The id's embedded instant is when the event was actually appended; here
+    // it is FAR after asOf, while the event's own `ts` is backdated onto
+    // 07-01 (like WBS import's `at()` helper backdates actuals) — the exact
+    // shape a real `moira import wbs` run with 実績開始日=07-01 produces.
+    const realAppendTs = Date.parse('2026-07-10T09:00:00.000Z');
+    const claimedTs = Date.parse('2026-07-01T12:00:00.000Z');
+    const anchored: Event = {
+      kind: 'cost',
+      id: `${realAppendTs.toString(36)}-000001-abcd`,
+      ts: claimedTs,
+      actor: h1,
+      node: 'b',
+      amount: 1,
+    };
+    // Placed at the FRONT — the chronologically-correct physical position for
+    // its (backdated) ts, so the physical-order fallback would NOT flag it;
+    // only decoding the id catches this one.
+    const events = [anchored, ...weekLog()];
+    const r = buildReport(events, OPTS);
+    expect(r.retroactive).not.toBeNull();
+    expect(r.retroactive!.nodes).toContain('b');
+    expect(r.retroactive!.oldestTs).toBe(claimedTs);
   });
 });
 
@@ -254,6 +372,34 @@ describe('formatReportText', () => {
 
   it('omits the "## マイルストーン別" section entirely when no milestone is defined', () => {
     expect(text).not.toContain('## マイルストーン別');
+  });
+
+  it('a normal report (no retroactive appends) never mentions 遡及 (honest silence)', () => {
+    expect(text).not.toContain('遡及');
+  });
+});
+
+describe('formatReportText retroactive-append warning (issue #36)', () => {
+  it('renders the ⚠ 遡及記録 line right after the 前回比 Δ section, with count/node label/oldest date', () => {
+    const events = weekLog();
+    events.push({
+      kind: 'cost',
+      id: 'e999',
+      ts: Date.parse('2026-07-01T12:00:00.000Z'),
+      actor: h1,
+      node: 'a',
+      amount: 1,
+    });
+    const r = buildReport(events, OPTS);
+    const text = formatReportText(r, (id) => (id === 'a' ? 'タスクA' : id), 'demo');
+    const lines = text.split('\n');
+    const deltaHeaderIdx = lines.findIndex((l) => l.startsWith('## 前回比 Δ'));
+    const warnIdx = lines.findIndex((l) => l.includes('⚠ 遡及記録'));
+    expect(warnIdx).toBeGreaterThan(deltaHeaderIdx);
+    expect(lines[warnIdx]).toContain('⚠ 遡及記録 1 件');
+    expect(lines[warnIdx]).toContain('前回営業日以前の日付への追記あり');
+    expect(lines[warnIdx + 1]).toContain('タスクA (a)');
+    expect(lines[warnIdx + 1]).toContain('最古の遡及日付: 2026-07-01');
   });
 });
 
