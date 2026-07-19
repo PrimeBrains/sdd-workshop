@@ -9,7 +9,7 @@ issue: 43
 
 | 行 ID | 波及先成果物（パス） | クラス | 根拠 | 担当ゲート | 期待 postcondition | 検証器 | 状態 | 証跡 |
 |---|---|---|---|---|---|---|---|---|
-| R1 | moira/README.md | F | 変更対象そのもの（M 級所有物以外の一般確定文書）。トレース機構の逆引き（DECISIONS-CATALOG 裏面 ref grep・PROPERTIES 被覆・SPEC_META・coverage-check 被覆定義）に moira/README.md へのヒットなし＝他成果物への波及なし | doc-refine | 「このワークスペースの磨き方」節末尾に変更管理フロー入口案内の小節（issue 正規化→moira-change・軽量は triage 不起動・規範は steering）が追記され、既存記述は不変。doc-refine 確定ゲート PASS | doc-refine ゲート（doc-adversary＋codex＋doc-gate-judge） | 未了 | — |
+| R1 | moira/README.md | F | 変更対象そのもの（M 級所有物以外の一般確定文書）。トレース機構の逆引き（DECISIONS-CATALOG 裏面 ref grep・PROPERTIES 被覆・SPEC_META・coverage-check 被覆定義）に moira/README.md へのヒットなし＝他成果物への波及なし | doc-refine | 「このワークスペースの磨き方」節末尾に変更管理フロー入口案内の小節（issue 正規化→moira-change・軽量は triage 不起動・規範は steering）が追記され、既存記述は不変。doc-refine 確定ゲート PASS | doc-refine ゲート（doc-adversary＋codex＋doc-gate-judge） | resolved | doc-gate-judge PASS（2026-07-20・INTENT_CONFORMANCE ALIGNED）＋コミット 0d77261。closure-report.md 参照 |
 
 ## 人間断面ビュー
 
