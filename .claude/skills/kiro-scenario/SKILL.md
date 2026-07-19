@@ -5,8 +5,9 @@ description: >
   参照実装）へ接地し、受け入れシナリオ単位（.kiro/scenarios/units/{slug}.md）として描き起こして、
   独立敵対者による falsifiable な検証ループを通してから draft→agreed に確定するスキル。
   「受け入れシナリオを書く」「シナリオを検証ループにかける」「ふるまいを単位に起こして固める」で起動。
-  ふるまい（When/Then）の発案（0→1）は人間——AI は §3 を発案せず、人間が語った内容を忠実に転記する。MODEL レベルの矛盾は確認のうえ
-  moira-model-update へ委譲する。Opus 4.8+ / effort max を強く推奨する高コスト操作。
+  ふるまい（When/Then）の発案（0→1）は人間——AI は §3 を発案せず、人間が語った内容を忠実に転記する
+  （新規シナリオの規律。既存 unit の変更は、変更 issue に人間が書いたふるまい記述を発案として扱ってよい）。
+  MODEL レベルの矛盾は確認のうえ moira-model-update へ委譲する。Opus 4.8+ / effort max を強く推奨する高コスト操作。
 allowed-tools: Read, Write, Edit, Bash, Grep, Glob, Agent, AskUserQuestion, WebSearch, WebFetch, Skill
 argument-hint: <slug or 既存ユニットパス> [--rounds N]
 model: opus
@@ -28,7 +29,16 @@ behavior in their own words (verbally or in notes), the AI MAY summarize/transcr
 provided (a) it stays faithful to what the human said and introduces no new behavior, (b) any added
 boundary is surfaced for user confirmation, and (c) the human reads it back and ratifies it as their
 intent. When the human has NOT originated the behavior (e.g. "make a discovery scenario" with no
-articulated behavior), the AI must emit the seed template and stop — it never originates. The AI's
+articulated behavior), the AI must emit the seed template and stop — it never originates.
+**Relaxation for edits to an existing unit (2026-07-19, issue #39): origination stays human — what
+relaxes is only how it is received. For an existing unit (one with a filled §3; a seed-only file
+counts as NEW), a behavior description the human wrote verbatim in the change issue counts as the
+origination, and the AI may faithfully revise §3 from it (same fidelity conditions; read-back
+ratification may be satisfied by the change-management flow's HA pre-ratification record plus the
+judge's intent-conformance check). Only the human's verbatim text qualifies — the flow's P1
+AI-clarified restatement never does. When the issue carries no human-written behavior
+(machine-filed etc.), the AI asks the human — in the flow, at the first-half consolidated session.
+NEW scenarios are unchanged: the AI never originates §3.** The AI's
 role is grounding, rendering, adversarial verification, and faithful transcription of
 human-originated behavior — not origination. Violating this — the AI originating the behavior —
 collapses the scenario into AI grading its own homework, destroying its external-validity purpose.

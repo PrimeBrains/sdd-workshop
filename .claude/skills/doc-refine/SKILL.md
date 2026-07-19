@@ -28,7 +28,10 @@ three shared-rules:
 - `adversarial-vectors.md` — attack-angle catalog: general-doc angles G1–G4 / agent-definition
   angles D1–D6.
 - `review-gate.md` — falsifiable gate, three-party separation, same-round rebuttal
-  re-challenge, contradiction adjudication, user-confirmed primary sources, termination.
+  re-challenge, contradiction adjudication, user-confirmed primary sources, termination, and
+  change-management-flow integration (a pre-ratified intent record from `moira-change` HA is
+  accepted as human-approval evidence; deviations and uncovered forks still go to the user via
+  the flow's fork batch).
 
 In one line: classify the target (general doc vs agent definition), confirm the primary-source
 set with the user, run the adversarial loop (`doc-adversary` in parallel → route human-intent

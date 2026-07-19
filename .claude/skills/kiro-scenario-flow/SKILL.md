@@ -38,6 +38,12 @@ it**. External validity is instead anchored by two human acts:
 2. **Draft ratification (after render, before the loop):** the human reviews the AI-generated
    through-line value (§1/§3) and ratifies it — "yes, this is the through-line I want verified."
 
+**Change-management-flow integration (2026-07-19, issue #39):** when invoked from `moira-change`
+P4, the flow's HA pre-ratification record (intent + acceptance criteria) may serve as the evidence
+for scope approval and draft ratification, with the gate judge's intent-conformance check standing
+in for verbatim final-text ratification; deviations and uncovered genuine forks still go to the
+user via the flow's fork batch (see `../doc-refine/review-gate.md`).
+
 Freezing an AI-generated through-line without scope approval and draft ratification collapses the
 flow into "the AI picks the units, the AI writes the value, the AI passes it" — self-grading that
 destroys external validity. **The verification loop exists precisely to adversarially check this

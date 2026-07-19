@@ -27,7 +27,11 @@ three shared-rules:
   subagent dispatch, per-round cost caps.
 - `adversarial-vectors.md` — attack-angle catalog: model angles V1–V6 / skill angles S1–S8.
 - `review-gate.md` — falsifiable gate, three-party separation, same-round rebuttal
-  re-challenge, contradiction adjudication, termination, handling of existing §6 provenance.
+  re-challenge, contradiction adjudication, termination, handling of existing §6 provenance, and
+  change-management-flow integration (a pre-ratified intent record from `moira-change` HA is
+  accepted as human-approval evidence; deviations and uncovered forks go to the user via the
+  flow's fork batch; forks/ratifications are presented in plain D/P/S-granularity language,
+  never raw MODEL clause text).
 
 In one line: classify the target (MODEL-class vs other design artifact), run the adversarial
 loop (`moira-adversary` in parallel → route human-intent FORKs to the user → `moira-fact-checker`

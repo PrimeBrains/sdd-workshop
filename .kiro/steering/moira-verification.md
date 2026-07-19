@@ -95,7 +95,7 @@
 | **E2E・シナリオ回帰** | `agreed` シナリオ unit から生成 | 妥当性の**preservation（回帰固定）**。establishment ではない | 毎 CI |
 | **アーキ適合（fitness関数）** | 実装の依存構造・モジュール境界 | **構造判断**（境界・所有権・依存方向。「core は下流の値を import しない」「式は evm にしか無い」「surface は seam 経由でのみ読む」等） | 毎 CI（dependency-cruiser。**トポロジ2ルール導入済・稼働**＝`no-circular`＋`fold-no-downstream`＝monolith 段階の弱い境界。強い CQRS fitness は物理分解後） |
 
-**整備状況（正直・2026-06-27 テスト基盤ステージで更新）**: **CI（`.github/workflows/ci.yml`）新設・稼働**（backend: `tsc` build＋型テスト＋`vitest run`＋カバレッジ＋dependency-cruiser／frontend: typecheck＋lint＋`vitest run`＋カバレッジ）。カバレッジ計測（@vitest/coverage-v8）配線済。第1器 PBT は**最小パイロット稼働**（green 5＋PR-DONE-LOCK★ は RED tripwire）、**第3器 E2E はブラウザ・シナリオ回帰 suite を新設・稼働**（`moira/frontend/e2e/`＝Playwright。`agreed` unit から `kiro-scenario-e2e` が生成し、シナリオの**全目標**をアサート。実装済み観測＝green 回帰固定、unit が「(スライス未描画)」/(新規) と明示する観測＝`test.fail()` 期待失敗トリップワイヤ〔`it.fails` PR-DONE-LOCK★ のブラウザ版・スライスが追いつくと予期せず pass→CI 赤→昇格〕。fixture は §2/§5 の忠実転記＋derive-golden で先に検証、各 green は非空虚を証明、`e2e-scenario-checker`〔著者≠照合者〕＋`doc-adversary`＋`doc-gate-judge` で確定。`e2e/coverage-check.test.ts` が agreed unit↔spec↔§6 EARS 被覆を毎 CI ゲート。**preservation（回帰固定）であって establishment ではない**——従来の golden/rederive＋frontend SSR golden パリティは in-process の補完として継続〔「e2e を整合性検証の代替にしない」〕）、**第4器 アーキ適合は基盤導入＝トポロジ2ルール稼働**（`no-circular`＋`fold-no-downstream`＝monolith 段階の弱い境界。強い CQRS fitness は分解後）。**第2器 境界モデル検査は依然未実装**。⑥AI整合性チェックは**サンプル試走済**（D-34/D-40＝ALIGNED）・網羅実走は後続。**整備は agreed（D-1〜D-3）分のみ**反映し proposed は据え置き（「割付≠検証済」）。表の「`moira-model-update` ゲート内」（第2器）は**到達目標**であり現状の稼働ではない。
+**整備状況（正直・2026-06-27 テスト基盤ステージで更新）**: **CI（`.github/workflows/ci.yml`）新設・稼働**（backend: `tsc` build＋型テスト＋`vitest run`＋カバレッジ＋dependency-cruiser／frontend: typecheck＋lint＋`vitest run`＋カバレッジ）。カバレッジ計測（@vitest/coverage-v8）配線済。第1器 PBT は**最小パイロット稼働**（green 5＋PR-DONE-LOCK★ は RED tripwire）、**第3器 E2E はブラウザ・シナリオ回帰 suite を新設・稼働**（`moira/frontend/e2e/`＝Playwright。`agreed` unit から `kiro-scenario-e2e` が生成し、シナリオの**全目標**をアサート。実装済み観測＝green 回帰固定、unit が「(スライス未描画)」/(新規) と明示する観測＝`test.fail()` 期待失敗トリップワイヤ〔`it.fails` PR-DONE-LOCK★ のブラウザ版・スライスが追いつくと予期せず pass→CI 赤→昇格〕。fixture は §2/§5 の忠実転記＋derive-golden で先に検証、各 green は非空虚を証明、`e2e-scenario-checker`〔著者≠照合者〕＋`doc-adversary`＋`doc-gate-judge` で確定。`moira/frontend/e2e/coverage-check.test.ts` が agreed unit↔spec↔§6 EARS 被覆を毎 CI ゲート。**preservation（回帰固定）であって establishment ではない**——従来の golden/rederive＋frontend SSR golden パリティは in-process の補完として継続〔「e2e を整合性検証の代替にしない」〕）、**第4器 アーキ適合は基盤導入＝トポロジ2ルール稼働**（`no-circular`＋`fold-no-downstream`＝monolith 段階の弱い境界。強い CQRS fitness は分解後）。**第2器 境界モデル検査は依然未実装**。⑥AI整合性チェックは**サンプル試走済**（D-34/D-40＝ALIGNED）・網羅実走は後続。**整備は agreed（D-1〜D-3）分のみ**反映し proposed は据え置き（「割付≠検証済」）。表の「`moira-model-update` ゲート内」（第2器）は**到達目標**であり現状の稼働ではない。
 
 **爆発制御の規律**：境界モデル検査は**小スコープ＋対称性簡約＋プロパティごとの最小フラグメント**で回し、**検証スコープを明示**する（例「ノード≤4・actor≤3・イベント≤8」）。**連続／大領域（日付・c(i,d)・予算）はモデル検査に入れない**——状態爆発を招くため PBT 側へ。離散・順序のみをモデル検査へ。反例の witness は実際小さい（R-E3/I4＝1ノード数イベント、R-U12＝1ノード2人2イベント等）。
 
@@ -152,8 +152,13 @@
 
 ## 変更時のゲート対応
 
+> **入口〜出口の配線（変更管理フロー・2026-07-19 構築・issue #39）**: 本表は「どの変更がどのゲートへ」の
+> 対応のみを定める。**issue 受付 → 影響調査 → ルーティング → 既存ゲート起動 → 同期閉包確認 → クローズ**の
+> 工程間配線は [moira-change-management.md](moira-change-management.md)（ratified DFD の確定版）と
+> skill `moira-change` が所有する。同フローは本表・各 skill の委譲辺を変更しないオーケストレーション層である。
+
 - MODEL の制約・語彙・既定を変える → `moira-model-update`（不変条件の形式スライス・bound プロパティ・モデル検査を同一 run で再確定）。
 - **設計判断（Decisions）を新規・改訂し批准する → `doc-refine`（`moira/DECISIONS-CATALOG.md` を確定ゲートで磨く）。MODEL の制約・語彙・既定に触れる判断は `moira-model-update` で正典へ昇格。**
 - 確定文書（steering・エージェント定義等）を磨く → `doc-refine`。
-- **`agreed` シナリオ unit から E2E シナリオ回帰（計器③）を生成・更新する → `kiro-scenario-e2e`**（fixture は §2/§5 忠実転記＋derive-golden、全 EARS 節を green/xfail/deferred で計上、`e2e-scenario-checker`〔著者≠照合者〕＋`doc-adversary`＋`doc-gate-judge` で確定、`e2e/coverage-check.test.ts` が被覆を毎 CI ゲート）。
+- **`agreed` シナリオ unit から E2E シナリオ回帰（計器③）を生成・更新する → `kiro-scenario-e2e`**（fixture は §2/§5 忠実転記＋derive-golden、全 EARS 節を green/xfail/deferred で計上、`e2e-scenario-checker`〔著者≠照合者〕＋`doc-adversary`＋`doc-gate-judge` で確定、`moira/frontend/e2e/coverage-check.test.ts` が被覆を毎 CI ゲート）。
 - 関連: [moira-model.md](moira-model.md) ／ [moira-naming.md](moira-naming.md) ／ [testing-conventions.md](testing-conventions.md) ／ `moira/MODEL.md` ／ `moira/PROPERTIES.md` ／ `moira/DECISIONS-CATALOG.md`（人間レビュー目録） ／ `moira/DECISIONS.md`（意思決定ジャーナル＝来歴） ／ `.kiro/scenarios/README.md`。

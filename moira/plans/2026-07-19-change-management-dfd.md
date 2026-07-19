@@ -172,7 +172,7 @@ HEAD＝P5 開始時に固定）を閉包の必要条件とする。
 | 波及の種類 | 検証器 | 証跡としての扱い（正直枠） |
 |---|---|---|
 | MODEL 変更の派生同期（NAMING・steering・ジャーナル・参照実装 types/fold） | `moira-model-update` ゲート自身の同期義務＋`doc-fact-checker`（影響マップ範囲） | ゲートの「残存 Critical=0＋Important 全件 disposition」判定＋批准記録（deferred Important があれば閉包レポートに全件列挙。後続 issue の openness は P5 が `gh issue view` で機械照合し証跡化——人間は「できないこと差分」の平易ビューだけを読む）。**M 行の postcondition は `moira-model-update` の現行規範が実施する範囲**（敵対ゲート・bound プロパティ再批准・派生同期）に限る——**境界モデル検査（第2器）は未実装（正典自身が「到達目標」と開示）のため resolved 条件に含めず**、その不在は下記「P5 の限界」の未整備義務に計上する |
-| Decision ↔ 実装の整合（計器⑥） | `decision-conformance`。**対象選定は map→Decision に加え、changed path → 目録裏面 ref の逆引き** | verdict→3値の写像は上記。**逆引きの実行定義**: ①機械段＝changed path のパス片・ファイル名で目録全文を grep、②AI 段＝ヒット近傍の Decision を照合 subagent が意味的に突合。**裏面 ref は自由記述混在で機械逆引きの完全性は主張できない**——未記載・曖昧 ref による取りこぼしは「P5 の限界」の残余に計上し、恒久対策（裏面 ref への機械可読 path フィールドの正規化）は §8 未決事項 6 |
+| Decision ↔ 実装の整合（計器⑥） | `decision-conformance`。**対象選定は map→Decision に加え、changed path → 目録裏面 ref の逆引き** | verdict→3値の写像は上記。**逆引きの実行定義**: ①機械段＝changed path のパス片・ファイル名で目録全文を grep、②AI 段＝ヒット近傍の Decision を照合 subagent が意味的に突合。**裏面 ref は自由記述混在で機械逆引きの完全性は主張できない**——未記載・曖昧 ref による取りこぼしは「P5 の限界」の残余に計上し、恒久対策は §8 未決事項 6〔裁定済み: 本行の旧文面「機械可読 path フィールドの正規化」は棄却され、**裏面削除方向＋checker 意味突合化**が裁定——§8-6 が本行を上書きする〕 |
 | シナリオ unit/flow ↔ E2E ↔ EARS 被覆 | `e2e/coverage-check.test.ts`（毎 CI）＋`e2e-scenario-checker` | CI green＋checker verdict |
 | clause ↔ property 被覆 | PROPERTIES.md の被覆表（手動表） | 手動表の更新を照合 subagent が確認 |
 | コード品質・回帰 | codex レビュー＋CI（計器①②③④） | レビュー結果＋CI green |
