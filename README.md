@@ -85,3 +85,13 @@ sdd-workshop/
 
 - [cc-sdd 公式ドキュメント（日本語）](https://github.com/PrimeBrains/cc-sdd/tree/main/docs/guides/ja)
 - [仕様駆動開発の理想と現実、そして向き合い方（Speaker Deck）](https://speakerdeck.com/gotalab555/shi-yang-qu-dong-kai-fa-noli-xiang-toxian-shi-sositexiang-kihe-ifang)
+
+---
+
+## moira の移転
+
+本リポジトリで育ててきたプロジェクト管理基盤 **moira** は、2026-07-20 に専用リポジトリ
+**https://github.com/PrimeBrains/moira** へ移転しました（issue #42）。
+
+以後の moira 関連の開発・ドキュメント参照は新リポジトリで行ってください。本リポジトリに
+残る旧パスから新リポジトリへの対応表は [`moira/README.md`](moira/README.md) を参照してください。
