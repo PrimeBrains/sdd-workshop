@@ -9,7 +9,7 @@ description: >-
   無いかを検証する。各 EARS 節に GREEN / XFAIL-JUSTIFIED / DISCREPANCY を返す。spec を書き換えない（著者≠照合者）。
   テストの良し悪し（validity）は判定しない——扱うのは conformance のみ。
 tools: Read, Grep, Glob, Bash
-model: opus
+model: sonnet
 ---
 
 # e2e-scenario-checker

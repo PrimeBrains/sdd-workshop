@@ -6,7 +6,7 @@ description: >-
   パス・本数・数式——を、**リポ内の一次ナレッジと確定ブランチ（git show/grep）**に照らして検証する。
   各主張に CONFIRMED / CORRECTED（正値＋出典付き）/ UNVERIFIABLE を返す。設計判断はしない。
 tools: Read, Grep, Glob, Bash, WebSearch, WebFetch
-model: opus
+model: sonnet
 ---
 
 # doc-fact-checker

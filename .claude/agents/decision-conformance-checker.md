@@ -7,7 +7,7 @@ description: >-
   自動テストに落とせない判断（計器⑥）の照合（＋テスト未整備領域の暫定照合）が主務。本機構は定義済・サンプル試走済（網羅実走は後続）。各判断に ALIGNED / DRIFTED / UNVERIFIABLE を返す。
   「強制していない」を確かめる**負の照合**も担う。設計判断の良し悪し（validity）は判定しない。
 tools: Read, Grep, Glob, Bash
-model: opus
+model: sonnet
 ---
 
 # decision-conformance-checker

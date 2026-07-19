@@ -33,8 +33,9 @@ three shared-rules:
 In one line: classify the target (general doc vs agent definition), confirm the primary-source
 set with the user, run the adversarial loop (`doc-adversary` in parallel → route human-intent
 FORKs to the user → `doc-fact-checker` for factual claims → patch in the author context only →
-`doc-gate-judge` per round), and commit only on **zero surviving Critical/Important**, all forks
-routed, primary sources confirmed, nothing unresolved at the round cap.
+`doc-gate-judge` per round), and commit only on **zero surviving Critical (all Important dispositioned — fixed / soundly
+refuted / tracked-deferred)**, all forks routed, primary sources confirmed, nothing unresolved
+at the round cap.
 
 ## Boundary with existing skills
 

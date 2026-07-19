@@ -194,7 +194,7 @@ MODEL.md は「書いた本人が満足したらコミット」しない。**独
 2. [`moira-model-update`](../.claude/skills/moira-model-update/) スキルを起動(Opus 4.8+ / effort max 推奨)
 3. 独立敵対者(`moira-adversary`)が並列で穴を出す → genuine な分岐はユーザーに質問 →
    事実主張は `moira-fact-checker` で裏取り → 主コンテキストがパッチ → 独立採点者
-   (`moira-gate-judge`)が「残存 Critical/Important = 0」を判定
+   (`moira-gate-judge`)が「残存 Critical = 0＋Important 全件 disposition」を判定
 4. 通過後、MODEL.md をその場で確定・版を上げ・§6 来歴を追記
 5. 解消した分岐を [`DECISIONS.md`](./DECISIONS.md) に追記
 

@@ -6,7 +6,7 @@ description: >
   CONFIRMED / CORRECTED（正しい事実とソース付き）/ UNVERIFIABLE を返し、「文句なし」まで反復
   される。設計判断はしない。
 tools: Read, WebSearch, WebFetch, Grep, Glob
-model: opus
+model: sonnet
 ---
 
 # moira-fact-checker

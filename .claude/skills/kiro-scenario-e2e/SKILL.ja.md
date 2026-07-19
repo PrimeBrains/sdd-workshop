@@ -111,7 +111,7 @@ npm run e2e:coverage                                    # §6 全節計上・agr
    穴を重大度分類で出させる（`../doc-refine/review-gate.md` の三者分離・falsifiable ゲートに準拠）。
 3. 指摘を**修正 or 明示反証**で決着（DISCREPANCY はユーザー裁定を仰いだ上で spec/meta/fixture か、必要なら
    `kiro-scenario`／実装側へ差し戻し）。
-4. **`doc-gate-judge`**（Agent）に PASS/FAIL を仰ぐ：「反論されない Critical/Important = 0」かつ「全 DISCREPANCY が
+4. **`doc-gate-judge`**（Agent）に PASS/FAIL を仰ぐ：「反論されない Critical = 0、Important は全件 disposition（修正／健全な反証／追跡付き deferred）」かつ「全 DISCREPANCY が
    裁定済み・全 xfail が unit 明示に裏打ち・全 green が非空虚」。FAIL なら 1 に戻る。
 
 ## 7. 確定

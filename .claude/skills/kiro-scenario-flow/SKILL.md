@@ -69,9 +69,10 @@ the flow-specific through-line value** → **have the human review and ratify th
 loop** → run the loop (`doc-adversary` in parallel with G1–G4 + FC1–FC7 → route human-intent FORKs →
 `doc-fact-checker` on chain/trace/numeric claims → escalate member-unit defects to `kiro-scenario`
 and MODEL-canon gaps to `moira-model-update` after a user checkpoint → patch in the author context
-only → `doc-gate-judge` per round) → confirm `agreed` only on zero surviving Critical/Important,
-scope approved, draft ratified, sources confirmed, all escalations resolved, **every member in
-`composes:` is `agreed`**, nothing unresolved at the round cap.
+only → `doc-gate-judge` per round) → confirm `agreed` only on zero surviving Critical (all
+Important dispositioned — fixed / soundly refuted / tracked-deferred), scope approved, draft
+ratified, sources confirmed, all escalations resolved, **every member in `composes:` is
+`agreed`**, nothing unresolved at the round cap.
 
 ## Boundary with existing skills
 

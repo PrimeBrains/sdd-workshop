@@ -54,8 +54,9 @@ is still empty; else, if nothing was originated, emit the seed template and stop
 render the unit per `.kiro/scenarios/README.md` → run the loop (`doc-adversary` in parallel →
 route human-intent FORKs → `doc-fact-checker` → **escalate MODEL-canon gaps to `moira-model-update`
 after a user checkpoint** → patch in the author context only → `doc-gate-judge` per round) →
-confirm `agreed` only on zero surviving Critical/Important, all forks routed, sources confirmed,
-all MODEL escalations resolved, nothing unresolved at the round cap.
+confirm `agreed` only on zero surviving Critical (all Important dispositioned — fixed / soundly
+refuted / tracked-deferred), all forks routed, sources confirmed, all MODEL escalations resolved,
+nothing unresolved at the round cap.
 
 ## Boundary with existing skills
 

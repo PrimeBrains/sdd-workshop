@@ -32,8 +32,9 @@ three shared-rules:
 In one line: classify the target (MODEL-class vs other design artifact), run the adversarial
 loop (`moira-adversary` in parallel → route human-intent FORKs to the user → `moira-fact-checker`
 for factual claims → patch in the author context only → `moira-gate-judge` per round), and
-commit only on **zero surviving Critical/Important**, all forks routed, nothing unresolved at the
-round cap — branching the commit step by target kind.
+commit only on **zero surviving Critical (all Important dispositioned — fixed / soundly refuted /
+tracked-deferred)**, all forks routed, nothing unresolved at the round cap — branching the commit
+step by target kind.
 
 ## Boundary with existing skills
 
