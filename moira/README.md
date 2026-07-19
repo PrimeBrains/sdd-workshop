@@ -213,6 +213,20 @@ Playwright E2E に落ちる。
 加えて `dependency-cruiser`(計器①)が循環依存と層境界を、`decision-conformance`(計器⑥)が
 設計判断↔実装の整合を照合する。
 
+### moira への変更の出し方(変更管理フローの入口)
+
+上のゲート群は**工程単位**の品質装置。それらを**工程間で配線**するのが変更管理フロー
+(skill [`moira-change`](../.claude/skills/moira-change/))。moira への変更を**このフローに載せる
+ときの入口**は次のとおり(強制はしない紳士協定——フローを通らない直接変更も可能なまま残り、
+漏れは検知器が拾って issue 再入する):
+
+- **変更要求は GitHub issue に正規化**して `moira-change` で流す——影響調査 → ルーティング
+  (変更クラスと経路の判定) → 既存ゲート起動 → 同期閉包確認 → クローズ
+- **軽量な変更**(誤字修正など)は受付の triage で「フロー不起動」と判定され、通常作業でよい
+  (判定理由が issue に一言残る)
+- 規範は [`../.kiro/steering/moira-change-management.md`](../.kiro/steering/moira-change-management.md)
+  (人間批准済み DFD の確定版)
+
 ---
 
 ## SDD への接続(進行中)
